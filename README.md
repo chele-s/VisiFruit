@@ -1,7 +1,7 @@
 # 🍓 VisiFruit - Sistema Inteligente de Etiquetado de Frutas por Visión Artificial
 
 <p align="center">
-<img src="https://placehold.co/600x300/34D399/FFFFFF?text=VisiFruit&font=raleway" alt="Logo de VisiFruit">
+<img src="Others/Images/VisiFruit Logo Github.png" alt="Logo de VisiFruit">
 </p>
 
 <p align="center">
