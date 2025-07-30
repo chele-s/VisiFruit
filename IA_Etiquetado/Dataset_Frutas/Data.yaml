@@ -1,0 +1,45 @@
+# Dataset de Frutas para YOLOv12 - VisiFruit System
+# ====================================================
+
+path: IA_Etiquetado/Dataset_Frutas  # ruta raíz del dataset
+train: images/train  # ruta relativa para imágenes de entrenamiento
+val: images/val      # ruta relativa para imágenes de validación  
+test: images/test    # ruta relativa para imágenes de prueba
+
+# Número de clases
+nc: 10
+
+# Nombres de las clases (debe coincidir con Config_Etiquetadora.json)
+names:
+  0: apple
+  1: orange
+  2: banana
+  3: grape
+  4: strawberry
+  5: pineapple
+  6: mango
+  7: watermelon
+  8: lemon
+  9: peach
+
+# Metadatos adicionales
+info:
+  description: "Dataset de frutas para detección y clasificación en tiempo real"
+  version: "2.0"
+  year: 2025
+  contributor: "Gabriel Calderón, Elias Bautista, Cristian Hernandez"
+  date_created: "2025-07-01"
+  
+# Configuraciones de entrenamiento recomendadas
+train_settings:
+  epochs: 100
+  batch_size: 16
+  image_size: 640
+  learning_rate: 0.01
+  
+# Métricas objetivo
+target_metrics:
+  mAP50: 0.90      # Mean Average Precision at IoU=0.5
+  mAP50_95: 0.75   # Mean Average Precision at IoU=0.5:0.95
+  precision: 0.85   # Precisión objetivo
+  recall: 0.80      # Recall objetivo
