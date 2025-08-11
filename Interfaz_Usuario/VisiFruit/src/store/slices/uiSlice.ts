@@ -1,7 +1,16 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 
 export type ThemeMode = 'light' | 'dark' | 'auto'
-export type ViewMode = 'dashboard' | 'production' | 'analytics' | 'settings' | '3d-view'
+export type ViewMode =
+  | 'dashboard'
+  | 'production'
+  | 'analytics'
+  | 'metrics'
+  | 'alerts'
+  | 'reports'
+  | 'maintenance'
+  | 'config'
+  | '3d-view'
 
 interface UIState {
   themeMode: ThemeMode

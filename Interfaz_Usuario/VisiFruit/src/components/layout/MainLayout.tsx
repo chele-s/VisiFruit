@@ -28,6 +28,8 @@ import DashboardView from '../views/DashboardView'
 import ProductionView from '../views/ProductionView'
 import AnalyticsView from '../views/AnalyticsView'
 import Dashboard3DView from '../views/Dashboard3DView'
+import AlertsList from '../alerts/AlertsList'
+import MetricsChart from '../charts/MetricsChart'
 
 const MainLayout: React.FC = () => {
   const theme = useTheme()
@@ -94,6 +96,30 @@ const MainLayout: React.FC = () => {
         return <ProductionView />
       case 'analytics':
         return <AnalyticsView />
+      case 'metrics':
+        return (
+          <Box sx={{ height: '100%' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Métricas</Typography>
+            <Box sx={{ height: 'calc(100% - 40px)' }}>
+              <MetricsChart />
+            </Box>
+          </Box>
+        )
+      case 'alerts':
+        return (
+          <Box sx={{ height: '100%' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Alertas</Typography>
+            <Box sx={{ height: 'calc(100% - 40px)' }}>
+              <AlertsList />
+            </Box>
+          </Box>
+        )
+      case 'reports':
+        return <Typography>Reportes (en construcción)</Typography>
+      case 'maintenance':
+        return <Typography>Mantenimiento (en construcción)</Typography>
+      case 'config':
+        return <Typography>Configuración (en construcción)</Typography>
       case '3d-view':
         return <Dashboard3DView />
       default:
@@ -288,7 +314,7 @@ const MainLayout: React.FC = () => {
         sx={{
           flexGrow: 1,
           mt: 8,
-          p: 3,
+          p: { xs: 2, md: 3 },
           transition: theme.transitions.create(['margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

@@ -45,11 +45,11 @@ const navigationItems: NavigationItem[] = [
 ]
 
 const systemItems: NavigationItem[] = [
-  { id: 'settings', label: 'Métricas', icon: <MetricsIcon /> },
-  { id: 'settings', label: 'Alertas', icon: <AlertsIcon />, badge: 3 },
-  { id: 'settings', label: 'Reportes', icon: <ReportsIcon /> },
-  { id: 'settings', label: 'Mantenimiento', icon: <MaintenanceIcon /> },
-  { id: 'settings', label: 'Configuración', icon: <SettingsIcon /> },
+  { id: 'metrics', label: 'Métricas', icon: <MetricsIcon /> },
+  { id: 'alerts', label: 'Alertas', icon: <AlertsIcon />, badge: 3 },
+  { id: 'reports', label: 'Reportes', icon: <ReportsIcon /> },
+  { id: 'maintenance', label: 'Mantenimiento', icon: <MaintenanceIcon /> },
+  { id: 'config', label: 'Configuración', icon: <SettingsIcon /> },
 ]
 
 const Sidebar: React.FC = () => {
@@ -330,9 +330,9 @@ const Sidebar: React.FC = () => {
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Chip
-            label="Online"
+            label={status.status === 'running' ? 'Online' : 'Offline'}
             size="small"
-            color="success"
+            color={status.status === 'running' ? 'success' : 'default'}
             sx={{ fontSize: '0.7rem' }}
           />
           <Chip
