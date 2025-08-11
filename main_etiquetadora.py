@@ -3,13 +3,13 @@
 Sistema Industrial de Etiquetado Múltiple de Frutas FruPrint v3.0 ULTRA
 ========================================================================
 
-Sistema de control principal ultra-avanzado con 5 etiquetadoras automáticas por categoría,
+Sistema de control principal ultra-avanzado con 2 etiquetadoras automáticas por categoría,
 IA de categorización avanzada, motor DC de posicionamiento automático y optimización
 predictiva en tiempo real.
 
 NUEVAS CARACTERÍSTICAS v3.0 ULTRA:
-- 5 Etiquetadoras Automáticas con Motor DC de Posicionamiento
-- IA de Categorización Avanzada (Manzana, Naranja, Plátano, Uva, Fresa)
+ - 6 Etiquetadoras Automáticas (2 por categoría) con Motor DC de Posicionamiento
+ - IA de Categorización Avanzada (Manzana, Pera y Limón)
 - Sistema de Predicción y Auto-Optimización
 - Pool de Workers Ultra-Concurrente
 - Cache Inteligente Multi-Nivel
@@ -148,49 +148,68 @@ def intelligent_cache(ttl_seconds: int = 300, max_size: int = 1000):
     def decorator(func):
         cache = {}
         access_times = {}
-        
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Crear clave única
-            key = hashlib.md5(pickle.dumps((args, kwargs))).hexdigest()
-            current_time = time.time()
-            
-            # Limpiar cache expirado
-            expired_keys = [k for k, t in access_times.items() if current_time - t > ttl_seconds]
+
+        def _make_key(args, kwargs):
+            try:
+                key_source = pickle.dumps((args, kwargs))
+            except Exception:
+                try:
+                    key_source = repr((args, kwargs)).encode("utf-8", errors="ignore")
+                except Exception:
+                    key_source = f"{id(args)}-{id(kwargs)}-{time.time()}".encode("utf-8")
+            return hashlib.md5(key_source).hexdigest()
+
+        def _evict_and_cleanup(now):
+            expired_keys = [k for k, t in access_times.items() if now - t > ttl_seconds]
             for k in expired_keys:
                 cache.pop(k, None)
                 access_times.pop(k, None)
-            
-            # Verificar límite de tamaño
-            if len(cache) >= max_size:
-                # Remover el más antiguo
+            if len(cache) >= max_size and access_times:
                 oldest_key = min(access_times.keys(), key=lambda k: access_times[k])
                 cache.pop(oldest_key, None)
                 access_times.pop(oldest_key, None)
-            
-            # Verificar cache
-            if key in cache:
-                access_times[key] = current_time
-                return cache[key]
-            
-            # Ejecutar función
-            if asyncio.iscoroutinefunction(func):
+
+        if asyncio.iscoroutinefunction(func):
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                current_time = time.time()
+                key = _make_key(args, kwargs)
+                _evict_and_cleanup(current_time)
+                if key in cache:
+                    access_times[key] = current_time
+                    return cache[key]
                 result = await func(*args, **kwargs)
-            else:
+                cache[key] = result
+                access_times[key] = current_time
+                return result
+
+            return async_wrapper
+        else:
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                current_time = time.time()
+                key = _make_key(args, kwargs)
+                _evict_and_cleanup(current_time)
+                if key in cache:
+                    access_times[key] = current_time
+                    return cache[key]
                 result = func(*args, **kwargs)
-            
-            # Guardar en cache
-            cache[key] = result
-            access_times[key] = current_time
-            
-            return result
-        
-        return wrapper
+                cache[key] = result
+                access_times[key] = current_time
+                return result
+
+            return sync_wrapper
     return decorator
 
 logger = logging.getLogger("FruPrintUltra")
 
 # ==================== ENUMS Y TIPOS ====================
+
+# ==================== CONSTANTES DE CONFIGURACIÓN ====================
+# Cantidad de etiquetadoras por grupo y totales
+LABELERS_PER_GROUP = 2
+NUM_LABELER_GROUPS = 3
+TOTAL_LABELERS = LABELERS_PER_GROUP * NUM_LABELER_GROUPS
 
 class SystemState(Enum):
     """Estados del sistema ultra-industrial."""
@@ -231,16 +250,21 @@ class FruitCategory(Enum):
         self.emoji = emoji
         self.color = color
 
+    @property
+    def labeler_id(self) -> int:
+        """Alias para compatibilidad: devuelve el ID del grupo de etiquetadoras."""
+        return self.labeler_group_id
+
 class LabelerGroup(Enum):
-    """Grupos de etiquetadoras lineales - 4 etiquetadoras por grupo."""
-    GROUP_APPLE = (0, "apple", [0, 1, 2, 3])    # Grupo manzanas: etiquetadoras 0-3
-    GROUP_PEAR = (1, "pear", [4, 5, 6, 7])      # Grupo peras: etiquetadoras 4-7  
-    GROUP_LEMON = (2, "lemon", [8, 9, 10, 11])  # Grupo limones: etiquetadoras 8-11
+    """Grupos de etiquetadoras lineales - 2 etiquetadoras por grupo."""
+    GROUP_APPLE = (0, "apple", [0, 1])    # Grupo manzanas: etiquetadoras 0-1
+    GROUP_PEAR = (1, "pear", [2, 3])      # Grupo peras: etiquetadoras 2-3  
+    GROUP_LEMON = (2, "lemon", [4, 5])    # Grupo limones: etiquetadoras 4-5
     
     def __init__(self, group_id: int, category: str, labeler_ids: list):
         self.group_id = group_id
         self.category = category
-        self.labeler_ids = labeler_ids  # IDs de las 4 etiquetadoras en este grupo
+        self.labeler_ids = labeler_ids  # IDs de las etiquetadoras en este grupo
 
 class ProcessingPriority(Enum):
     """Prioridades de procesamiento."""
@@ -329,6 +353,23 @@ class UltraSystemMetrics:
     labeler_switch_count: int = 0
     motor_runtime_hours: float = 0.0
 
+    # Aliases para compatibilidad con usos existentes en el código
+    @property
+    def fruits_detected(self) -> int:
+        return self.total_fruits_detected
+
+    @fruits_detected.setter
+    def fruits_detected(self, value: int):
+        self.total_fruits_detected = value
+
+    @property
+    def labels_applied(self) -> int:
+        return self.total_labels_applied
+
+    @labels_applied.setter
+    def labels_applied(self, value: int):
+        self.total_labels_applied = value
+
 @dataclass
 class LabelerMetrics:
     """Métricas específicas de una etiquetadora."""
@@ -405,10 +446,16 @@ class UltraPatternAnalyzer:
         
         if category_frequencies:
             most_common = max(category_frequencies.items(), key=lambda x: x[1])
-            try:
-                return FruitCategory[most_common[0].upper()]
-            except KeyError:
-                return FruitCategory.UNKNOWN
+            category_key = most_common[0]
+            # Soportar tanto claves Enum como str
+            if isinstance(category_key, FruitCategory):
+                return category_key
+            if isinstance(category_key, str):
+                try:
+                    return FruitCategory[category_key.upper()]
+                except KeyError:
+                    return FruitCategory.UNKNOWN
+            return FruitCategory.UNKNOWN
         
         return None
 
@@ -457,7 +504,7 @@ class UltraPredictionEngine:
         })
 
 class UltraLinearMotorController:
-    """Controlador ultra-avanzado del motor DC para sistema lineal de 4 etiquetadoras."""
+    """Controlador ultra-avanzado del motor DC para sistema lineal de 2 etiquetadoras por grupo."""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -468,7 +515,7 @@ class UltraLinearMotorController:
             "enable_pin": 16
         })
         
-        # Sistema lineal: 3 grupos de 4 etiquetadoras cada uno
+        # Sistema lineal: 3 grupos de 2 etiquetadoras cada uno
         self.labeler_groups = {
             FruitCategory.APPLE: LabelerGroup.GROUP_APPLE,
             FruitCategory.PEAR: LabelerGroup.GROUP_PEAR,
@@ -479,11 +526,8 @@ class UltraLinearMotorController:
         self.is_moving = False
         self.is_calibrated = False
         self.pwm_instance = None
-        self.group_positions = {
-            0: "down",  # Posición actual del grupo manzanas
-            1: "up",    # Posición actual del grupo peras  
-            2: "up"     # Posición actual del grupo limones
-        }
+        # Posiciones iniciales de los grupos (dinámico por número de grupos)
+        self.group_positions = {g: ("down" if g == 0 else "up") for g in range(NUM_LABELER_GROUPS)}
         
     async def initialize(self) -> bool:
         """Inicializa el controlador del motor."""
@@ -560,7 +604,7 @@ class UltraLinearMotorController:
             self.is_moving = False
             
             categories = {0: "🍎", 1: "🍐", 2: "🍋"}
-            logger.info(f"✅ Grupo {categories.get(target_group_id, '?')} activo - 4 etiquetadoras listas")
+            logger.info(f"✅ Grupo {categories.get(target_group_id, '?')} activo - {LABELERS_PER_GROUP} etiquetadoras listas")
             return True
             
         except Exception as e:
@@ -602,7 +646,7 @@ class UltraLinearMotorController:
     
     def _update_group_positions(self, active_group_id: int):
         """Actualiza las posiciones de todos los grupos."""
-        for group_id in range(3):
+        for group_id in range(NUM_LABELER_GROUPS):
             if group_id == active_group_id:
                 self.group_positions[group_id] = "down"
             else:
@@ -610,22 +654,42 @@ class UltraLinearMotorController:
     
     def get_status(self) -> Dict[str, Any]:
         """Obtiene el estado del motor y grupos de etiquetadoras."""
+        emojis = {
+            FruitCategory.APPLE.fruit_name: FruitCategory.APPLE.emoji,
+            FruitCategory.PEAR.fruit_name: FruitCategory.PEAR.emoji,
+            FruitCategory.LEMON.fruit_name: FruitCategory.LEMON.emoji,
+        }
+
+        available_groups = {
+            group.group_id: {
+                "category": group.category,
+                "emoji": emojis.get(group.category, "❓"),
+                "labelers": group.labeler_ids,
+            }
+            for group in LabelerGroup
+        }
+
         return {
             "current_active_group": self.current_active_group,
             "is_moving": self.is_moving,
             "is_calibrated": self.is_calibrated,
             "group_positions": self.group_positions.copy(),
-            "available_groups": {
-                0: {"category": "apple", "emoji": "🍎", "labelers": [0, 1, 2, 3]},
-                1: {"category": "pear", "emoji": "🍐", "labelers": [4, 5, 6, 7]}, 
-                2: {"category": "lemon", "emoji": "🍋", "labelers": [8, 9, 10, 11]}
-            }
+            "available_groups": available_groups,
         }
     
     async def emergency_stop(self):
         """Parada de emergencia del motor."""
-        if GPIO_AVAILABLE and self.pwm_instance:
-            self.pwm_instance.ChangeDutyCycle(0)
+        if GPIO_AVAILABLE:
+            try:
+                # Cortar PWM
+                if self.pwm_instance:
+                    self.pwm_instance.ChangeDutyCycle(0)
+                # Deshabilitar pin de enable si existe
+                enable_pin = self.motor_pins.get("enable_pin")
+                if enable_pin is not None:
+                    GPIO.output(enable_pin, False)
+            except Exception:
+                pass
         self.is_moving = False
     
     async def cleanup(self):
@@ -644,7 +708,7 @@ class UltraIndustrialFruitLabelingSystem:
     ===============================================================
     
     Características Ultra-Avanzadas:
-    - 5 Etiquetadoras automáticas con motor DC de posicionamiento
+    - 6 Etiquetadoras automáticas (2 por categoría) con motor DC de posicionamiento
     - IA de categorización avanzada en tiempo real
     - Sistema predictivo y auto-optimización
     - Pool de workers ultra-concurrente
@@ -671,6 +735,7 @@ class UltraIndustrialFruitLabelingSystem:
         self._emergency_stop = asyncio.Event()
         self._learning_mode = asyncio.Event()
         self._optimization_mode = OptimizationMode.ADAPTIVE
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         
         # Componentes principales
         self.camera: Optional[CameraController] = None
@@ -678,10 +743,12 @@ class UltraIndustrialFruitLabelingSystem:
         self.belt_controller: Optional[ConveyorBeltController] = None
         self.trigger_sensor: Optional[SensorInterface] = None
         
-        # NUEVO: Sistema de 12 etiquetadoras lineales (3 grupos de 4)
-        self.labelers: Dict[int, LabelerActuator] = {}  # 12 etiquetadoras (0-11)
+        # NUEVO: Sistema de 6 etiquetadoras lineales (3 grupos de 2)
+        self.labelers: Dict[int, LabelerActuator] = {}  # 6 etiquetadoras (0-5)
         self.motor_controller: Optional[UltraLinearMotorController] = None  # Controlador lineal del motor DC
         self.active_group_id = 0  # Grupo activo (0: manzanas, 1: peras, 2: limones)
+        # Compatibilidad con código legado (un solo etiquetador)
+        self.labeler: Optional[LabelerActuator] = None
         
         # Sistema de eventos ultra-concurrente
         self._trigger_queue = asyncio.Queue(maxsize=200)
@@ -701,11 +768,11 @@ class UltraIndustrialFruitLabelingSystem:
             FruitCategory.LEMON: UltraCategoryMetrics(category=FruitCategory.LEMON)
         }
         
-        # Métricas por etiquetadora (12 etiquetadoras en 3 grupos)
+        # Métricas por etiquetadora (6 etiquetadoras en 3 grupos)
         self.labeler_metrics = {}
         categories = [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]
-        for i in range(12):
-            group_id = i // 4  # Cada 4 etiquetadoras forman un grupo
+        for i in range(TOTAL_LABELERS):
+            group_id = i // LABELERS_PER_GROUP  # Cada 2 etiquetadoras forman un grupo
             category = categories[group_id] if group_id < len(categories) else FruitCategory.UNKNOWN
             self.labeler_metrics[i] = LabelerMetrics(labeler_id=i, category=category)
         
@@ -753,7 +820,7 @@ class UltraIndustrialFruitLabelingSystem:
         self._init_optimization_system()
         
         logger.info(f"Sistema ULTRA {self.system_name} ({self.system_id}) v{self.version} inicializado")
-        logger.info(f"Características activadas: 5 etiquetadoras, IA categorización, motor DC, predicción")
+        logger.info(f"Características activadas: {TOTAL_LABELERS} etiquetadoras, IA categorización, motor DC, predicción")
     
     def _init_database(self):
         """Inicializa la base de datos para métricas y análisis."""
@@ -897,6 +964,11 @@ class UltraIndustrialFruitLabelingSystem:
         try:
             self._set_state(SystemState.INITIALIZING)
             logger.info("=== Iniciando inicialización del sistema ===")
+            # Guardar loop actual para callbacks thread-safe
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                self._loop = asyncio.get_event_loop()
             
             # 1. Inicializar cámara
             await self._initialize_camera()
@@ -910,7 +982,7 @@ class UltraIndustrialFruitLabelingSystem:
             # 4. Inicializar motor DC controller
             await self._initialize_motor_controller()
             
-            # 5. Inicializar 5 etiquetadoras
+            # 5. Inicializar etiquetadoras lineales (6 total)
             await self._initialize_ultra_labelers()
             
             # 6. Inicializar sensores
@@ -1084,7 +1156,7 @@ class UltraIndustrialFruitLabelingSystem:
         return app
     
     async def _initialize_motor_controller(self):
-        """Inicializa el controlador lineal del motor DC para 3 grupos de 4 etiquetadoras."""
+        """Inicializa el controlador lineal del motor DC para 3 grupos de 2 etiquetadoras."""
         logger.info("Inicializando controlador lineal de motor DC...")
         
         try:
@@ -1098,25 +1170,25 @@ class UltraIndustrialFruitLabelingSystem:
                 raise RuntimeError("Fallo al inicializar motor DC lineal")
             
             logger.info("Controlador lineal de motor DC inicializado correctamente")
-            logger.info("🍎 Grupo manzanas: etiquetadoras 0-3")
-            logger.info("🍐 Grupo peras: etiquetadoras 4-7") 
-            logger.info("🍋 Grupo limones: etiquetadoras 8-11")
+            logger.info("🍎 Grupo manzanas: etiquetadoras 0-1")
+            logger.info("🍐 Grupo peras: etiquetadoras 2-3") 
+            logger.info("🍋 Grupo limones: etiquetadoras 4-5")
         except Exception as e:
             logger.error(f"Error inicializando motor DC lineal: {e}")
             self.motor_controller = None
     
     async def _initialize_ultra_labelers(self):
-        """Inicializa las 12 etiquetadoras lineales (3 grupos de 4)."""
-        logger.info("Inicializando 12 etiquetadoras lineales ultra-avanzadas...")
+        """Inicializa las 6 etiquetadoras lineales (3 grupos de 2)."""
+        logger.info("Inicializando 6 etiquetadoras lineales ultra-avanzadas...")
         
         try:
             base_labeler_config = self.config.get("labeler_settings", {})
             
             # Configuración de grupos
             groups_config = [
-                {"category": FruitCategory.APPLE, "name": "Apple", "emoji": "🍎", "ids": [0, 1, 2, 3]},
-                {"category": FruitCategory.PEAR, "name": "Pear", "emoji": "🍐", "ids": [4, 5, 6, 7]},
-                {"category": FruitCategory.LEMON, "name": "Lemon", "emoji": "🍋", "ids": [8, 9, 10, 11]}
+                {"category": FruitCategory.APPLE, "name": "Apple", "emoji": "🍎", "ids": LabelerGroup.GROUP_APPLE.labeler_ids},
+                {"category": FruitCategory.PEAR, "name": "Pear", "emoji": "🍐", "ids": LabelerGroup.GROUP_PEAR.labeler_ids},
+                {"category": FruitCategory.LEMON, "name": "Lemon", "emoji": "🍋", "ids": LabelerGroup.GROUP_LEMON.labeler_ids}
             ]
             
             for group in groups_config:
@@ -1142,7 +1214,7 @@ class UltraIndustrialFruitLabelingSystem:
                         logger.error(f"  ❌ Fallo etiquetadora {labeler_id} ({group['name']})")
             
             logger.info(f"✅ Sistema de {len(self.labelers)} etiquetadoras lineales inicializado")
-            logger.info("📋 Distribución: 🍎(0-3) 🍐(4-7) 🍋(8-11)")
+            logger.info("📋 Distribución: 🍎(0-1) 🍐(2-3) 🍋(4-5)")
             
         except Exception as e:
             logger.error(f"Error inicializando etiquetadoras lineales: {e}")
@@ -1160,7 +1232,7 @@ class UltraIndustrialFruitLabelingSystem:
         """Crea la aplicación FastAPI ultra-avanzada."""
         app = FastAPI(
             title="FruPrint ULTRA Industrial API v3.0",
-            description="API Ultra-Avanzada del Sistema de 5 Etiquetadoras con IA",
+            description="API Ultra-Avanzada del Sistema de 6 Etiquetadoras (2 por categoría) con IA",
             version=self.version,
             docs_url="/docs",
             redoc_url="/redoc"
@@ -1241,7 +1313,7 @@ class UltraIndustrialFruitLabelingSystem:
                     "category": category,
                     "active_group": self.motor_controller.current_active_group,
                     "labeler_ids": group_info.labeler_ids if group_info else [],
-                    "message": f"Grupo {fruit_category.emoji} activado - 4 etiquetadoras operativas"
+                    "message": f"Grupo {fruit_category.emoji} activado - {LABELERS_PER_GROUP} etiquetadoras operativas"
                 }
             except KeyError:
                 raise HTTPException(400, f"Categoría no válida: {category}. Disponibles: apple, pear, lemon")
@@ -1293,7 +1365,7 @@ class UltraIndustrialFruitLabelingSystem:
                         "timestamp": datetime.now().isoformat(),
                         "system_state": self._system_state.value,
                         "metrics": asdict(self.metrics),
-                        "active_labeler": self.active_labeler_id,
+                        "active_labeler": self.active_group_id,
                         "motor_position": self.motor_controller.current_position if self.motor_controller else 0,
                         "categories": {cat.fruit_name: asdict(metrics) for cat, metrics in self.category_metrics.items()},
                         "recent_detections": self._get_recent_detections()
@@ -1339,7 +1411,10 @@ class UltraIndustrialFruitLabelingSystem:
         """Callback del sensor de trigger."""
         try:
             trigger_time = time.time()
-            self._trigger_queue.put_nowait(trigger_time)
+            if self._loop is not None:
+                self._loop.call_soon_threadsafe(self._trigger_queue.put_nowait, trigger_time)
+            else:
+                self._trigger_queue.put_nowait(trigger_time)
         except asyncio.QueueFull:
             logger.warning("Cola de triggers llena")
     
@@ -1532,8 +1607,18 @@ class UltraIndustrialFruitLabelingSystem:
         if self.belt_controller:
             self.belt_controller.emergency_stop()
         
-        if self.labeler:
-            await self.labeler.emergency_stop()
+        # Parar etiquetadoras (múltiples o única)
+        try:
+            if self.labelers:
+                for labeler in self.labelers.values():
+                    try:
+                        await labeler.emergency_stop()
+                    except Exception:
+                        pass
+            elif self.labeler:
+                await self.labeler.emergency_stop()
+        except Exception:
+            pass
         
         self._send_alert(AlertLevel.CRITICAL, "Sistema", "PARADA DE EMERGENCIA")
     
@@ -1542,30 +1627,31 @@ class UltraIndustrialFruitLabelingSystem:
     async def _ultra_main_processing_loop(self):
         """Bucle principal de procesamiento ultra-avanzado."""
         logger.info("Iniciando bucle ultra de procesamiento principal")
-        
-        while self._running.is_set():
+        while True:
             try:
-                if self._system_state != SystemState.RUNNING:
+                if not self._running.is_set() or self._system_state != SystemState.RUNNING:
                     await asyncio.sleep(0.1)
                     continue
-                
+
                 # Esperar trigger del sensor
                 try:
                     trigger_time = await asyncio.wait_for(
                         self._trigger_queue.get(),
-                        timeout=1.0
+                        timeout=1.0,
                     )
                 except asyncio.TimeoutError:
                     continue
-                
+
                 self._set_state(SystemState.PROCESSING)
                 logger.info("🔥 ULTRA: Procesando nueva fila...")
-                
+
                 # Procesar fila con sistema ultra
                 await self._ultra_process_fruit_row()
-                
+
                 self._set_state(SystemState.RUNNING)
-                
+
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.exception(f"Error en bucle ultra principal: {e}")
                 await asyncio.sleep(1)
@@ -1625,7 +1711,7 @@ class UltraIndustrialFruitLabelingSystem:
         # Asignar categorías basadas en detecciones (sistema de 3 categorías)
         available_categories = [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]
         
-        for i in range(min(result.fruit_count, 12)):  # Máximo 12 frutas (4 por grupo)
+        for i in range(min(result.fruit_count, TOTAL_LABELERS)):  # Máximo 6 frutas (2 por grupo)
             # Rotar entre las 3 categorías para demostración
             category = available_categories[i % len(available_categories)]
             detected_categories.append(category)
@@ -1646,7 +1732,7 @@ class UltraIndustrialFruitLabelingSystem:
         return most_common_category
     
     async def _execute_ultra_labeling(self, category: FruitCategory, result):
-        """Ejecuta el etiquetado ultra lineal con motor DC y 4 etiquetadoras simultáneas."""
+        """Ejecuta el etiquetado ultra lineal con motor DC y 2 etiquetadoras simultáneas por grupo."""
         try:
             if category == FruitCategory.UNKNOWN:
                 logger.warning("Categoría desconocida, omitiendo etiquetado")
@@ -1682,15 +1768,23 @@ class UltraIndustrialFruitLabelingSystem:
             for labeler_id in group_info.labeler_ids:
                 if labeler_id in self.labelers:
                     labeler = self.labelers[labeler_id]
-                    task = asyncio.create_task(
-                        self._activate_single_labeler(labeler, labeler_id, duration, category)
-                    )
+                    # Timeout por seguridad para evitar bloqueos en hardware
+                    timeout_seconds = max(1.0, min(duration + 2.0, 30.0))
+                    coro = self._activate_single_labeler(labeler, labeler_id, duration, category)
+                    task = asyncio.create_task(asyncio.wait_for(coro, timeout=timeout_seconds))
                     labeling_tasks.append(task)
             
             # 4. Esperar a que todas las etiquetadoras terminen
             if labeling_tasks:
                 results = await asyncio.gather(*labeling_tasks, return_exceptions=True)
-                successful_count = sum(1 for r in results if r is True)
+                successful_count = 0
+                for r in results:
+                    if r is True:
+                        successful_count += 1
+                    elif isinstance(r, asyncio.TimeoutError):
+                        logger.error("Timeout activando una etiquetadora")
+                    elif isinstance(r, Exception):
+                        logger.error(f"Error activando una etiquetadora: {r}")
                 
                 if successful_count > 0:
                     self.metrics.total_labels_applied += result.fruit_count
@@ -1731,17 +1825,19 @@ class UltraIndustrialFruitLabelingSystem:
                 if category in self.category_metrics:
                     metrics = self.category_metrics[category]
                     count = categories.count(category)
-                    
+                    # Actualizar totales
                     metrics.total_detected += count
-                    metrics.last_detection = datetime.now()
-                    
+
                     # Actualizar confidence promedio (simulado)
                     new_confidence = 0.85 + (0.1 * len(categories))  # Simulación
                     metrics.avg_confidence = (metrics.avg_confidence + new_confidence) / 2
-                    
-                    # Calcular throughput
-                    if metrics.last_detection:
-                        time_diff = (datetime.now() - metrics.last_detection).total_seconds()
+
+                    # Calcular throughput con timestamp previo
+                    previous_detection = metrics.last_detection
+                    now = datetime.now()
+                    metrics.last_detection = now
+                    if previous_detection is not None:
+                        time_diff = (now - previous_detection).total_seconds()
                         if time_diff > 0:
                             metrics.throughput_per_hour = (count / time_diff) * 3600
             
@@ -1753,20 +1849,25 @@ class UltraIndustrialFruitLabelingSystem:
     async def _ultra_monitoring_loop(self):
         """Bucle ultra de monitoreo del sistema."""
         logger.info("Iniciando bucle ultra de monitoreo")
-        
-        while self._running.is_set():
+        while True:
             try:
+                if not self._running.is_set():
+                    await asyncio.sleep(0.5)
+                    continue
+
                 # Actualizar métricas ultra-completas
                 await self._update_ultra_metrics()
-                
+
                 # Monitoreo de salud del sistema
                 await self._monitor_system_health()
-                
+
                 # Enviar datos a WebSockets
                 await self._broadcast_ultra_data()
-                
+
                 await asyncio.sleep(5)  # Cada 5 segundos
-                
+
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Error en monitoreo ultra: {e}")
                 await asyncio.sleep(10)
@@ -1812,8 +1913,8 @@ class UltraIndustrialFruitLabelingSystem:
                 # Motor funcionando correctamente
                 pass
             
-            if len(self.labelers) < 3:
-                logger.warning("⚠️ Menos de 3 etiquetadoras operativas")
+            if len(self.labelers) < TOTAL_LABELERS:
+                logger.warning(f"⚠️ Menos de {TOTAL_LABELERS} etiquetadoras operativas")
                 components_healthy = False
             
             # Actualizar score de eficiencia
@@ -1859,20 +1960,24 @@ class UltraIndustrialFruitLabelingSystem:
     async def _ultra_optimization_loop(self):
         """Bucle ultra de optimización del sistema."""
         logger.info("Iniciando bucle ultra de optimización")
-        
-        while self._running.is_set():
+        while True:
             try:
+                if not self._running.is_set():
+                    await asyncio.sleep(1)
+                    continue
                 self._set_state(SystemState.OPTIMIZING)
-                
+
                 # Ejecutar optimización según el modo
                 optimization_result = await self._execute_optimization()
-                
+
                 if optimization_result and optimization_result.confidence > 0.7:
                     logger.info(f"🚀 Optimización aplicada: {optimization_result.improvements}")
-                
+
                 self._set_state(SystemState.RUNNING)
                 await asyncio.sleep(30)  # Cada 30 segundos
-                
+
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Error en optimización ultra: {e}")
                 await asyncio.sleep(60)
@@ -1941,23 +2046,27 @@ class UltraIndustrialFruitLabelingSystem:
     async def _ultra_learning_loop(self):
         """Bucle ultra de aprendizaje automático."""
         logger.info("Iniciando bucle ultra de aprendizaje")
-        
-        while self._running.is_set():
+        while True:
             try:
+                if not self._running.is_set():
+                    await asyncio.sleep(1)
+                    continue
                 self._set_state(SystemState.LEARNING)
-                
+
                 # Recopilar datos de aprendizaje
                 await self._collect_learning_data()
-                
+
                 # Actualizar modelos predictivos
                 await self._update_prediction_models()
-                
+
                 # Analizar patrones
                 await self._analyze_patterns()
-                
+
                 self._set_state(SystemState.RUNNING)
                 await asyncio.sleep(60)  # Cada minuto
-                
+
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Error en aprendizaje ultra: {e}")
                 await asyncio.sleep(120)
@@ -2034,19 +2143,26 @@ class UltraIndustrialFruitLabelingSystem:
         """Guarda métricas en la base de datos."""
         try:
             if self.db_connection:
-                cursor = self.db_connection.cursor()
-                
-                # Guardar métricas generales
-                cursor.execute("""
-                    INSERT INTO metrics (timestamp, metric_type, metric_data)
-                    VALUES (?, ?, ?)
-                """, (
-                    datetime.now().isoformat(),
-                    "system_metrics",
-                    json.dumps(asdict(self.metrics))
-                ))
-                
-                self.db_connection.commit()
+                metrics_payload = json.dumps(asdict(self.metrics), default=str)
+                timestamp = datetime.now().isoformat()
+
+                def _write_to_db():
+                    cursor = self.db_connection.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO metrics (timestamp, metric_type, metric_data)
+                        VALUES (?, ?, ?)
+                        """,
+                        (
+                            timestamp,
+                            "system_metrics",
+                            metrics_payload,
+                        ),
+                    )
+                    self.db_connection.commit()
+
+                # Ejecutar escritura en hilo para no bloquear el event-loop
+                await asyncio.to_thread(_write_to_db)
                 
         except Exception as e:
             logger.error(f"Error guardando métricas en BD: {e}")
