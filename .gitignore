@@ -1,1 +1,16 @@
 .env
+
+# Ignore data and binaries
+/data/**
+/Interfaz_Usuario/Backend/data/**
+*.db
+*.db-shm
+*.db-wal
+*.exe
+/dist_final/**
+/dist_complete/**
+/build_final/**
+/build/**
+/venv/**
+/logs/**
+
