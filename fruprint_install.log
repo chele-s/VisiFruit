@@ -1,0 +1,69 @@
+[ERROR] Error fatal en instalador: No module named 'psutil'
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\install_fruprint.py", line 787, in main
+    installer = FruPrintInstaller()
+  File "c:\Users\DELL\Documents\Code\VisiFruit\install_fruprint.py", line 63, in __init__
+    self.system_info = self._detect_system()
+                       ~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\DELL\Documents\Code\VisiFruit\install_fruprint.py", line 80, in _detect_system
+    import psutil
+ModuleNotFoundError: No module named 'psutil'
+[INFO] === Instalador FruPrint Industrial v2.0 ===
+[INFO] Plataforma detectada: windows
+[INFO] Python: 3.13.5
+[INFO] Arquitectura: amd64
+[INFO] Memoria: 7.7GB
+[INFO] CPU cores: 12
+[INFO] Iniciando instalación de FruPrint Industrial...
+[INFO] Verificando prerrequisitos...
+[INFO] ✅ Prerrequisitos verificados
+[INFO] Instalando dependencias del sistema...
+[INFO] Configurando para Windows...
+[INFO] ✅ Windows configurado (dependencias vía pip)
+[INFO] Creando entorno virtual...
+[INFO] Actualizando pip...
+[INFO] ✅ Entorno virtual creado
+[INFO] Instalando dependencias Python...
+[INFO] Instalación estándar de dependencias...
+[INFO] Instalando dependencias desde Requirements.txt...
+[INFO] ✅ Dependencias estándar instaladas
+[INFO] Configurando sistema...
+[INFO] Directorio creado: logs
+[INFO] Directorio creado: data
+[INFO] Directorio creado: backups
+[INFO] Directorio creado: IA_Etiquetado/Models
+[INFO] Directorio creado: calibration
+[INFO] Directorio creado: temp
+[INFO] ✅ Sistema configurado
+[INFO] Validando instalación...
+[INFO] ✅ torch
+[INFO] ✅ torchvision
+[INFO] ✅ ultralytics
+[INFO] ✅ cv2
+[INFO] ✅ fastapi
+[INFO] ✅ uvicorn
+[INFO] ✅ pydantic
+[INFO] ✅ numpy
+[ERROR] Error en validación: `regex` is removed. use `pattern` instead
+
+For further information visit https://errors.pydantic.dev/2.11/u/removed-kwargs
+[ERROR] Fallo en validación de instalación
+[INFO] === Instalador FruPrint Industrial v2.0 ===
+[INFO] Plataforma detectada: windows
+[INFO] Python: 3.13.5
+[INFO] Arquitectura: amd64
+[INFO] Memoria: 7.7GB
+[INFO] CPU cores: 12
+[INFO] Iniciando instalación de FruPrint Industrial...
+[INFO] Verificando prerrequisitos...
+[INFO] ✅ Prerrequisitos verificados
+[INFO] Instalando dependencias del sistema...
+[INFO] Configurando para Windows...
+[INFO] ✅ Windows configurado (dependencias vía pip)
+[INFO] Creando entorno virtual...
+[INFO] Entorno virtual existente encontrado, eliminando...
+[INFO] Actualizando pip...
+[INFO] ✅ Entorno virtual creado
+[INFO] Instalando dependencias Python...
+[INFO] Instalación estándar de dependencias...
+[INFO] Instalando dependencias desde Requirements.txt...

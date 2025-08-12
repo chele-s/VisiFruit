@@ -1,0 +1,314 @@
+[2025-08-12 08:40:46,547] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 08:40:46,620] [UltraMetricsManager] [INFO] - No se encontrÛ configuraciÛn personalizada de umbrales, usando valores por defecto
+[2025-08-12 08:40:46,707] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 08:40:46,710] [UltraAlertSystem] [INFO] - No se encontrÛ configuraciÛn de notificaciones
+[2025-08-12 08:40:46,716] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 08:40:46,724] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 08:40:46,726] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 08:40:46,727] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 08:40:46,728] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 08:40:46,728] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 08:40:46,728] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 08:40:46,796] [UltraDatabaseManager] [INFO] - Ejecutando migraciones desde v0 a v10
+[2025-08-12 08:40:58,855] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:40:58,856] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:40:59,860] [UltraBackend] [ERROR] - Error en limpiador de cache: 'UltraCacheManager' object has no attribute 'cleanup_expired'
+[2025-08-12 08:41:15,375] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:41:15,378] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:41:31,902] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:41:31,904] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:41:48,409] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:41:48,411] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:42:05,009] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:42:05,010] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:42:21,496] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:42:21,497] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:42:38,009] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:42:38,009] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:42:54,479] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:42:54,481] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:43:11,013] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:43:11,014] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:43:27,588] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:43:27,589] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:43:44,229] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:43:44,230] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:44:00,784] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:44:00,785] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:44:17,347] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:44:17,348] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:44:33,818] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:44:33,819] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:44:50,389] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:44:50,389] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:45:06,907] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:45:06,907] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:45:23,392] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:45:23,395] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:45:39,954] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:45:39,955] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:45:56,455] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:45:56,456] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:46:12,945] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:46:12,947] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:46:29,485] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:46:29,485] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:46:49,088] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:46:49,128] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:47:05,695] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:47:05,697] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:47:22,282] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:47:22,283] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:47:38,728] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:47:38,729] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:47:55,316] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:47:55,317] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:48:11,875] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:48:11,878] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:48:28,427] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:48:28,428] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:48:45,002] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:48:45,004] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:49:01,585] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:49:01,586] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:49:18,022] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:49:18,024] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:49:34,612] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:49:34,613] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:49:51,211] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:49:51,212] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:50:07,638] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:50:07,638] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:50:24,276] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:50:24,277] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:50:40,791] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:50:40,791] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:50:57,267] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:50:57,268] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:51:00,355] [UltraBackend] [ERROR] - Error en limpiador de cache: 'UltraCacheManager' object has no attribute 'cleanup_expired'
+[2025-08-12 08:51:13,811] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:51:13,813] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:51:30,106] [UltraWebSocketManager] [INFO] - ‚ÑπÔ∏è Redis no disponible - modo standalone
+[2025-08-12 08:51:30,119] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 08:51:30,122] [UltraMetricsManager] [INFO] - No se encontr√≥ configuraci√≥n personalizada de umbrales, usando valores por defecto
+[2025-08-12 08:51:30,123] [UltraMetricsManager] [INFO] - ‚úÖ Gestor de m√©tricas inicializado
+[2025-08-12 08:51:30,124] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 08:51:30,125] [UltraAlertSystem] [INFO] - No se encontr√≥ configuraci√≥n de notificaciones
+[2025-08-12 08:51:30,126] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 08:51:30,127] [UltraAlertSystem] [INFO] - ‚úÖ Sistema de alertas inicializado
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 08:51:30,127] [UltraWebSocketManager] [INFO] - ‚úÖ Gestor de WebSockets inicializado
+[2025-08-12 08:51:30,127] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Usando SQLite
+[2025-08-12 08:51:30,156] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Pool de 10 conexiones SQLite creado
+[2025-08-12 08:51:30,158] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla production_data verificada/creada
+[2025-08-12 08:51:30,160] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_metrics verificada/creada
+[2025-08-12 08:51:30,161] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_alerts verificada/creada
+[2025-08-12 08:51:30,162] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_config verificada/creada
+[2025-08-12 08:51:30,164] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla users verificada/creada
+[2025-08-12 08:51:30,165] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla user_sessions verificada/creada
+[2025-08-12 08:51:30,165] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_logs verificada/creada
+[2025-08-12 08:51:30,166] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla generated_reports verificada/creada
+[2025-08-12 08:51:30,166] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla maintenance_logs verificada/creada
+[2025-08-12 08:51:30,166] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla query_performance verificada/creada
+[2025-08-12 08:51:30,168] [UltraDatabaseManager] [INFO] - ‚úÖ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 08:51:30,169] [UltraReportGenerator] [INFO] - ‚úÖ Generador de reportes inicializado
+[2025-08-12 08:51:30,171] [UltraConfigManager] [INFO] - üåç Entorno detectado: production
+[2025-08-12 08:51:30,172] [UltraConfigManager] [INFO] - üìÑ Configuraci√≥n cargada desde Config_Etiquetadora.json
+[2025-08-12 08:51:30,173] [UltraConfigManager] [WARNING] - ‚ö†Ô∏è Errores de validaci√≥n encontrados: ai_model_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:51:30,178] [UltraConfigManager] [INFO] - üíæ Backup creado: config_initialization_20250812_085130.json
+[2025-08-12 08:51:30,180] [UltraConfigManager] [INFO] - ‚úÖ Gestor de configuraci√≥n inicializado
+[2025-08-12 08:51:30,186] [UltraAuthManager] [INFO] - üìÑ 1 usuarios cargados en cache
+[2025-08-12 08:51:30,187] [UltraAuthManager] [INFO] - ‚úÖ Gestor de autenticaci√≥n inicializado
+[2025-08-12 08:51:30,316] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:51:30,316] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:51:34,278] [UltraCacheManager] [WARNING] - ‚ö†Ô∏è Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexi√≥n ya que el equipo de destino deneg√≥ expresamente dicha conexi√≥n.
+[2025-08-12 08:51:34,279] [UltraCacheManager] [INFO] - ‚úÖ Gestor de cache inicializado
+[2025-08-12 08:51:34,279] [UltraAPIs] [INFO] - ‚úÖ ProductionAPI inicializada
+[2025-08-12 08:51:34,279] [UltraAPIs] [INFO] - ‚úÖ SystemAPI inicializada
+[2025-08-12 08:51:34,279] [UltraAPIs] [INFO] - ‚úÖ MetricsAPI inicializada
+[2025-08-12 08:51:34,280] [UltraAPIs] [INFO] - ‚úÖ AlertsAPI inicializada
+[2025-08-12 08:51:34,280] [UltraAPIs] [INFO] - ‚úÖ ConfigAPI inicializada
+[2025-08-12 08:51:34,280] [UltraAPIs] [INFO] - ‚úÖ ReportsAPI inicializada
+[2025-08-12 08:51:34,280] [UltraAPIs] [INFO] - ‚úÖ AnalyticsAPI inicializada
+[2025-08-12 08:51:34,280] [UltraAPIs] [INFO] - ‚úÖ MaintenanceAPI inicializada
+[2025-08-12 08:51:34,292] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 08:51:34,293] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 08:51:34,293] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8000
+[2025-08-12 08:51:34,294] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8000/api/docs
+[2025-08-12 08:51:46,723] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:51:46,724] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:52:03,303] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:52:03,303] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:52:08,289] [UltraMetricsManager] [ERROR] - Error guardando m√©tricas: database is locked
+[2025-08-12 08:52:09,353] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 08:52:09,403] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 08:52:09,404] [UltraWebSocketManager] [INFO] - ‚úÖ Gestor de WebSockets apagado
+[2025-08-12 08:52:09,404] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 08:52:09,406] [UltraDatabaseManager] [INFO] - ‚úÖ Gestor de base de datos apagado
+[2025-08-12 08:52:09,407] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 08:52:09,673] [UltraCacheManager] [INFO] - ‚úÖ Gestor de cache apagado
+[2025-08-12 08:52:09,674] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 08:52:19,741] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:52:19,743] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:52:36,252] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:52:36,253] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:52:52,783] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:52:52,785] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:53:09,389] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:53:09,392] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:53:25,936] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:53:25,937] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:53:43,095] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:53:43,097] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:53:59,710] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:53:59,710] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:54:16,251] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:54:16,252] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:54:32,746] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:54:32,747] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:54:49,293] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:54:49,294] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:55:05,778] [UltraMetricsManager] [ERROR] - Error guardando mÈtricas: database is locked
+[2025-08-12 08:55:05,779] [UltraBackend] [ERROR] - Error en collector de mÈtricas: object int can't be used in 'await' expression
+[2025-08-12 08:58:37,427] [UltraWebSocketManager] [INFO] - ‚ÑπÔ∏è Redis no disponible - modo standalone
+[2025-08-12 08:58:37,445] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 08:58:37,462] [UltraMetricsManager] [INFO] - No se encontr√≥ configuraci√≥n personalizada de umbrales, usando valores por defecto
+[2025-08-12 08:58:37,463] [UltraMetricsManager] [INFO] - ‚úÖ Gestor de m√©tricas inicializado
+[2025-08-12 08:58:37,470] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 08:58:37,472] [UltraAlertSystem] [INFO] - No se encontr√≥ configuraci√≥n de notificaciones
+[2025-08-12 08:58:37,475] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 08:58:37,476] [UltraAlertSystem] [INFO] - ‚úÖ Sistema de alertas inicializado
+[2025-08-12 08:58:37,477] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 08:58:37,477] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 08:58:37,478] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 08:58:37,478] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 08:58:37,478] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 08:58:37,479] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 08:58:37,479] [UltraWebSocketManager] [INFO] - ‚úÖ Gestor de WebSockets inicializado
+[2025-08-12 08:58:37,479] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Usando SQLite
+[2025-08-12 08:58:37,520] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Pool de 10 conexiones SQLite creado
+[2025-08-12 08:58:37,522] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla production_data verificada/creada
+[2025-08-12 08:58:37,523] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_metrics verificada/creada
+[2025-08-12 08:58:37,524] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_alerts verificada/creada
+[2025-08-12 08:58:37,524] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_config verificada/creada
+[2025-08-12 08:58:37,525] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla users verificada/creada
+[2025-08-12 08:58:37,525] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla user_sessions verificada/creada
+[2025-08-12 08:58:37,526] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_logs verificada/creada
+[2025-08-12 08:58:37,526] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla generated_reports verificada/creada
+[2025-08-12 08:58:37,526] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla maintenance_logs verificada/creada
+[2025-08-12 08:58:37,527] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla query_performance verificada/creada
+[2025-08-12 08:58:37,528] [UltraDatabaseManager] [INFO] - ‚úÖ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 08:58:37,530] [UltraReportGenerator] [INFO] - ‚úÖ Generador de reportes inicializado
+[2025-08-12 08:58:37,532] [UltraConfigManager] [INFO] - üåç Entorno detectado: production
+[2025-08-12 08:58:37,535] [UltraConfigManager] [INFO] - üìÑ Configuraci√≥n cargada desde Config_Etiquetadora.json
+[2025-08-12 08:58:37,536] [UltraConfigManager] [WARNING] - ‚ö†Ô∏è Errores de validaci√≥n encontrados: ai_model_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:58:37,542] [UltraConfigManager] [INFO] - üíæ Backup creado: config_initialization_20250812_085837.json
+[2025-08-12 08:58:37,543] [UltraConfigManager] [INFO] - ‚úÖ Gestor de configuraci√≥n inicializado
+[2025-08-12 08:58:37,564] [UltraAuthManager] [INFO] - üìÑ 1 usuarios cargados en cache
+[2025-08-12 08:58:37,564] [UltraAuthManager] [INFO] - ‚úÖ Gestor de autenticaci√≥n inicializado
+[2025-08-12 08:58:41,648] [UltraCacheManager] [WARNING] - ‚ö†Ô∏è Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexi√≥n ya que el equipo de destino deneg√≥ expresamente dicha conexi√≥n.
+[2025-08-12 08:58:41,649] [UltraCacheManager] [INFO] - ‚úÖ Gestor de cache inicializado
+[2025-08-12 08:58:41,649] [UltraAPIs] [INFO] - ‚úÖ ProductionAPI inicializada
+[2025-08-12 08:58:41,649] [UltraAPIs] [INFO] - ‚úÖ SystemAPI inicializada
+[2025-08-12 08:58:41,649] [UltraAPIs] [INFO] - ‚úÖ MetricsAPI inicializada
+[2025-08-12 08:58:41,650] [UltraAPIs] [INFO] - ‚úÖ AlertsAPI inicializada
+[2025-08-12 08:58:41,650] [UltraAPIs] [INFO] - ‚úÖ ConfigAPI inicializada
+[2025-08-12 08:58:41,650] [UltraAPIs] [INFO] - ‚úÖ ReportsAPI inicializada
+[2025-08-12 08:58:41,650] [UltraAPIs] [INFO] - ‚úÖ AnalyticsAPI inicializada
+[2025-08-12 08:58:41,650] [UltraAPIs] [INFO] - ‚úÖ MaintenanceAPI inicializada
+[2025-08-12 08:58:41,662] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 08:58:41,663] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 08:58:41,664] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8000
+[2025-08-12 08:58:41,664] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8000/api/docs
+[2025-08-12 08:59:15,569] [UltraMetricsManager] [ERROR] - Error guardando m√©tricas: database is locked
+[2025-08-12 08:59:16,624] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 08:59:16,700] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 08:59:16,700] [UltraWebSocketManager] [INFO] - ‚úÖ Gestor de WebSockets apagado
+[2025-08-12 08:59:16,700] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 08:59:16,701] [UltraDatabaseManager] [INFO] - ‚úÖ Gestor de base de datos apagado
+[2025-08-12 08:59:16,701] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 08:59:16,922] [UltraCacheManager] [INFO] - ‚úÖ Gestor de cache apagado
+[2025-08-12 08:59:16,923] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 12:49:05,244] [UltraWebSocketManager] [INFO] - Redis desactivado por configuraci√≥n (VISIFRUIT_REDIS_ENABLED=0) - modo standalone
+[2025-08-12 12:49:05,333] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 12:49:05,339] [UltraMetricsManager] [INFO] - No se encontr√≥ configuraci√≥n personalizada de umbrales, usando valores por defecto
+[2025-08-12 12:49:05,340] [UltraMetricsManager] [INFO] - ‚úÖ Gestor de m√©tricas inicializado
+[2025-08-12 12:49:05,369] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 12:49:05,369] [UltraAlertSystem] [INFO] - No se encontr√≥ configuraci√≥n de notificaciones
+[2025-08-12 12:49:05,374] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 12:49:05,375] [UltraAlertSystem] [INFO] - ‚úÖ Sistema de alertas inicializado
+[2025-08-12 12:49:05,375] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 12:49:05,376] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 12:49:05,376] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 12:49:05,377] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 12:49:05,377] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 12:49:05,379] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 12:49:05,380] [UltraWebSocketManager] [INFO] - ‚úÖ Gestor de WebSockets inicializado
+[2025-08-12 12:49:05,381] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Usando SQLite
+[2025-08-12 12:49:05,440] [UltraDatabaseManager] [INFO] - üóÉÔ∏è Pool de 10 conexiones SQLite creado
+[2025-08-12 12:49:05,445] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla production_data verificada/creada
+[2025-08-12 12:49:05,446] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_metrics verificada/creada
+[2025-08-12 12:49:05,448] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_alerts verificada/creada
+[2025-08-12 12:49:05,449] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_config verificada/creada
+[2025-08-12 12:49:05,450] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla users verificada/creada
+[2025-08-12 12:49:05,452] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla user_sessions verificada/creada
+[2025-08-12 12:49:05,453] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla system_logs verificada/creada
+[2025-08-12 12:49:05,454] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla generated_reports verificada/creada
+[2025-08-12 12:49:05,455] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla maintenance_logs verificada/creada
+[2025-08-12 12:49:05,456] [UltraDatabaseManager] [INFO] - ‚úÖ Tabla query_performance verificada/creada
+[2025-08-12 12:49:05,459] [UltraDatabaseManager] [INFO] - ‚úÖ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 12:49:05,463] [UltraReportGenerator] [INFO] - ‚úÖ Generador de reportes inicializado
+[2025-08-12 12:49:05,466] [UltraConfigManager] [INFO] - üåç Entorno detectado: development
+[2025-08-12 12:49:05,470] [UltraConfigManager] [INFO] - üìÑ Configuraci√≥n cargada desde Config_Etiquetadora.json
+[2025-08-12 12:49:05,475] [UltraConfigManager] [WARNING] - ‚ö†Ô∏è Errores de validaci√≥n encontrados: ai_model_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 12:49:05,485] [UltraConfigManager] [INFO] - üíæ Backup creado: config_initialization_20250812_124905.json
+[2025-08-12 12:49:05,488] [UltraConfigManager] [INFO] - ‚úÖ Gestor de configuraci√≥n inicializado
+[2025-08-12 12:49:05,510] [UltraAuthManager] [INFO] - üìÑ 1 usuarios cargados en cache
+[2025-08-12 12:49:05,511] [UltraAuthManager] [INFO] - ‚úÖ Gestor de autenticaci√≥n inicializado
+[2025-08-12 12:49:05,513] [UltraCacheManager] [INFO] - Redis desactivado por configuraci√≥n (VISIFRUIT_REDIS_ENABLED=0) - modo standalone
+[2025-08-12 12:49:05,515] [UltraCacheManager] [INFO] - ‚úÖ Gestor de cache inicializado
+[2025-08-12 12:49:05,516] [UltraAPIs] [INFO] - ‚úÖ ProductionAPI inicializada
+[2025-08-12 12:49:05,517] [UltraAPIs] [INFO] - ‚úÖ SystemAPI inicializada
+[2025-08-12 12:49:05,518] [UltraAPIs] [INFO] - ‚úÖ MetricsAPI inicializada
+[2025-08-12 12:49:05,520] [UltraAPIs] [INFO] - ‚úÖ AlertsAPI inicializada
+[2025-08-12 12:49:05,520] [UltraAPIs] [INFO] - ‚úÖ ConfigAPI inicializada
+[2025-08-12 12:49:05,521] [UltraAPIs] [INFO] - ‚úÖ ReportsAPI inicializada
+[2025-08-12 12:49:05,522] [UltraAPIs] [INFO] - ‚úÖ AnalyticsAPI inicializada
+[2025-08-12 12:49:05,523] [UltraAPIs] [INFO] - ‚úÖ MaintenanceAPI inicializada
+[2025-08-12 12:49:05,603] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 12:49:05,605] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 12:49:05,609] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 12:49:05,611] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 12:49:12,635] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.003s
+[2025-08-12 12:49:12,747] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 12:49:12,850] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 12:49:12,944] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.003s
+[2025-08-12 12:49:21,696] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.016s
+[2025-08-12 12:49:32,387] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.028s
+[2025-08-12 12:49:44,748] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.023s
+[2025-08-12 12:49:54,374] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.018s
+[2025-08-12 12:49:55,671] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 12:49:56,855] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 12:49:56,929] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 12:49:58,096] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 12:49:58,100] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:49:58,257] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.011s
+[2025-08-12 12:50:03,625] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:05,868] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.021s
+[2025-08-12 12:50:07,181] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 12:50:09,352] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 12:50:10,597] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:15,947] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.019s
+[2025-08-12 12:50:17,112] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:21,718] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 12:50:23,885] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:27,436] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.022s
+[2025-08-12 12:50:32,101] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:33,186] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 12:50:39,786] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.018s
+[2025-08-12 12:50:49,438] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.017s

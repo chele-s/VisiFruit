@@ -1,0 +1,950 @@
+[2025-08-12 09:06:45,458] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 09:06:45,503] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 09:06:45,569] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 09:06:45,570] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 09:06:45,609] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 09:06:45,610] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 09:06:45,616] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 09:06:45,617] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 09:06:45,618] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 09:06:45,619] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 09:06:45,620] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 09:06:45,620] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 09:06:45,620] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 09:06:45,620] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 09:06:45,621] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 09:06:45,621] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 09:06:45,637] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 09:06:45,642] [UltraDatabaseManager] [INFO] - Ejecutando migraciones desde v0 a v10
+[2025-08-12 09:06:45,642] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 09:06:45,643] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 09:06:45,644] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 09:06:45,647] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 09:06:45,648] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 09:06:45,651] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 09:06:45,653] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 09:06:45,654] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 09:06:45,655] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 09:06:45,655] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 09:06:45,659] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 09:06:45,663] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 09:06:45,668] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: production
+[2025-08-12 09:06:45,670] [UltraConfigManager] [INFO] - 🆕 Configuración por defecto creada
+[2025-08-12 09:06:45,671] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 09:06:45,672] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_090645.json
+[2025-08-12 09:06:45,672] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 09:06:45,940] [UltraAuthManager] [INFO] - 🔑 Usuario admin por defecto creado (admin/admin123)
+[2025-08-12 09:06:45,942] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 09:06:45,942] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 09:06:50,004] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 09:06:50,004] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 09:06:50,005] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 09:06:50,006] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 09:06:50,006] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 09:06:50,023] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 09:06:50,023] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 09:06:50,024] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 09:06:50,024] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 09:07:24,223] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 09:08:02,750] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 09:08:03,785] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 09:08:03,804] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 09:08:03,806] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 09:08:03,831] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 09:08:03,869] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 09:08:03,870] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 09:08:03,870] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 09:08:03,899] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 09:08:03,900] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 09:08:03,900] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 09:08:03,900] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 09:08:03,901] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 09:08:03,901] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 09:08:03,901] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 09:08:04,185] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 09:08:04,186] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 09:08:04,186] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 09:08:04,186] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 09:12:47,174] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 09:12:47,197] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 09:12:47,210] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 09:12:47,210] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 09:12:47,211] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 09:12:47,212] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 09:12:47,213] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 09:12:47,213] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 09:12:47,214] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 09:12:47,215] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 09:12:47,215] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 09:12:47,231] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 09:12:47,235] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 09:12:47,237] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 09:12:47,238] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 09:12:47,239] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 09:12:47,240] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 09:12:47,242] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 09:12:47,243] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 09:12:47,244] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 09:12:47,245] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 09:12:47,246] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 09:12:47,249] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 09:12:47,253] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 09:12:47,255] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 09:12:47,259] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 09:12:47,260] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 09:12:47,264] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_091247.json
+[2025-08-12 09:12:47,265] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 09:12:47,280] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 09:12:47,281] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 09:12:51,355] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 09:12:51,357] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 09:12:51,358] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 09:12:51,359] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 09:12:51,359] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 09:12:51,360] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 09:12:51,361] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 09:12:51,361] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 09:12:51,362] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 09:12:51,362] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 09:12:51,412] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 09:12:51,413] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 09:12:51,415] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 09:12:51,417] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 09:13:26,583] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 09:14:05,489] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 09:14:06,525] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 09:14:06,581] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 09:14:06,583] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 09:14:06,598] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 09:14:06,726] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 09:14:06,728] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 09:14:06,728] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 09:14:06,745] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 09:14:06,748] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 09:14:06,749] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 09:14:06,751] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 09:14:06,751] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 09:14:06,752] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 09:14:06,752] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 09:14:06,935] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 09:14:06,935] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 09:14:06,936] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 09:14:06,936] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 10:13:06,071] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 10:13:06,105] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 10:13:06,136] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 10:13:06,144] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 10:13:06,179] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 10:13:06,188] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 10:13:06,206] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 10:13:06,218] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 10:13:06,226] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 10:13:06,234] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 10:13:06,242] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 10:13:06,249] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 10:13:06,255] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 10:13:06,262] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 10:13:06,267] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 10:13:06,273] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 10:13:06,377] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 10:13:06,385] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 10:13:06,388] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 10:13:06,393] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 10:13:06,397] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 10:13:06,399] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 10:13:06,400] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 10:13:06,401] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 10:13:06,404] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 10:13:06,411] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 10:13:06,416] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 10:13:06,425] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 10:13:06,439] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 10:13:06,448] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 10:13:06,463] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 10:13:06,467] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 10:13:06,474] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_101306.json
+[2025-08-12 10:13:06,477] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 10:13:06,515] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 10:13:06,524] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 10:13:10,661] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 10:13:10,661] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 10:13:10,662] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 10:13:10,663] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 10:13:10,677] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 10:13:10,677] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 10:13:10,678] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 10:13:10,679] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 10:13:45,749] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:14:24,717] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:14:25,789] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:14:26,005] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 10:14:26,006] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 10:14:26,011] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 10:14:26,112] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 10:14:26,113] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 10:14:26,114] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 10:14:26,144] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 10:14:26,145] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 10:14:26,146] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 10:14:26,147] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 10:14:26,147] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 10:14:26,148] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 10:14:26,148] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 10:14:26,518] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 10:14:26,519] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 10:14:26,521] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 10:14:26,522] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 10:33:48,265] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 10:33:48,290] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 10:33:48,308] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 10:33:48,309] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 10:33:48,322] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 10:33:48,323] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 10:33:48,329] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 10:33:48,330] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 10:33:48,331] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 10:33:48,331] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 10:33:48,332] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 10:33:48,332] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 10:33:48,333] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 10:33:48,333] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 10:33:48,334] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 10:33:48,335] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 10:33:48,368] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 10:33:48,371] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 10:33:48,372] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 10:33:48,373] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 10:33:48,374] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 10:33:48,375] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 10:33:48,376] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 10:33:48,376] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 10:33:48,377] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 10:33:48,378] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 10:33:48,379] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 10:33:48,381] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 10:33:48,385] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 10:33:48,386] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 10:33:48,387] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 10:33:48,389] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 10:33:48,391] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_103348.json
+[2025-08-12 10:33:48,392] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 10:33:48,408] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 10:33:48,409] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 10:33:52,492] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 10:33:52,493] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 10:33:52,493] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 10:33:52,494] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 10:33:52,494] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 10:33:52,495] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 10:33:52,495] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 10:33:52,496] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 10:33:52,496] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 10:33:52,497] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 10:33:52,541] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 10:33:52,542] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 10:33:52,544] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 10:33:52,546] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 10:34:27,730] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:34:28,946] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.003s
+[2025-08-12 10:34:29,027] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 10:34:29,077] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 10:34:29,140] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.004s
+[2025-08-12 10:35:25,219] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 10:35:25,236] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 10:35:25,239] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 10:35:25,239] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 10:35:25,243] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 10:35:25,244] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 10:35:25,246] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 10:35:25,246] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 10:35:25,246] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 10:35:25,247] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 10:35:25,247] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 10:35:25,247] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 10:35:25,247] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 10:35:25,247] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 10:35:25,248] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 10:35:25,248] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 10:35:25,255] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 10:35:25,256] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 10:35:25,257] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 10:35:25,257] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 10:35:25,257] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 10:35:25,258] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 10:35:25,258] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 10:35:25,259] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 10:35:25,259] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 10:35:25,259] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 10:35:25,260] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 10:35:25,260] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 10:35:25,261] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 10:35:25,261] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 10:35:25,262] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 10:35:25,263] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 10:35:25,263] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_103525.json
+[2025-08-12 10:35:25,264] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 10:35:25,277] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 10:35:25,278] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 10:35:29,363] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 10:35:29,366] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 10:35:29,366] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 10:35:29,367] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 10:35:29,367] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 10:35:29,368] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 10:35:29,369] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 10:35:29,369] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 10:35:29,369] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 10:35:29,370] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 10:35:29,420] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 10:35:29,423] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 10:35:29,426] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 10:35:29,428] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 10:36:04,410] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:36:43,204] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:36:44,256] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:37:21,854] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:37:23,077] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.041s
+[2025-08-12 10:37:23,195] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.030s
+[2025-08-12 10:38:00,869] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:38:01,929] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:38:39,706] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:39:18,545] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:39:19,613] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:39:19,655] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.010s
+[2025-08-12 10:39:19,714] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.006s
+[2025-08-12 10:39:57,298] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:40:35,952] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:40:37,032] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:40:38,145] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.028s
+[2025-08-12 10:40:39,184] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.016s
+[2025-08-12 10:41:14,457] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:41:53,352] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:41:54,393] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:41:54,422] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.005s
+[2025-08-12 10:41:54,443] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:41:54,471] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/production/history - Status: 200 - Time: 0.001s
+[2025-08-12 10:41:54,489] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 10:41:54,511] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/production/history - Status: 200 - Time: 0.000s
+[2025-08-12 10:41:54,534] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.007s
+[2025-08-12 10:41:54,537] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:41:54,558] [UltraBackend] [INFO] - Request: GET /api/metrics/production/history - Status: 404 - Time: 0.009s
+[2025-08-12 10:41:54,574] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:41:54,577] [UltraBackend] [INFO] - Request: GET /api/metrics/production/history - Status: 404 - Time: 0.000s
+[2025-08-12 10:42:32,254] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:42:32,305] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 10:42:32,310] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:42:32,313] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:42:32,319] [UltraBackend] [INFO] - Request: GET /api/metrics/production/history - Status: 404 - Time: 0.001s
+[2025-08-12 10:42:33,382] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.006s
+[2025-08-12 10:43:11,068] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:43:12,134] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:43:49,934] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:44:28,718] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:44:29,788] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:44:29,947] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.026s
+[2025-08-12 10:45:07,478] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:45:07,534] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:45:46,160] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:45:47,225] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:45:47,296] [UltraBackend] [INFO] - Request: GET /api/metrics/production/history - Status: 404 - Time: 0.003s
+[2025-08-12 10:46:24,804] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:46:24,885] [UltraBackend] [INFO] - Request: GET /api/docs - Status: 200 - Time: 0.017s
+[2025-08-12 10:47:03,506] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:47:04,598] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:47:04,642] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.011s
+[2025-08-12 10:47:04,657] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.003s
+[2025-08-12 10:47:04,794] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.056s
+[2025-08-12 10:47:42,231] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:47:43,359] [UltraBackend] [INFO] - Request: GET /api/system/metrics - Status: 404 - Time: 0.004s
+[2025-08-12 10:47:43,386] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.003s
+[2025-08-12 10:47:43,438] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:48:20,778] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:48:20,827] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:48:21,876] [UltraBackend] [INFO] - Request: GET /api/system/performance - Status: 200 - Time: 1.046s
+[2025-08-12 10:48:22,900] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:48:59,287] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:48:59,381] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.018s
+[2025-08-12 10:49:37,751] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:49:38,835] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:49:38,875] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.006s
+[2025-08-12 10:49:38,894] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:50:16,554] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:50:16,625] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.006s
+[2025-08-12 10:50:55,287] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:50:56,468] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:50:56,651] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.016s
+[2025-08-12 10:51:33,919] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:51:33,984] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.007s
+[2025-08-12 10:52:12,712] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:52:13,836] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:52:14,907] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.020s
+[2025-08-12 10:52:14,946] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.004s
+[2025-08-12 10:52:16,031] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.005s
+[2025-08-12 10:52:17,161] [UltraBackend] [INFO] - Request: GET /api/system/performance - Status: 200 - Time: 1.035s
+[2025-08-12 10:52:18,273] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.030s
+[2025-08-12 10:52:51,700] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:52:52,897] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.008s
+[2025-08-12 10:52:53,009] [UltraBackend] [INFO] - Request: GET /api/system/status - Status: 200 - Time: 0.012s
+[2025-08-12 10:53:30,484] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:53:31,574] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:53:31,674] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 10:53:31,678] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 10:53:31,694] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 10:53:31,802] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 10:53:31,803] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 10:53:31,807] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 10:53:31,849] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 10:53:31,851] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 10:53:31,851] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 10:53:31,852] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 10:53:31,852] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 10:53:31,853] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 10:53:31,853] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 10:53:32,178] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 10:53:32,180] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 10:53:32,182] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 10:53:32,182] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 10:54:10,609] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 10:54:10,624] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 10:54:10,632] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 10:54:10,635] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 10:54:10,637] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 10:54:10,637] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 10:54:10,638] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 10:54:10,639] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 10:54:10,639] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 10:54:10,639] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 10:54:10,639] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 10:54:10,639] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 10:54:10,640] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 10:54:10,640] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 10:54:10,641] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 10:54:10,642] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 10:54:10,647] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 10:54:10,649] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 10:54:10,650] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 10:54:10,650] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 10:54:10,650] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 10:54:10,650] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 10:54:10,651] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 10:54:10,652] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 10:54:10,653] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 10:54:10,653] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 10:54:10,653] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 10:54:10,655] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_105410.json
+[2025-08-12 10:54:10,655] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 10:54:10,659] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 10:54:10,660] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 10:54:14,764] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 10:54:14,766] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 10:54:14,767] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 10:54:14,767] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 10:54:14,768] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 10:54:14,768] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 10:54:14,769] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 10:54:14,769] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 10:54:14,770] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 10:54:14,770] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 10:54:14,825] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 10:54:14,826] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 10:54:14,829] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 10:54:14,831] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 10:54:50,443] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:55:29,399] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:55:30,472] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:55:30,509] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.003s
+[2025-08-12 10:55:30,525] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 10:55:30,539] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 10:55:30,580] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.009s
+[2025-08-12 10:55:30,599] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 10:55:30,621] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 10:55:30,641] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.002s
+[2025-08-12 10:55:30,668] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:55:30,683] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:55:32,538] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 10:55:32,606] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 10:55:32,657] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.002s
+[2025-08-12 10:56:08,401] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:56:08,445] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:08,449] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:08,451] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.000s
+[2025-08-12 10:56:08,455] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:08,461] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:56:08,466] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.002s
+[2025-08-12 10:56:09,532] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:09,551] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:09,568] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.002s
+[2025-08-12 10:56:47,583] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:56:47,624] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:47,627] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:47,630] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:47,632] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 10:56:48,668] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:56:48,696] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:56:48,711] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:57:26,403] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:57:26,454] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:57:27,507] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 10:57:27,525] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:57:27,561] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:57:27,584] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:57:27,604] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 10:58:05,451] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:58:05,506] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 10:58:06,519] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 10:58:06,551] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 10:58:44,302] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:58:45,409] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 10:58:45,424] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 10:59:22,981] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 10:59:24,067] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:00:01,711] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:00:40,266] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:00:41,334] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:01:18,938] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:01:20,204] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.029s
+[2025-08-12 11:01:20,478] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.119s
+[2025-08-12 11:01:57,748] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:01:58,894] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:02:36,657] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:03:15,431] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:03:16,532] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:03:54,200] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:04:33,232] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:04:34,318] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:05:12,303] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:05:13,593] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.040s
+[2025-08-12 11:05:13,631] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:05:51,213] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:05:51,310] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.005s
+[2025-08-12 11:05:51,332] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.018s
+[2025-08-12 11:05:51,344] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.004s
+[2025-08-12 11:05:52,365] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:05:52,429] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.003s
+[2025-08-12 11:05:52,452] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:05:52,479] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.003s
+[2025-08-12 11:05:52,524] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.001s
+[2025-08-12 11:05:52,546] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 11:05:52,569] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.000s
+[2025-08-12 11:05:52,630] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 11:05:52,683] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 11:05:52,788] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.031s
+[2025-08-12 11:06:30,167] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:07:09,053] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:07:10,170] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:07:47,532] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:08:26,089] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:08:27,175] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:09:05,133] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:09:06,443] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.025s
+[2025-08-12 11:09:06,513] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.024s
+[2025-08-12 11:09:06,546] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:09:06,638] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.044s
+[2025-08-12 11:09:44,271] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:09:44,339] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:09:44,343] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 11:09:44,348] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:09:45,367] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:09:45,424] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:09:45,452] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.005s
+[2025-08-12 11:09:45,494] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:09:45,517] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:09:45,541] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.003s
+[2025-08-12 11:10:23,310] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:10:23,370] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:10:23,376] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:10:23,380] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 11:11:02,006] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:11:03,096] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:11:03,159] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-12 11:11:03,254] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.006s
+[2025-08-12 11:11:40,898] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:12:19,718] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:12:21,121] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:12:58,880] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:13:37,734] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:13:38,806] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:14:16,354] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:14:55,103] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:14:56,177] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:15:34,048] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:16:12,848] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:16:13,910] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:16:51,725] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:17:30,346] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:17:31,409] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:18:09,080] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:18:47,900] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:18:48,977] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:19:26,586] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:20:05,366] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:20:06,438] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:20:44,057] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:21:22,695] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:21:23,771] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:22:01,421] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:22:40,347] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:22:41,430] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:23:19,189] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:23:58,037] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:23:59,124] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:24:36,782] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:24:37,848] [UltraCacheManager] [INFO] - 🔧 Cache optimizado por frecuencia de acceso
+[2025-08-12 11:25:15,505] [UltraMetricsManager] [ERROR] - Error guardando métricas: database is locked
+[2025-08-12 11:25:16,743] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:25:16,990] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 11:25:17,000] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 11:25:17,055] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 11:25:17,367] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 11:25:17,371] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 11:25:17,382] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 11:25:17,537] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 11:25:17,539] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 11:25:17,540] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 11:25:17,542] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 11:25:17,543] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 11:25:17,543] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 11:25:17,544] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 11:25:18,447] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 11:25:18,453] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 11:25:18,456] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 11:25:18,457] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 11:43:34,736] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 11:43:34,791] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 11:43:34,802] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 11:43:34,803] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 11:43:34,837] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 11:43:34,838] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 11:43:34,843] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 11:43:34,844] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 11:43:34,845] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 11:43:34,845] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 11:43:34,846] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 11:43:34,848] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 11:43:34,849] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 11:43:34,850] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 11:43:34,851] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 11:43:34,852] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 11:43:34,898] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 11:43:34,903] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 11:43:34,905] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 11:43:34,906] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 11:43:34,907] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 11:43:34,908] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 11:43:34,909] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 11:43:34,910] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 11:43:34,911] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 11:43:34,912] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 11:43:34,914] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 11:43:34,916] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 11:43:34,923] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 11:43:34,927] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 11:43:34,931] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 11:43:34,933] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 11:43:34,938] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_114334.json
+[2025-08-12 11:43:34,939] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 11:43:34,960] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 11:43:34,961] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 11:43:39,108] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 11:43:39,110] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 11:43:39,111] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 11:43:39,112] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 11:43:39,113] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 11:43:39,114] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 11:43:39,114] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 11:43:39,115] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 11:43:39,116] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 11:43:39,116] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 11:43:39,196] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 11:43:39,197] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 11:43:39,202] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 11:43:39,204] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 11:43:43,106] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:43:43,107] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:43:49,289] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:43:49,290] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:43:55,488] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:43:55,489] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:01,692] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:01,694] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:07,956] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:07,957] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:13,172] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.015s
+[2025-08-12 11:44:14,246] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:14,247] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:14,298] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.017s
+[2025-08-12 11:44:15,346] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 11:44:15,440] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.020s
+[2025-08-12 11:44:20,538] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:20,539] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:26,768] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:26,771] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:27,887] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:27,912] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 11:44:27,934] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:44:27,965] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.003s
+[2025-08-12 11:44:27,986] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:28,035] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.029s
+[2025-08-12 11:44:33,001] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:33,002] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:34,125] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:44:35,006] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:44:38,222] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:39,268] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:39,270] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:39,303] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:45,556] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:45,557] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:46,680] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:49,343] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:44:51,884] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:51,886] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:58,239] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:44:58,289] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:05,411] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:05,414] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:11,694] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:11,696] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:11,748] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.004s
+[2025-08-12 11:45:12,878] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:45:18,000] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:18,002] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:24,243] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:24,244] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:25,329] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:45:25,358] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:45:30,505] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:30,505] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:35,778] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:45:36,816] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:36,817] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:43,112] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:43,113] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:49,348] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:49,349] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:50,862] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:45:55,587] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:55,588] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:45:55,618] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:45:56,669] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:46:01,864] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:01,866] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:08,239] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:08,240] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:14,538] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:14,539] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:20,865] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:20,867] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:27,189] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:27,191] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:33,590] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:33,593] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:36,778] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:46:39,886] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:39,888] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:46,220] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:46,222] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:52,540] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:52,542] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:58,832] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:46:58,833] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:05,105] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:05,106] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:11,464] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:11,466] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:17,805] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:17,807] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:47:19,507] [UltraBackend] [INFO] - Señal de apagado recibida
+[2025-08-12 11:47:19,512] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 11:47:19,532] [UltraBackend] [INFO] - Apagando Backend Ultra-Avanzado...
+[2025-08-12 11:47:19,701] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 11:47:19,703] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 11:47:19,708] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 11:47:19,801] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 11:47:19,803] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 11:47:19,804] [UltraWebSocketManager] [INFO] - Apagando gestor de WebSockets...
+[2025-08-12 11:47:19,805] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets apagado
+[2025-08-12 11:47:19,806] [UltraDatabaseManager] [INFO] - Apagando gestor de base de datos...
+[2025-08-12 11:47:19,806] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos apagado
+[2025-08-12 11:47:19,808] [UltraCacheManager] [INFO] - Apagando gestor de cache...
+[2025-08-12 11:47:20,561] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 11:47:20,563] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 11:47:20,565] [UltraCacheManager] [INFO] - ✅ Gestor de cache apagado
+[2025-08-12 11:47:20,565] [UltraBackend] [INFO] - [OK] Backend apagado correctamente
+[2025-08-12 11:56:45,335] [UltraWebSocketManager] [INFO] - ℹ️ Redis no disponible - modo standalone
+[2025-08-12 11:56:45,432] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-12 11:56:45,441] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-12 11:56:45,442] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-12 11:56:45,493] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-12 11:56:45,495] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-12 11:56:45,502] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-12 11:56:45,503] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-12 11:56:45,505] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-12 11:56:45,506] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-12 11:56:45,507] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-12 11:56:45,509] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-12 11:56:45,510] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-12 11:56:45,511] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-12 11:56:45,512] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-12 11:56:45,514] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-12 11:56:45,574] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-12 11:56:45,580] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-12 11:56:45,582] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-12 11:56:45,583] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-12 11:56:45,584] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-12 11:56:45,585] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-12 11:56:45,587] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-12 11:56:45,588] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-12 11:56:45,590] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-12 11:56:45,592] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-12 11:56:45,594] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-12 11:56:45,598] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-12 11:56:45,605] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-12 11:56:45,611] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-12 11:56:45,617] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-12 11:56:45,620] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ia_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best.pt
+[2025-08-12 11:56:45,630] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250812_115645.json
+[2025-08-12 11:56:45,633] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-12 11:56:45,664] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-12 11:56:45,666] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-12 11:56:49,817] [UltraCacheManager] [WARNING] - ⚠️ Redis no disponible: Error 10061 connecting to localhost:6379. No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión.
+[2025-08-12 11:56:49,820] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-12 11:56:49,822] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-12 11:56:49,823] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-12 11:56:49,824] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-12 11:56:49,825] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-12 11:56:49,826] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-12 11:56:49,828] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-12 11:56:49,829] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-12 11:56:49,830] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-12 11:56:49,953] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-12 11:56:49,954] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-12 11:56:49,962] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-12 11:56:49,966] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-12 11:56:55,216] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:56:55,219] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:01,599] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:01,601] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:07,994] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:07,996] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:14,539] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:14,540] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:21,044] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:21,045] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:27,347] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:27,348] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:33,733] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:33,736] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:40,234] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:40,256] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:46,393] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:46,395] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:47,474] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:57:52,748] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:52,751] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:59,153] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:57:59,160] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:02,584] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.036s
+[2025-08-12 11:58:02,705] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.024s
+[2025-08-12 11:58:02,768] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:02,868] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.046s
+[2025-08-12 11:58:05,569] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:05,571] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:05,607] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:05,610] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:06,664] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:06,694] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:58:06,698] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:06,778] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.039s
+[2025-08-12 11:58:11,821] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:11,823] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:13,262] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:18,076] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:18,077] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:18,104] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:19,211] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:21,954] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:21,956] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:22,035] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.007s
+[2025-08-12 11:58:22,039] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:24,402] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:24,404] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:24,436] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:58:25,498] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:25,541] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:25,569] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:25,599] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.002s
+[2025-08-12 11:58:30,617] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:30,619] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:30,662] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:35,829] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:58:36,869] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:36,871] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:37,980] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:40,036] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:40,040] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:40,130] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:40,175] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.042s
+[2025-08-12 11:58:43,110] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:43,111] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:43,147] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:48,325] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:58:49,357] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:49,358] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:50,501] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:50,520] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-12 11:58:52,665] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:52,667] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-12 11:58:52,914] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.179s
+[2025-08-12 11:58:52,919] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:55,584] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:55,586] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:58:55,631] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:58:58,730] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.003s
+[2025-08-12 11:59:01,817] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:01,818] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:01,856] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-12 11:59:04,977] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-12 11:59:08,064] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:08,065] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:08,109] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.002s
+[2025-08-12 11:59:14,318] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:14,320] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:20,625] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:20,626] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:26,818] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:26,819] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:33,038] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:33,039] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:39,294] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:39,295] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:45,651] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:45,652] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:48,927] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-12 11:59:52,098] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:52,100] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:58,357] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 11:59:58,359] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 12:00:04,679] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)
+[2025-08-12 12:00:04,681] [UltraMetricsManager] [ERROR] - Error guardando métricas en BD principal: too many values to unpack (expected 2)

@@ -50,12 +50,12 @@ class ValidationLevel(Enum):
 
 class SystemSettings(BaseModel):
     """Configuración del sistema."""
-    log_level: str = Field("INFO", regex="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    log_level: str = Field("INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     debug_mode: bool = False
-    performance_mode: str = Field("balanced", regex="^(low_power|balanced|high_performance)$")
+    performance_mode: str = Field("balanced", pattern="^(low_power|balanced|high_performance)$")
     enable_telemetry: bool = True
     system_name: str = Field(..., min_length=3, max_length=50)
-    installation_id: str = Field(..., regex="^[A-Z0-9-]+$")
+    installation_id: str = Field(..., pattern="^[A-Z0-9-]+$")
     timezone: str = "UTC"
 
 class SecuritySettings(BaseModel):
@@ -69,7 +69,7 @@ class SecuritySettings(BaseModel):
 
 class CameraSettings(BaseModel):
     """Configuración de cámara."""
-    type: str = Field("usb_webcam", regex="^(usb_webcam|csi_camera|ip_camera|mock)$")
+    type: str = Field("usb_webcam", pattern="^(usb_webcam|csi_camera|ip_camera|mock)$")
     device_id: int = Field(0, ge=0, le=10)
     frame_width: int = Field(1280, ge=320, le=4096)
     frame_height: int = Field(720, ge=240, le=2160)
@@ -92,7 +92,7 @@ class AIModelSettings(BaseModel):
 
 class ConveyorBeltSettings(BaseModel):
     """Configuración de banda transportadora."""
-    type: str = Field("dc_motor_pwm", regex="^(dc_motor_pwm|stepper|servo)$")
+    type: str = Field("dc_motor_pwm", pattern="^(dc_motor_pwm|stepper|servo)$")
     belt_speed_mps: float = Field(0.15, ge=0.01, le=2.0)
     max_speed_mps: float = Field(0.5, ge=0.1, le=5.0)
     enable_speed_control: bool = True
@@ -111,7 +111,7 @@ class SensorSettings(BaseModel):
 
 class LabelerSettings(BaseModel):
     """Configuración del etiquetador."""
-    type: str = Field("solenoid", regex="^(solenoid|servo|stepper|pneumatic)$")
+    type: str = Field("solenoid", pattern="^(solenoid|servo|stepper|pneumatic)$")
     pin: int = Field(26, ge=1, le=40)
     max_activation_time_seconds: float = Field(60.0, ge=0.1, le=300.0)
     distance_camera_to_labeler_m: float = Field(0.5, ge=0.1, le=5.0)

@@ -1,0 +1,65 @@
+[2025-08-12 07:14:42.980] [PID:1172] [            FruPrintUltra] [   ERROR] [  _initialize_camera:1022] [14304] - Error inicializando cámara: name 'CameraController' is not defined
+[2025-08-12 07:14:42.982] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_ai_detector:1038] [14304] - Error inicializando IA: name 'EnterpriseFruitDetector' is not defined
+[2025-08-12 07:14:42.983] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_belt_controller:1054] [14304] - Error inicializando banda: name 'ConveyorBeltController' is not defined
+[2025-08-12 07:14:42.988] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_ultra_labelers:1221] [14304] - Error inicializando etiquetadoras lineales: name 'LabelerActuator' is not defined
+[2025-08-12 07:14:42.989] [PID:1172] [            FruPrintUltra] [   ERROR] [ _initialize_sensors:1089] [14304] - Error inicializando sensores: name 'SensorInterface' is not defined
+[2025-08-12 08:55:39.779] [PID:20076] [            FruPrintUltra] [   ERROR] [  _initialize_camera:1022] [13900] - Error inicializando cámara: name 'CameraController' is not defined
+[2025-08-12 08:55:39.783] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [21932] - Worker-0: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.786] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [21932] - Worker-0: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.789] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [3456] - Worker-1: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.794] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [3456] - Worker-1: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.796] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [23624] - Worker-2: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.801] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [23624] - Worker-2: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.801] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [21860] - Worker-3: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.803] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [21860] - Worker-3: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:56:39.812] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [          initialize:1014] [13900] - Error crítico inicializando EnterpriseFruitDetector: Timeout esperando carga de modelos (60.0s)
+Traceback (most recent call last):
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1051, in _wait_for_all_models
+    results = await asyncio.wait_for(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 506, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\timeouts.py", line 116, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1003, in initialize
+    await self._wait_for_all_models()
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1068, in _wait_for_all_models
+    raise RuntimeError(f"Timeout esperando carga de modelos ({timeout}s)")
+RuntimeError: Timeout esperando carga de modelos (60.0s)
+[2025-08-12 08:56:39.832] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_ai_detector:1038] [13900] - Error inicializando IA: Fallo al inicializar IA
+[2025-08-12 08:56:39.832] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_belt_controller:1054] [13900] - Error inicializando banda: name 'ConveyorBeltController' is not defined
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_ultra_labelers:1221] [13900] - Error inicializando etiquetadoras lineales: name 'LabelerActuator' is not defined
+[2025-08-12 08:56:39.838] [PID:20076] [            FruPrintUltra] [   ERROR] [ _initialize_sensors:1089] [13900] - Error inicializando sensores: name 'SensorInterface' is not defined

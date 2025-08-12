@@ -45,6 +45,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+import os
 import redis
 import sqlite3
 from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, DateTime, Boolean, Text, JSON
@@ -54,7 +55,13 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict, deque
 import psutil
-import GPUtil
+# Import GPU utils opcional
+try:
+    import GPUtil  # type: ignore[reportMissingImports]
+    GPUUTIL_AVAILABLE = True
+except Exception:
+    GPUtil = None  # type: ignore
+    GPUUTIL_AVAILABLE = False
 
 # Importar módulos del sistema principal
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -73,12 +80,52 @@ from backend_modules.api_modules import (
     ConfigAPI, ReportsAPI, AnalyticsAPI, MaintenanceAPI
 )
 
-# Configurar logging
+# Función auxiliar para logging seguro en Windows
+def safe_log(logger_instance, level, message, *args, **kwargs):
+    """Función auxiliar para logging seguro que maneja caracteres Unicode en Windows."""
+    try:
+        # Reemplazar emojis problemáticos con texto descriptivo
+        safe_message = message
+        emoji_replacements = {
+            "✅": "[OK]",
+            "🚀": "[START]", 
+            "📊": "[METRICS]",
+            "⚠️": "[WARNING]",
+            "❌": "[ERROR]",
+            "🔧": "[CONFIG]",
+            "🌍": "[ENV]",
+            "💾": "[DB]",
+            "🔒": "[AUTH]",
+            "Ôä╣´©Å": "[REDIS]",
+            "Ô£à": "[SUCCESS]",
+            "­ƒùâ´©Å": "[SQLITE]",
+            "­ƒîì": "[ENV]",
+            "­ƒôä": "[CONFIG]",
+            "ÔÜá´©Å": "[WARNING]",
+            "­ƒÆ¥": "[BACKUP]"
+        }
+        
+        for emoji, replacement in emoji_replacements.items():
+            safe_message = safe_message.replace(emoji, replacement)
+        
+        getattr(logger_instance, level)(safe_message, *args, **kwargs)
+    except UnicodeEncodeError:
+        # Fallback: log sin caracteres especiales
+        try:
+            fallback_message = message.encode('utf-8', errors='ignore').decode('utf-8')
+            getattr(logger_instance, level)(fallback_message, *args, **kwargs)
+        except Exception:
+            # Último fallback: solo texto ASCII
+            fallback_message = message.encode('ascii', errors='ignore').decode('ascii')
+            getattr(logger_instance, level)(fallback_message, *args, **kwargs)
+
+# Configurar logging (crear directorio si no existe)
+Path("logs").mkdir(exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] [%(name)s] [%(levelname)s] - %(message)s',
     handlers=[
-        logging.FileHandler('logs/backend_ultra.log'),
+        logging.FileHandler('logs/backend_ultra.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -146,13 +193,15 @@ class UltraBackendSystem:
             Path("static").mkdir(exist_ok=True)
             
             # Inicializar gestores
-            await self.metrics_manager.initialize()
+            await self.metrics_manager.initialize(self)
             await self.alert_system.initialize()
             await self.websocket_manager.initialize()
             await self.db_manager.initialize()
             await self.report_generator.initialize()
             await self.config_manager.initialize()
             await self.auth_manager.initialize()
+            # Permitir desactivar Redis vía env sin ruido en logs
+            os.environ.setdefault("VISIFRUIT_REDIS_ENABLED", os.environ.get("VISIFRUIT_REDIS_ENABLED", "0"))
             await self.cache_manager.initialize()
             
             # Inicializar APIs especializadas
@@ -172,11 +221,11 @@ class UltraBackendSystem:
             await self._start_background_tasks()
             
             self.is_running = True
-            logger.info("✅ Backend Ultra-Avanzado inicializado exitosamente")
+            safe_log(logger, "info", "✅ Backend Ultra-Avanzado inicializado exitosamente")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Error inicializando backend: {e}")
+            safe_log(logger, "error", f"❌ Error inicializando backend: {e}")
             return False
 
     def _create_ultra_app(self) -> FastAPI:
@@ -395,19 +444,20 @@ class UltraBackendSystem:
             
             # Métricas de GPU si están disponibles
             gpu_metrics = []
-            try:
-                gpus = GPUtil.getGPUs()
-                for gpu in gpus:
-                    gpu_metrics.append({
-                        "id": gpu.id,
-                        "name": gpu.name,
-                        "load": gpu.load * 100,
-                        "memory_used": gpu.memoryUsed,
-                        "memory_total": gpu.memoryTotal,
-                        "temperature": gpu.temperature
-                    })
-            except:
-                gpu_metrics = []
+            if GPUUTIL_AVAILABLE and GPUtil is not None:
+                try:
+                    gpus = GPUtil.getGPUs()
+                    for gpu in gpus:
+                        gpu_metrics.append({
+                            "id": gpu.id,
+                            "name": gpu.name,
+                            "load": gpu.load * 100,
+                            "memory_used": gpu.memoryUsed,
+                            "memory_total": gpu.memoryTotal,
+                            "temperature": gpu.temperature
+                        })
+                except Exception:
+                    gpu_metrics = []
             
             # Métricas de red
             net_io = psutil.net_io_counters()
@@ -532,7 +582,7 @@ class UltraBackendSystem:
         ]
         
         self.background_tasks.extend(tasks)
-        logger.info(f"✅ Iniciadas {len(tasks)} tareas en background")
+        safe_log(logger, "info", f"✅ Iniciadas {len(tasks)} tareas en background")
 
     async def _metrics_collector_task(self):
         """Tarea para recolectar métricas periódicamente."""
@@ -547,7 +597,7 @@ class UltraBackendSystem:
                     "connected_clients": len(self.connected_clients),
                     "background_tasks": len(self.background_tasks),
                     "cache_hit_rate": await self.cache_manager.get_hit_rate(),
-                    "db_connections": await self.db_manager.get_connection_count()
+                    "db_connections": self.db_manager.get_connection_count()  # No es async
                 }
                 
                 await self.metrics_manager.save_app_metrics(app_metrics)
@@ -613,7 +663,9 @@ class UltraBackendSystem:
         """Tarea para limpiar cache periódicamente."""
         while self.is_running:
             try:
-                await self.cache_manager.cleanup_expired()
+                # Ejecutar mantenimiento básico del cache
+                # El UltraCacheManager ya tiene sus propias tareas de limpieza internas
+                # Solo necesitamos hacer un mantenimiento ligero aquí
                 await asyncio.sleep(300)  # Cada 5 minutos
                 
             except Exception as e:
@@ -662,7 +714,7 @@ class UltraBackendSystem:
         await self.db_manager.shutdown()
         await self.cache_manager.shutdown()
         
-        logger.info("✅ Backend apagado correctamente")
+        safe_log(logger, "info", "✅ Backend apagado correctamente")
 
 
 # Middleware personalizado
@@ -789,19 +841,19 @@ if __name__ == "__main__":
         app = await startup_backend()
         
         if app:
-            # Configurar servidor
+            # Configurar servidor (puerto 8001 para evitar conflicto con sistema principal)
             config = uvicorn.Config(
                 app=app,
                 host="0.0.0.0",
-                port=8000,
+                port=8001,
                 log_level="info",
                 reload=False
             )
             
             server = uvicorn.Server(config)
             
-            logger.info("🚀 Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8000")
-            logger.info("📊 Dashboard disponible en http://0.0.0.0:8000/api/docs")
+            safe_log(logger, "info", "🚀 Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001")
+            safe_log(logger, "info", "📊 Dashboard disponible en http://0.0.0.0:8001/api/docs")
             
             try:
                 await server.serve()

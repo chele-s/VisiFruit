@@ -1,0 +1,20 @@
+# Requirements para el VisiFruit Launcher
+# ===========================================
+
+# GUI moderna (opcional pero recomendado)
+customtkinter>=5.2.2
+
+# HTTP requests para verificar estado
+requests>=2.25.0
+
+# Para compilar a .exe
+pyinstaller>=5.0.0
+
+# Dependencias adicionales para el .exe
+pillow>=8.0.0
+
+# Para mejor logging
+colorlog>=6.0.0
+
+# Para manejo de procesos
+psutil>=5.8.0

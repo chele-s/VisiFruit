@@ -1,0 +1,144 @@
+[2025-08-12 07:14:42.972] [PID:1172] [            FruPrintUltra] [    INFO] [_init_optimization_system: 892] [14304] - Sistema de optimización inicializado
+[2025-08-12 07:14:42.973] [PID:1172] [            FruPrintUltra] [    INFO] [            __init__: 823] [14304] - Sistema ULTRA FruPrint-Industrial-v2 (FRUPRINT-001) v3.0.0-ULTRA inicializado
+[2025-08-12 07:14:42.974] [PID:1172] [            FruPrintUltra] [    INFO] [            __init__: 824] [14304] - Características activadas: 6 etiquetadoras, IA categorización, motor DC, predicción
+[2025-08-12 07:14:42.976] [PID:1172] [            FruPrintUltra] [    INFO] [          _set_state: 930] [14304] - Estado: offline → initializing
+[2025-08-12 07:14:42.978] [PID:1172] [            FruPrintUltra] [    INFO] [         _send_alert: 949] [14304] - [Sistema] Estado: initializing
+[2025-08-12 07:14:42.979] [PID:1172] [            FruPrintUltra] [    INFO] [          initialize: 967] [14304] - === Iniciando inicialización del sistema ===
+[2025-08-12 07:14:42.979] [PID:1172] [            FruPrintUltra] [    INFO] [  _initialize_camera:1011] [14304] - Inicializando cámara...
+[2025-08-12 07:14:42.980] [PID:1172] [            FruPrintUltra] [   ERROR] [  _initialize_camera:1022] [14304] - Error inicializando cámara: name 'CameraController' is not defined
+[2025-08-12 07:14:42.980] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_ai_detector:1028] [14304] - Inicializando detector de IA...
+[2025-08-12 07:14:42.982] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_ai_detector:1038] [14304] - Error inicializando IA: name 'EnterpriseFruitDetector' is not defined
+[2025-08-12 07:14:42.983] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_belt_controller:1043] [14304] - Inicializando controlador de banda...
+[2025-08-12 07:14:42.983] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_belt_controller:1054] [14304] - Error inicializando banda: name 'ConveyorBeltController' is not defined
+[2025-08-12 07:14:42.984] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1161] [14304] - Inicializando controlador lineal de motor DC...
+[2025-08-12 07:14:42.984] [PID:1172] [            FruPrintUltra] [ WARNING] [          initialize: 537] [14304] - GPIO no disponible - Modo simulación motor
+[2025-08-12 07:14:42.985] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1173] [14304] - Controlador lineal de motor DC inicializado correctamente
+[2025-08-12 07:14:42.985] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1174] [14304] - 🍎 Grupo manzanas: etiquetadoras 0-1
+[2025-08-12 07:14:42.986] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1175] [14304] - 🍐 Grupo peras: etiquetadoras 2-3
+[2025-08-12 07:14:42.987] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1176] [14304] - 🍋 Grupo limones: etiquetadoras 4-5
+[2025-08-12 07:14:42.987] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_ultra_labelers:1183] [14304] - Inicializando 6 etiquetadoras lineales ultra-avanzadas...
+[2025-08-12 07:14:42.988] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_ultra_labelers:1196] [14304] - Inicializando grupo 🍎 Apple...
+[2025-08-12 07:14:42.988] [PID:1172] [            FruPrintUltra] [   ERROR] [_initialize_ultra_labelers:1221] [14304] - Error inicializando etiquetadoras lineales: name 'LabelerActuator' is not defined
+[2025-08-12 07:14:42.989] [PID:1172] [            FruPrintUltra] [    INFO] [ _initialize_sensors:1075] [14304] - Inicializando sensores...
+[2025-08-12 07:14:42.989] [PID:1172] [            FruPrintUltra] [   ERROR] [ _initialize_sensors:1089] [14304] - Error inicializando sensores: name 'SensorInterface' is not defined
+[2025-08-12 07:14:42.990] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_ultra_api:1228] [14304] - Inicializando API Ultra-Avanzada...
+[2025-08-12 07:14:43.003] [PID:1172] [            FruPrintUltra] [    INFO] [_initialize_ultra_api:1230] [14304] - API Ultra-Avanzada inicializada correctamente
+[2025-08-12 07:14:43.006] [PID:1172] [            FruPrintUltra] [    INFO] [_start_ultra_system_tasks:1397] [14304] - Iniciando tareas ultra-concurrentes del sistema...
+[2025-08-12 07:14:43.007] [PID:1172] [            FruPrintUltra] [    INFO] [_start_ultra_system_tasks:1409] [14304] - Iniciadas 5 tareas ultra-concurrentes
+[2025-08-12 07:14:43.008] [PID:1172] [            FruPrintUltra] [    INFO] [          _set_state: 930] [14304] - Estado: initializing → idle
+[2025-08-12 07:14:43.009] [PID:1172] [            FruPrintUltra] [    INFO] [         _send_alert: 949] [14304] - [Sistema] Estado: idle
+[2025-08-12 07:14:43.009] [PID:1172] [            FruPrintUltra] [    INFO] [          initialize: 999] [14304] - === Sistema inicializado exitosamente ===
+[2025-08-12 07:14:43.010] [PID:1172] [            FruPrintUltra] [    INFO] [                main:2257] [14304] - Sistema ejecutándose...
+[2025-08-12 07:14:43.011] [PID:1172] [            FruPrintUltra] [    INFO] [_ultra_main_processing_loop:1630] [14304] - Iniciando bucle ultra de procesamiento principal
+[2025-08-12 07:14:43.012] [PID:1172] [            FruPrintUltra] [    INFO] [_ultra_monitoring_loop:1852] [14304] - Iniciando bucle ultra de monitoreo
+[2025-08-12 07:14:43.012] [PID:1172] [            FruPrintUltra] [    INFO] [_ultra_optimization_loop:1963] [14304] - Iniciando bucle ultra de optimización
+[2025-08-12 07:14:43.013] [PID:1172] [            FruPrintUltra] [    INFO] [_ultra_learning_loop:2049] [14304] - Iniciando bucle ultra de aprendizaje
+[2025-08-12 07:14:43.013] [PID:1172] [            FruPrintUltra] [    INFO] [   _start_api_server:1565] [14304] - Iniciando servidor API en 0.0.0.0:8000
+[2025-08-12 08:55:39.776] [PID:20076] [            FruPrintUltra] [    INFO] [_init_optimization_system: 892] [13900] - Sistema de optimización inicializado
+[2025-08-12 08:55:39.776] [PID:20076] [            FruPrintUltra] [    INFO] [            __init__: 823] [13900] - Sistema ULTRA FruPrint-Industrial-v2 (FRUPRINT-001) v3.0.0-ULTRA inicializado
+[2025-08-12 08:55:39.777] [PID:20076] [            FruPrintUltra] [    INFO] [            __init__: 824] [13900] - Características activadas: 6 etiquetadoras, IA categorización, motor DC, predicción
+[2025-08-12 08:55:39.777] [PID:20076] [            FruPrintUltra] [    INFO] [          _set_state: 930] [13900] - Estado: offline → initializing
+[2025-08-12 08:55:39.778] [PID:20076] [            FruPrintUltra] [    INFO] [         _send_alert: 949] [13900] - [Sistema] Estado: initializing
+[2025-08-12 08:55:39.778] [PID:20076] [            FruPrintUltra] [    INFO] [          initialize: 967] [13900] - === Iniciando inicialización del sistema ===
+[2025-08-12 08:55:39.778] [PID:20076] [            FruPrintUltra] [    INFO] [  _initialize_camera:1011] [13900] - Inicializando cámara...
+[2025-08-12 08:55:39.779] [PID:20076] [            FruPrintUltra] [   ERROR] [  _initialize_camera:1022] [13900] - Error inicializando cámara: name 'CameraController' is not defined
+[2025-08-12 08:55:39.779] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_ai_detector:1028] [13900] - Inicializando detector de IA...
+[2025-08-12 08:55:39.780] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [            __init__: 985] [13900] - EnterpriseFruitDetector instanciado con 4 workers
+[2025-08-12 08:55:39.780] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [          initialize: 996] [13900] - Inicializando EnterpriseFruitDetector...
+[2025-08-12 08:55:39.780] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [ _create_worker_pool:1020] [13900] - Creando pool de 4 workers...
+[2025-08-12 08:55:39.781] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [            __init__: 360] [13900] - AdvancedInferenceWorker-0 instanciado con configuración avanzada.
+[2025-08-12 08:55:39.781] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [                 run: 593] [21932] - Worker-0: Iniciando bucle principal
+[2025-08-12 08:55:39.781] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [            __init__: 360] [13900] - AdvancedInferenceWorker-1 instanciado con configuración avanzada.
+[2025-08-12 08:55:39.783] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [21932] - Worker-0: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.784] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [                 run: 593] [3456] - Worker-1: Iniciando bucle principal
+[2025-08-12 08:55:39.784] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [            __init__: 360] [13900] - AdvancedInferenceWorker-2 instanciado con configuración avanzada.
+[2025-08-12 08:55:39.786] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [21932] - Worker-0: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.789] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [3456] - Worker-1: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.790] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [                 run: 593] [23624] - Worker-2: Iniciando bucle principal
+[2025-08-12 08:55:39.790] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [            __init__: 360] [13900] - AdvancedInferenceWorker-3 instanciado con configuración avanzada.
+[2025-08-12 08:55:39.794] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [3456] - Worker-1: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.796] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [23624] - Worker-2: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.798] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [                 run: 593] [21860] - Worker-3: Iniciando bucle principal
+[2025-08-12 08:55:39.798] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [ _create_worker_pool:1035] [13900] - Pool de 4 workers creado
+[2025-08-12 08:55:39.801] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [23624] - Worker-2: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.801] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [         _load_model: 403] [21860] - Worker-3: Error crítico al cargar modelo: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 374, in _load_model
+    raise FileNotFoundError(f"Modelo no encontrado en: {self._model_path}")
+FileNotFoundError: Modelo no encontrado en: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-12 08:55:39.801] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [_wait_for_all_models:1039] [13900] - Esperando carga de modelos en todos los workers...
+[2025-08-12 08:55:39.803] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [                 run: 599] [21860] - Worker-3: No se pudo cargar el modelo, terminando worker
+[2025-08-12 08:55:39.804] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [      wait_for_model: 902] [12600] - Worker-0: Esperando carga del modelo (timeout: 60.0s)
+[2025-08-12 08:55:39.805] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [      wait_for_model: 902] [23752] - Worker-1: Esperando carga del modelo (timeout: 60.0s)
+[2025-08-12 08:55:39.806] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [      wait_for_model: 902] [13804] - Worker-2: Esperando carga del modelo (timeout: 60.0s)
+[2025-08-12 08:55:39.806] [PID:20076] [IA_Etiquetado.Fruit_detector] [    INFO] [      wait_for_model: 902] [3260] - Worker-3: Esperando carga del modelo (timeout: 60.0s)
+[2025-08-12 08:56:39.812] [PID:20076] [IA_Etiquetado.Fruit_detector] [   ERROR] [          initialize:1014] [13900] - Error crítico inicializando EnterpriseFruitDetector: Timeout esperando carga de modelos (60.0s)
+Traceback (most recent call last):
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1051, in _wait_for_all_models
+    results = await asyncio.wait_for(
+              ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+    )
+    ^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\tasks.py", line 506, in wait_for
+    async with timeouts.timeout(timeout):
+               ~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\DELL\AppData\Local\Programs\Python\Python313\Lib\asyncio\timeouts.py", line 116, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1003, in initialize
+    await self._wait_for_all_models()
+  File "c:\Users\DELL\Documents\Code\VisiFruit\IA_Etiquetado\Fruit_detector.py", line 1068, in _wait_for_all_models
+    raise RuntimeError(f"Timeout esperando carga de modelos ({timeout}s)")
+RuntimeError: Timeout esperando carga de modelos (60.0s)
+[2025-08-12 08:56:39.832] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_ai_detector:1038] [13900] - Error inicializando IA: Fallo al inicializar IA
+[2025-08-12 08:56:39.832] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_belt_controller:1043] [13900] - Inicializando controlador de banda...
+[2025-08-12 08:56:39.832] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_belt_controller:1054] [13900] - Error inicializando banda: name 'ConveyorBeltController' is not defined
+[2025-08-12 08:56:39.833] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1161] [13900] - Inicializando controlador lineal de motor DC...
+[2025-08-12 08:56:39.834] [PID:20076] [            FruPrintUltra] [ WARNING] [          initialize: 537] [13900] - GPIO no disponible - Modo simulación motor
+[2025-08-12 08:56:39.835] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1173] [13900] - Controlador lineal de motor DC inicializado correctamente
+[2025-08-12 08:56:39.835] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1174] [13900] - 🍎 Grupo manzanas: etiquetadoras 0-1
+[2025-08-12 08:56:39.836] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1175] [13900] - 🍐 Grupo peras: etiquetadoras 2-3
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_motor_controller:1176] [13900] - 🍋 Grupo limones: etiquetadoras 4-5
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_ultra_labelers:1183] [13900] - Inicializando 6 etiquetadoras lineales ultra-avanzadas...
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_ultra_labelers:1196] [13900] - Inicializando grupo 🍎 Apple...
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [   ERROR] [_initialize_ultra_labelers:1221] [13900] - Error inicializando etiquetadoras lineales: name 'LabelerActuator' is not defined
+[2025-08-12 08:56:39.837] [PID:20076] [            FruPrintUltra] [    INFO] [ _initialize_sensors:1075] [13900] - Inicializando sensores...
+[2025-08-12 08:56:39.838] [PID:20076] [            FruPrintUltra] [   ERROR] [ _initialize_sensors:1089] [13900] - Error inicializando sensores: name 'SensorInterface' is not defined
+[2025-08-12 08:56:39.838] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_ultra_api:1228] [13900] - Inicializando API Ultra-Avanzada...
+[2025-08-12 08:56:39.850] [PID:20076] [            FruPrintUltra] [    INFO] [_initialize_ultra_api:1230] [13900] - API Ultra-Avanzada inicializada correctamente
+[2025-08-12 08:56:39.851] [PID:20076] [            FruPrintUltra] [    INFO] [_start_ultra_system_tasks:1397] [13900] - Iniciando tareas ultra-concurrentes del sistema...
+[2025-08-12 08:56:39.852] [PID:20076] [            FruPrintUltra] [    INFO] [_start_ultra_system_tasks:1409] [13900] - Iniciadas 5 tareas ultra-concurrentes
+[2025-08-12 08:56:39.852] [PID:20076] [            FruPrintUltra] [    INFO] [          _set_state: 930] [13900] - Estado: initializing → idle
+[2025-08-12 08:56:39.853] [PID:20076] [            FruPrintUltra] [    INFO] [         _send_alert: 949] [13900] - [Sistema] Estado: idle
+[2025-08-12 08:56:39.854] [PID:20076] [            FruPrintUltra] [    INFO] [          initialize: 999] [13900] - === Sistema inicializado exitosamente ===
+[2025-08-12 08:56:39.855] [PID:20076] [            FruPrintUltra] [    INFO] [                main:2257] [13900] - Sistema ejecutándose...
+[2025-08-12 08:56:39.856] [PID:20076] [            FruPrintUltra] [    INFO] [_ultra_main_processing_loop:1630] [13900] - Iniciando bucle ultra de procesamiento principal
+[2025-08-12 08:56:39.857] [PID:20076] [            FruPrintUltra] [    INFO] [_ultra_monitoring_loop:1852] [13900] - Iniciando bucle ultra de monitoreo
+[2025-08-12 08:56:39.858] [PID:20076] [            FruPrintUltra] [    INFO] [_ultra_optimization_loop:1963] [13900] - Iniciando bucle ultra de optimización
+[2025-08-12 08:56:39.859] [PID:20076] [            FruPrintUltra] [    INFO] [_ultra_learning_loop:2049] [13900] - Iniciando bucle ultra de aprendizaje
+[2025-08-12 08:56:39.860] [PID:20076] [            FruPrintUltra] [    INFO] [   _start_api_server:1565] [13900] - Iniciando servidor API en 0.0.0.0:8000

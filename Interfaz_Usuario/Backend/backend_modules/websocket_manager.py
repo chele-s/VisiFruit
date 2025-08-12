@@ -28,7 +28,12 @@ from enum import Enum, auto
 import uuid
 import jwt
 from fastapi import WebSocket, WebSocketDisconnect
-import redis
+import os
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except Exception:
+    REDIS_AVAILABLE = False
 
 logger = logging.getLogger("UltraWebSocketManager")
 
@@ -128,12 +133,24 @@ class UltraWebSocketManager:
         
         # Redis para sincronización entre instancias (opcional)
         self.redis_client = None
-        try:
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)
-            self.redis_client.ping()
-            logger.info("✅ Redis conectado para sincronización WebSocket")
-        except:
-            logger.info("ℹ️ Redis no disponible - modo standalone")
+        self.redis_enabled = os.environ.get("VISIFRUIT_REDIS_ENABLED", "0").lower() in ("1", "true", "yes", "y")
+        if self.redis_enabled and REDIS_AVAILABLE:
+            try:
+                redis_host = os.environ.get("VISIFRUIT_REDIS_HOST", "localhost")
+                redis_port = int(os.environ.get("VISIFRUIT_REDIS_PORT", "6379"))
+                redis_db = int(os.environ.get("VISIFRUIT_REDIS_DB_WS", "1"))
+
+                self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+                self.redis_client.ping()
+                logger.info("Redis conectado para sincronización WebSocket")
+            except Exception:
+                logger.info("Redis no disponible - modo standalone")
+                self.redis_client = None
+        else:
+            if not self.redis_enabled:
+                logger.info("Redis desactivado por configuración (VISIFRUIT_REDIS_ENABLED=0) - modo standalone")
+            else:
+                logger.info("Redis no instalado - modo standalone")
 
     async def initialize(self):
         """Inicializa el gestor de WebSockets."""
@@ -620,7 +637,8 @@ class UltraWebSocketManager:
                 self.metrics["active_connections"] = active_count
                 
                 # Log de métricas
-                logger.info(f"📊 WebSocket Metrics: {active_count} conexiones activas, "
+                # Usar logging sin emojis para evitar errores de codificación
+                logger.info(f"[METRICS] WebSocket Metrics: {active_count} conexiones activas, "
                           f"{self.metrics['messages_sent']} mensajes enviados")
                 
             except Exception as e:

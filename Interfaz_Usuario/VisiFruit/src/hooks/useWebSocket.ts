@@ -10,7 +10,10 @@ interface WebSocketMessage {
   timestamp: string
 }
 
-export const useWebSocket = (url: string = 'ws://localhost:8000/ws') => {
+export const useWebSocket = (url?: string) => {
+  // Usar configuración dinámica por defecto
+  const defaultUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws/realtime'
+  const wsUrl = url || defaultUrl
   const [isConnected, setIsConnected] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const websocket = useRef<WebSocket | null>(null)
@@ -21,7 +24,7 @@ export const useWebSocket = (url: string = 'ws://localhost:8000/ws') => {
 
   const connect = () => {
     try {
-      websocket.current = new WebSocket(url)
+      websocket.current = new WebSocket(wsUrl)
 
       websocket.current.onopen = () => {
         console.log('✅ WebSocket conectado')
@@ -119,7 +122,7 @@ export const useWebSocket = (url: string = 'ws://localhost:8000/ws') => {
     return () => {
       disconnect()
     }
-  }, [url])
+  }, [wsUrl])
 
   return {
     isConnected,

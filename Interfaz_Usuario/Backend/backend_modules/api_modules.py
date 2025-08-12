@@ -502,7 +502,7 @@ class MetricsAPI(BaseAPI):
         @self.router.get("/history/{metric_type}")
         async def get_metric_history(
             metric_type: str,
-            hours: int = Query(24, description="Horas hacia atrás"),
+            period: str = Query("24h", description="Período: 1h, 24h, 7d, 30d"),
             resolution: str = Query("1m", description="Resolución: 1m, 5m, 1h")
         ):
             """Obtiene historial de una métrica específica."""
@@ -514,33 +514,34 @@ class MetricsAPI(BaseAPI):
                         detail=f"Tipo de métrica inválido. Válidos: {valid_metrics}"
                     )
                 
+                # Convertir período a horas
+                hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720}
+                hours = hours_map.get(period, 24)
+                
                 # Simular datos históricos
                 import numpy as np
-                timestamps = []
-                values = []
+                data_points = []
                 
                 for i in range(hours):
                     timestamp = datetime.now() - timedelta(hours=hours-i)
-                    timestamps.append(timestamp.isoformat())
                     # Generar valores simulados
                     base_value = 85 + np.sin(i * 0.1) * 10
                     noise = np.random.normal(0, 5)
-                    values.append(max(0, base_value + noise))
+                    value = max(0, base_value + noise)
+                    
+                    data_points.append({
+                        "time": timestamp.isoformat(),
+                        "throughput": value,
+                        "efficiency": 75 + np.random.uniform(-10, 15),
+                        "quality": 85 + np.random.uniform(-8, 12),
+                        "errors": np.random.uniform(0, 10),
+                        "downtime": np.random.uniform(0, 5),
+                        "temperature": 35 + np.random.uniform(-10, 15),
+                        "speed": 0.3 + np.random.uniform(0, 0.4)
+                    })
                 
-                return {
-                    "metric_type": metric_type,
-                    "period_hours": hours,
-                    "resolution": resolution,
-                    "data_points": len(timestamps),
-                    "timestamps": timestamps,
-                    "values": values,
-                    "statistics": {
-                        "min": min(values),
-                        "max": max(values),
-                        "avg": sum(values) / len(values),
-                        "trend": "stable"
-                    }
-                }
+                # Devolver array directamente para compatibilidad con el frontend
+                return data_points
                 
             except HTTPException:
                 raise

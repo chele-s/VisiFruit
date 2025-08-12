@@ -1,4 +1,5 @@
 # main_etiquetadora.py
+from __future__ import annotations
 """
 Sistema Industrial de Etiquetado Múltiple de Frutas FruPrint v3.0 ULTRA
 ========================================================================

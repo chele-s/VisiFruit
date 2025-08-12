@@ -21,25 +21,28 @@ jinja2>=3.1.0
 pydantic>=2.5.0
 jsonschema>=4.19.0
 python-dotenv>=1.0.0
+PyYAML>=6.0.1
 
 # Base de datos y persistencia
-sqlite3  # Incluido en Python standard library
+# sqlite3 viene incluido en la librería estándar de Python (no instalar por pip)
 sqlalchemy>=2.0.0
 alembic>=1.12.0
+psycopg2-binary>=2.9.9  # Soporte PostgreSQL (recomendado para desarrollo/Windows)
 
 # Monitoreo y métricas
 psutil>=5.9.0
 prometheus-client>=0.19.0
 structlog>=23.2.0
+GPUtil>=1.4.0
 
 # Comunicación y protocolos
 pyserial>=3.5
-smbus2>=0.4.0  # Para I2C en Raspberry Pi
-spidev>=3.6    # Para SPI en Raspberry Pi
+smbus2>=0.4.0; platform_system == "Linux"  # Para I2C en Raspberry Pi
+spidev>=3.6; platform_system == "Linux"    # Para SPI en Raspberry Pi
 
 # GPIO y hardware (Raspberry Pi)
-RPi.GPIO>=0.7.1  # Solo en Raspberry Pi
-pigpio>=1.78     # Librería GPIO avanzada alternativa
+RPi.GPIO>=0.7.1; platform_system == "Linux"  # Solo en Raspberry Pi
+pigpio>=1.78; platform_system == "Linux"     # Librería GPIO avanzada alternativa
 
 # Utilidades
 python-dateutil>=2.8.0

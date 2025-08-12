@@ -7,8 +7,8 @@ export const APP_CONFIG = {
   
   // URLs de la API
   api: {
-    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-    websocketUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws',
+    baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8001',
+    websocketUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws/realtime',
     timeout: 10000, // 10 segundos
   },
   

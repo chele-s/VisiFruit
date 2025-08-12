@@ -13,7 +13,6 @@ Gestiona todas las métricas del sistema en tiempo real con:
 Autor: Gabriel Calderón, Elias Bautista, Cristian Hernandez
 """
 
-import asyncio
 import json
 import logging
 import time
@@ -83,11 +82,15 @@ class UltraMetricsManager:
             "response_time": {"warning": 1000, "critical": 2000}
         }
 
-    async def initialize(self):
+    async def initialize(self, backend_system=None):
         """Inicializa el gestor de métricas."""
         try:
-            # Crear base de datos de métricas
-            await self._init_database()
+            # Guardar referencia al sistema backend
+            self.backend_system = backend_system
+            
+            # Crear base de datos de métricas solo si no hay sistema backend
+            if not backend_system:
+                await self._init_database()
             
             # Cargar configuración de umbrales
             await self._load_thresholds()
@@ -174,8 +177,12 @@ class UltraMetricsManager:
         try:
             timestamp = datetime.now()
             
-            # Procesar métricas recursivamente
-            await self._process_metrics_recursive(metrics_data, category, timestamp)
+            # Si tenemos sistema backend, usar su gestor de base de datos
+            if self.backend_system and hasattr(self.backend_system, 'db_manager'):
+                await self._save_metrics_to_main_db(metrics_data, category, timestamp)
+            else:
+                # Fallback a base de datos local
+                await self._process_metrics_recursive(metrics_data, category, timestamp)
             
             # Actualizar buffer en memoria
             self._update_realtime_buffer(metrics_data, category, timestamp)
@@ -186,9 +193,27 @@ class UltraMetricsManager:
         except Exception as e:
             logger.error(f"Error guardando métricas: {e}")
 
+    def _get_safe_connection(self, timeout: int = 30, retries: int = 3):
+        """Obtiene una conexión SQLite segura con timeout y reintentos."""
+        for attempt in range(retries):
+            try:
+                conn = sqlite3.connect(self.db_path, timeout=timeout)
+                conn.execute("PRAGMA journal_mode=WAL")  # Permite lecturas concurrentes
+                conn.execute("PRAGMA busy_timeout=30000")  # 30 segundos de timeout
+                return conn
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e) and attempt < retries - 1:
+                    time.sleep(0.1 * (attempt + 1))  # Backoff exponencial
+                    continue
+                raise
+        return None
+
     async def _process_metrics_recursive(self, data: Dict[str, Any], category: str, timestamp: datetime, prefix: str = ""):
         """Procesa métricas de forma recursiva."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_safe_connection()
+        if not conn:
+            logger.error("No se pudo obtener conexión a la base de datos")
+            return
         cursor = conn.cursor()
         
         try:
@@ -225,6 +250,48 @@ class UltraMetricsManager:
             
         finally:
             conn.close()
+
+    async def _save_metrics_to_main_db(self, metrics_data: Dict[str, Any], category: str, timestamp: datetime):
+        """Guarda métricas en la base de datos principal del sistema."""
+        try:
+            if not self.backend_system or not hasattr(self.backend_system, 'db_manager'):
+                return
+            
+            # Usar el gestor de base de datos principal
+            db_manager = self.backend_system.db_manager
+            
+            # Preparar datos para inserción
+            metrics_to_insert = []
+            for key, value in self._flatten_metrics(metrics_data, prefix="").items():
+                if isinstance(value, (int, float)):
+                    metrics_to_insert.append({
+                        "timestamp": timestamp,
+                        "metric_name": key,
+                        "value": float(value),
+                        "category": category,
+                        "tags": json.dumps({}),
+                        "metadata": json.dumps({"type": type(value).__name__})
+                    })
+            
+            # Insertar en lote usando el gestor principal
+            if metrics_to_insert:
+                await db_manager.save_metrics_batch(metrics_to_insert)
+                
+        except Exception as e:
+            logger.error(f"Error guardando métricas en BD principal: {e}")
+
+    def _flatten_metrics(self, data: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+        """Aplana métricas anidadas en un diccionario simple."""
+        flattened = {}
+        for key, value in data.items():
+            metric_name = f"{prefix}{key}" if prefix else key
+            
+            if isinstance(value, dict):
+                flattened.update(self._flatten_metrics(value, f"{metric_name}."))
+            elif isinstance(value, (int, float)):
+                flattened[metric_name] = value
+        
+        return flattened
 
     def _update_realtime_buffer(self, metrics_data: Dict[str, Any], category: str, timestamp: datetime):
         """Actualiza buffer de métricas en tiempo real."""

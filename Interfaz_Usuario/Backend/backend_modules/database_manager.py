@@ -652,6 +652,53 @@ class UltraDatabaseManager:
         except Exception as e:
             logger.error(f"Error guardando datos de producción: {e}")
 
+    async def save_metrics_batch(self, metrics: List[Dict[str, Any]]):
+        """Guarda un lote de métricas en la base de datos.
+        Acepta elementos con claves: timestamp, metric_name, value, category, tags, metadata
+        y los mapea al esquema real `system_metrics` (metric_category, metric_name, metric_value).
+        """
+        try:
+            if self.db_type == "sqlite":
+                conn = self._get_connection() # Reutilizar _get_connection para SQLite
+                if not conn:
+                    return False
+                
+                cursor = conn.cursor()
+                
+                # Insertar métricas en lote mapeando nombres de columna
+                for metric in metrics:
+                    timestamp = metric.get("timestamp", datetime.now())
+                    metric_name = metric.get("metric_name", "unknown")
+                    metric_value = metric.get("value", 0.0)
+                    metric_category = metric.get("category", "system")
+                    tags = metric.get("tags", {})
+                    metadata = metric.get("metadata", {})
+
+                    # Asegurar tipos serializables
+                    tags_json = tags if isinstance(tags, str) else json.dumps(tags)
+                    metadata_json = metadata if isinstance(metadata, str) else json.dumps(metadata)
+
+                    cursor.execute("""
+                        INSERT INTO system_metrics 
+                        (timestamp, metric_category, metric_name, metric_value, tags, metadata)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        timestamp,
+                        metric_category,
+                        metric_name,
+                        float(metric_value),
+                        tags_json,
+                        metadata_json
+                    ))
+                
+                conn.commit()
+                conn.close()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error guardando métricas en lote: {e}")
+            return False
+
     async def save_system_metric(self, category: str, name: str, value: float, 
                                 tags: Optional[Dict] = None, metadata: Optional[Dict] = None):
         """Guarda una métrica del sistema."""

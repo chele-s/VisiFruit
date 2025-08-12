@@ -22,6 +22,7 @@ import { animate, stagger } from 'animejs'
 import { useAppSelector, useAppDispatch } from '../../types/redux'
 import { acknowledgeAlert, removeAlert } from '../../store/slices/alertsSlice'
 import type { Alert, AlertSeverity } from '../../store/slices/alertsSlice'
+import { useAlerts } from '../../services/api'
 
 const AlertsList: React.FC = () => {
   const theme = useTheme()
@@ -29,6 +30,9 @@ const AlertsList: React.FC = () => {
   const dispatch = useAppDispatch()
   
   const { alerts } = useAppSelector(state => state.alerts)
+  
+  // Intentar obtener alertas reales del backend
+  const { data: backendAlerts, isError: alertsError, isLoading } = useAlerts()
 
   // Datos simulados para la demo
   const demoAlerts: Alert[] = [
@@ -74,7 +78,34 @@ const AlertsList: React.FC = () => {
     },
   ]
 
-  const displayAlerts = alerts.length > 0 ? alerts : demoAlerts
+  // Lógica de prioridad: 
+  // 1. Alertas del estado local (Redux) - si existen
+  // 2. Alertas del backend - si están disponibles
+  // 3. Alertas demo - como fallback
+  const getDisplayAlerts = (): Alert[] => {
+    if (alerts.length > 0) {
+      return alerts // Datos del estado local (más prioritarios)
+    }
+    
+    if (backendAlerts && backendAlerts.length > 0 && !alertsError) {
+      // Convertir formato del backend al formato local
+      return backendAlerts.map((alert: any) => ({
+        id: alert.id,
+        title: alert.title || alert.message,
+        message: alert.message,
+        severity: alert.severity as AlertSeverity,
+        category: alert.category,
+        timestamp: alert.timestamp,
+        acknowledged: alert.acknowledged || false,
+        resolved: alert.resolved || false,
+      }))
+    }
+    
+    // Fallback a datos demo cuando no hay conexión
+    return demoAlerts
+  }
+  
+  const displayAlerts = getDisplayAlerts()
 
   useEffect(() => {
     if (alertsRef.current) {
@@ -190,8 +221,48 @@ const AlertsList: React.FC = () => {
     )
   }
 
+  // Mostrar indicador de estado de conexión
+  const connectionStatus = alertsError ? 'error' : (isLoading ? 'loading' : (backendAlerts ? 'connected' : 'demo'))
+  
   return (
     <Box ref={alertsRef} sx={{ height: '100%', overflow: 'hidden' }}>
+      {/* Indicador de estado de conexión */}
+      <Box 
+        sx={{ 
+          p: 1, 
+          mb: 1,
+          borderRadius: 1,
+          backgroundColor: 
+            connectionStatus === 'connected' ? 'rgba(76, 175, 80, 0.1)' :
+            connectionStatus === 'error' ? 'rgba(244, 67, 54, 0.1)' :
+            connectionStatus === 'loading' ? 'rgba(255, 193, 7, 0.1)' :
+            'rgba(156, 39, 176, 0.1)',
+          border: `1px solid ${
+            connectionStatus === 'connected' ? '#4CAF5080' :
+            connectionStatus === 'error' ? '#F4433680' :
+            connectionStatus === 'loading' ? '#FFC10780' :
+            '#9C27B080'
+          }`,
+        }}
+      >
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: 
+              connectionStatus === 'connected' ? '#4CAF50' :
+              connectionStatus === 'error' ? '#F44336' :
+              connectionStatus === 'loading' ? '#FFC107' :
+              '#9C27B0',
+            fontWeight: 500
+          }}
+        >
+          {connectionStatus === 'connected' && '🟢 Conectado al backend'}
+          {connectionStatus === 'error' && '🔴 Error de conexión - Mostrando datos demo'}
+          {connectionStatus === 'loading' && '🟡 Conectando...'}
+          {connectionStatus === 'demo' && '🟣 Modo demo - Sin conexión al backend'}
+        </Typography>
+      </Box>
+      
       <List
         sx={{
           height: '100%',

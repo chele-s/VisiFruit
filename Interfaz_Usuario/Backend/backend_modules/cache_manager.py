@@ -24,9 +24,10 @@ import logging
 import pickle
 import time
 from datetime import datetime, timedelta
+import os
 from typing import Dict, Any, List, Optional, Union, Callable
 from pathlib import Path
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
 from collections import defaultdict, OrderedDict
 import threading
@@ -114,6 +115,8 @@ class UltraCacheManager:
         # Cache Redis (distribuido)
         self.redis_client = None
         self.redis_available = False
+        # Flag de configuración para habilitar/disablear Redis (por defecto: deshabilitado)
+        self.redis_enabled = os.environ.get("VISIFRUIT_REDIS_ENABLED", "0").lower() in ("1", "true", "yes", "y")
         
         # Cache de archivos
         self.file_cache_enabled = True
@@ -149,9 +152,15 @@ class UltraCacheManager:
             # Crear directorio de cache
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             
-            # Inicializar Redis si está disponible
-            if REDIS_AVAILABLE:
+            # Inicializar Redis si está disponible y habilitado por configuración
+            if REDIS_AVAILABLE and self.redis_enabled:
                 await self._init_redis()
+            else:
+                # Mensaje informativo único para evitar spam en logs
+                if not self.redis_enabled:
+                    logger.info("Redis desactivado por configuración (VISIFRUIT_REDIS_ENABLED=0) - modo standalone")
+                elif not REDIS_AVAILABLE:
+                    logger.info("Redis no instalado - modo standalone")
             
             # Cargar cache de archivos existente
             await self._load_file_cache()
@@ -169,10 +178,14 @@ class UltraCacheManager:
     async def _init_redis(self):
         """Inicializa conexión Redis."""
         try:
+            redis_host = os.environ.get("VISIFRUIT_REDIS_HOST", "localhost")
+            redis_port = int(os.environ.get("VISIFRUIT_REDIS_PORT", "6379"))
+            redis_db = int(os.environ.get("VISIFRUIT_REDIS_DB_CACHE", "2"))
+
             self.redis_client = redis.Redis(
-                host='localhost', 
-                port=6379, 
-                db=2,  # Base de datos específica para cache
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,  # Base de datos específica para cache
                 decode_responses=False  # Para manejar datos binarios
             )
             
@@ -185,7 +198,8 @@ class UltraCacheManager:
             logger.info("🔗 Redis conectado para cache distribuido")
             
         except Exception as e:
-            logger.warning(f"⚠️ Redis no disponible: {e}")
+            # Log suave e ir a modo standalone
+            logger.info(f"Redis no disponible: {e}. Usando cache en memoria/archivos")
             self.redis_available = False
 
     async def _load_file_cache(self):

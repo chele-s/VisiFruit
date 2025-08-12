@@ -27,8 +27,8 @@ from enum import Enum, auto
 import sqlite3
 import hashlib
 import smtplib
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger("UltraAlertSystem")
 
@@ -528,7 +528,7 @@ class UltraAlertSystem:
             <pre>{json.dumps(alert.details, indent=2)}</pre>
             """
             
-            msg.attach(MimeText(body, 'html'))
+            msg.attach(MIMEText(body, 'html'))
             
             # Enviar email
             with smtplib.SMTP(self.email_config["smtp_server"], self.email_config["smtp_port"]) as server:

@@ -267,7 +267,7 @@ class UltraConfigManager:
             "api_settings": {
                 "enabled": True,
                 "host": "0.0.0.0",
-                "port": 8000,
+                "port": 8001,
                 "cors_enabled": True,
                 "rate_limit": 100
             }
