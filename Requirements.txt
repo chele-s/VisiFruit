@@ -5,7 +5,22 @@
 # Framework de IA y Machine Learning
 torch>=2.0.0
 torchvision>=0.15.0
+
+# RT-DETR (Real-Time Detection Transformer) - PRINCIPAL
+# Opción 1: PaddlePaddle Backend (Recomendado para producción)
+paddlepaddle-gpu>=2.5.0  # Para GPU
+# paddlepaddle>=2.5.0    # Para CPU solamente
+paddledet>=2.6.0
+
+# Opción 2: PyTorch/Transformers Backend (Alternativo)
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+
+# YOLO (Mantenido como fallback)
 ultralytics>=8.0.0
+
+# Procesamiento de imágenes
 opencv-python>=4.8.0
 numpy>=1.24.0
 Pillow>=10.0.0
@@ -110,9 +125,22 @@ sphinx-rtd-theme>=1.3.0
 # Se recomienda usar wheels precompilados cuando sea posible:
 # pip install --prefer-binary -r requirements.txt
 
+# INSTALACIÓN RT-DETR:
+# ===================
+# Opción A - PaddlePaddle (Recomendado para producción):
+# pip install paddlepaddle-gpu paddledet  # Con GPU
+# pip install paddlepaddle paddledet      # Solo CPU
+#
+# Opción B - PyTorch/Transformers (Para desarrollo):
+# pip install transformers datasets accelerate
+#
+# Fallback automático a YOLO si RT-DETR no está disponible.
+# El sistema detecta automáticamente qué backend usar.
+
 # Para instalación optimizada en Raspberry Pi:
 # 1. Usar virtual environment
 # 2. Aumentar swap si es necesario
 # 3. Instalar dependencias del sistema primero
 # 4. Instalar PyTorch con wheel específico para ARM
-# 5. Instalar otras dependencias gradualmente
+# 5. Instalar RT-DETR después de PyTorch
+# 6. Instalar otras dependencias gradualmente
