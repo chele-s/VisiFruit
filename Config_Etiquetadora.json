@@ -428,5 +428,89 @@
       "bucket": "fruprint-data",
       "sync_interval_hours": 1
     }
+  },
+  "diverter_settings": {
+    "enabled": true,
+    "description": "Sistema de clasificación automática con servomotores SG995",
+    "activation_duration_seconds": 2.0,
+    "return_delay_seconds": 0.5,
+    "distance_labeler_to_diverter_m": 1.2,
+    "servo_response_time_s": 0.3,
+    "calibration_on_startup": true,
+    "emergency_return_to_straight": true,
+    "diverters": {
+      "0": {
+        "pin": 18,
+        "name": "Diverter-Apple",
+        "category": "apple",
+        "straight_angle": 0,
+        "diverted_angle": 90,
+        "description": "Desviador para manzanas hacia caja específica",
+        "destination_box": "Caja Manzanas",
+        "servo_model": "SG995",
+        "torque_kg_cm": 8.5,
+        "speed_sec_60deg": 0.2,
+        "frequency_hz": 50,
+        "pulse_width_range_ms": {
+          "min": 1.0,
+          "center": 1.5,
+          "max": 2.0
+        }
+      },
+      "1": {
+        "pin": 19,
+        "name": "Diverter-Pear",
+        "category": "pear",
+        "straight_angle": 0,
+        "diverted_angle": 90,
+        "description": "Desviador para peras hacia caja específica",
+        "destination_box": "Caja Peras",
+        "servo_model": "SG995",
+        "torque_kg_cm": 8.5,
+        "speed_sec_60deg": 0.2,
+        "frequency_hz": 50,
+        "pulse_width_range_ms": {
+          "min": 1.0,
+          "center": 1.5,
+          "max": 2.0
+        }
+      }
+    },
+    "fruit_routing": {
+      "apple": {
+        "diverter_id": 0,
+        "destination": "Caja Manzanas",
+        "action": "activate_diverter"
+      },
+      "pear": {
+        "diverter_id": 1,
+        "destination": "Caja Peras",
+        "action": "activate_diverter"
+      },
+      "lemon": {
+        "diverter_id": -1,
+        "destination": "Caja Final (Limones)",
+        "action": "pass_through"
+      }
+    },
+    "timing_settings": {
+      "detection_to_labeling_delay_s": 2.0,
+      "labeling_to_classification_delay_s": 1.5,
+      "classification_window_s": 3.0,
+      "safety_margin_s": 0.2
+    },
+    "maintenance_settings": {
+      "max_activations_before_check": 10000,
+      "lubrication_reminder_hours": 168,
+      "position_calibration_interval_hours": 24,
+      "wear_monitoring_enabled": true
+    },
+    "safety_settings": {
+      "max_activation_time_s": 10.0,
+      "emergency_position": "straight",
+      "force_stop_on_error": true,
+      "position_feedback_enabled": false,
+      "current_monitoring_enabled": false
+    }
   }
 }

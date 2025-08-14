@@ -62,6 +62,7 @@ try:
     from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
     from Control_Etiquetado.sensor_interface import SensorInterface
     from Control_Etiquetado.labeler_actuator import LabelerActuator
+    from Control_Etiquetado.fruit_diverter_controller import FruitDiverterController
     from utils.camera_controller import CameraController
     from utils.config_validator import ConfigValidator, ValidationLevel
     MODULES_AVAILABLE = True
@@ -743,6 +744,7 @@ class UltraIndustrialFruitLabelingSystem:
         self.ai_detector: Optional[EnterpriseFruitDetector] = None
         self.belt_controller: Optional[ConveyorBeltController] = None
         self.trigger_sensor: Optional[SensorInterface] = None
+        self.diverter_controller: Optional[FruitDiverterController] = None
         
         # NUEVO: Sistema de 6 etiquetadoras lineales (3 grupos de 2)
         self.labelers: Dict[int, LabelerActuator] = {}  # 6 etiquetadoras (0-5)
@@ -989,10 +991,13 @@ class UltraIndustrialFruitLabelingSystem:
             # 6. Inicializar sensores
             await self._initialize_sensors()
             
-            # 7. Inicializar API ultra-avanzada
+            # 7. Inicializar sistema de desviadores (clasificación)
+            await self._initialize_diverter_system()
+            
+            # 8. Inicializar API ultra-avanzada
             await self._initialize_ultra_api()
             
-            # 8. Iniciar tareas ultra-concurrentes
+            # 9. Iniciar tareas ultra-concurrentes
             await self._start_ultra_system_tasks()
             
             self._set_state(SystemState.IDLE)
@@ -1088,6 +1093,51 @@ class UltraIndustrialFruitLabelingSystem:
         except Exception as e:
             logger.error(f"Error inicializando sensores: {e}")
             self.trigger_sensor = None
+    
+    async def _initialize_diverter_system(self):
+        """Inicializa el sistema de desviadores para clasificación de frutas."""
+        logger.info("Inicializando sistema de desviadores de clasificación...")
+        
+        try:
+            diverter_config = self.config.get("diverter_settings", {
+                "enabled": True,
+                "activation_duration_seconds": 2.0,
+                "return_delay_seconds": 0.5,
+                "diverters": {
+                    0: {
+                        "pin": 18,
+                        "name": "Diverter-Apple",
+                        "category": "apple",
+                        "straight_angle": 0,
+                        "diverted_angle": 90
+                    },
+                    1: {
+                        "pin": 19,
+                        "name": "Diverter-Pear",
+                        "category": "pear", 
+                        "straight_angle": 0,
+                        "diverted_angle": 90
+                    }
+                }
+            })
+            
+            if not diverter_config.get("enabled", True):
+                logger.info("Sistema de desviadores deshabilitado en configuración")
+                return
+            
+            self.diverter_controller = FruitDiverterController(diverter_config)
+            
+            if not await self.diverter_controller.initialize():
+                raise RuntimeError("Fallo al inicializar sistema de desviadores")
+            
+            logger.info("Sistema de desviadores inicializado correctamente")
+            logger.info("🍎 Manzanas → Desviador 0 → Caja manzanas")
+            logger.info("🍐 Peras → Desviador 1 → Caja peras") 
+            logger.info("🍋 Limones → Sin desviador → Caja final")
+            
+        except Exception as e:
+            logger.error(f"Error inicializando sistema de desviadores: {e}")
+            self.diverter_controller = None
     
     async def _initialize_api(self):
         """Inicializa la API REST."""
@@ -1327,6 +1377,57 @@ class UltraIndustrialFruitLabelingSystem:
             if not self.motor_controller:
                 raise HTTPException(404, "Motor controller no disponible")
             return self.motor_controller.get_status()
+        
+        # ============ CONTROL DE DESVIADORES (CLASIFICACIÓN) ============
+        @app.get("/diverters/status")
+        async def get_diverters_status():
+            """Obtiene el estado del sistema de desviadores."""
+            if not self.diverter_controller:
+                raise HTTPException(404, "Sistema de desviadores no disponible")
+            return self.diverter_controller.get_status()
+        
+        @app.post("/diverters/classify")
+        async def manual_classify_fruit(category: str, delay: float = 0.0):
+            """Clasifica manualmente una fruta (para pruebas)."""
+            if not self.diverter_controller:
+                raise HTTPException(404, "Sistema de desviadores no disponible")
+            
+            try:
+                from Control_Etiquetado.fruit_diverter_controller import FruitCategory as DiverterFruitCategory
+                fruit_category = DiverterFruitCategory[category.upper()]
+                success = await self.diverter_controller.classify_fruit(fruit_category, delay)
+                
+                return {
+                    "success": success,
+                    "category": category,
+                    "delay": delay,
+                    "message": f"Clasificación {'exitosa' if success else 'fallida'} para {fruit_category.emoji}"
+                }
+            except KeyError:
+                raise HTTPException(400, f"Categoría no válida: {category}. Disponibles: apple, pear, lemon")
+            except Exception as e:
+                raise HTTPException(500, f"Error clasificando fruta: {e}")
+        
+        @app.post("/diverters/calibrate")
+        async def calibrate_diverters():
+            """Calibra todos los desviadores."""
+            if not self.diverter_controller:
+                raise HTTPException(404, "Sistema de desviadores no disponible")
+            
+            success = await self.diverter_controller.calibrate_all()
+            return {
+                "success": success,
+                "message": "Calibración completada" if success else "Error en calibración"
+            }
+        
+        @app.post("/diverters/emergency_stop")
+        async def diverters_emergency_stop():
+            """Parada de emergencia de desviadores."""
+            if not self.diverter_controller:
+                raise HTTPException(404, "Sistema de desviadores no disponible")
+            
+            await self.diverter_controller.emergency_stop()
+            return {"message": "Parada de emergencia de desviadores ejecutada"}
         
         # ============ MÉTRICAS ULTRA ============
         @app.get("/metrics/categories")
@@ -1621,6 +1722,13 @@ class UltraIndustrialFruitLabelingSystem:
         except Exception:
             pass
         
+        # Parar sistema de desviadores
+        try:
+            if self.diverter_controller:
+                await self.diverter_controller.emergency_stop()
+        except Exception:
+            pass
+        
         self._send_alert(AlertLevel.CRITICAL, "Sistema", "PARADA DE EMERGENCIA")
     
     # ==================== BUCLES ULTRA-CONCURRENTES ====================
@@ -1790,6 +1898,9 @@ class UltraIndustrialFruitLabelingSystem:
                 if successful_count > 0:
                     self.metrics.total_labels_applied += result.fruit_count
                     logger.info(f"✅ Etiquetado lineal completado: {category.emoji} x{result.fruit_count} ({successful_count}/{len(labeling_tasks)} etiquetadoras)")
+                    
+                    # 5. NUEVA FUNCIONALIDAD: Clasificación con desviadores
+                    await self._execute_fruit_classification(category, result)
                 else:
                     logger.error(f"❌ Fallo completo en etiquetado lineal: {category.emoji}")
             
@@ -1818,6 +1929,95 @@ class UltraIndustrialFruitLabelingSystem:
         
         duration = base_duration + (result.fruit_count * fruit_factor)
         return min(duration, 10.0)  # Máximo 10 segundos
+    
+    async def _execute_fruit_classification(self, category: FruitCategory, result):
+        """
+        Ejecuta la clasificación de frutas con desviadores después del etiquetado.
+        
+        Flujo de clasificación:
+        - Calcula el tiempo de viaje desde etiquetadora hasta desviador
+        - Activa el desviador correspondiente según la categoría
+        - Actualiza métricas de clasificación
+        """
+        try:
+            if not self.diverter_controller or not self.diverter_controller.is_initialized:
+                logger.info("🚫 Sistema de desviadores no disponible - frutas van directo a caja final")
+                return
+            
+            # Calcular timing para sincronización con banda transportadora
+            classification_delay = await self._calculate_classification_timing(category, result)
+            
+            logger.info(f"🎯 Iniciando clasificación: {category.emoji} en {classification_delay:.1f}s")
+            
+            # Ejecutar clasificación con el desviador correspondiente
+            success = await self.diverter_controller.classify_fruit(category, classification_delay)
+            
+            if success:
+                # Actualizar métricas de clasificación
+                await self._update_classification_metrics(category, result, success)
+                logger.info(f"📦 Clasificación exitosa: {category.emoji} → caja correspondiente")
+            else:
+                logger.warning(f"⚠️ Fallo en clasificación: {category.emoji} - fruta va a caja final")
+                await self._update_classification_metrics(category, result, False)
+                
+        except Exception as e:
+            logger.error(f"Error en clasificación de {category.emoji}: {e}")
+            await self._update_classification_metrics(category, result, False)
+    
+    async def _calculate_classification_timing(self, category: FruitCategory, result) -> float:
+        """
+        Calcula el timing óptimo para activar el desviador.
+        
+        Considera:
+        - Distancia desde etiquetadora hasta desviador
+        - Velocidad de la banda transportadora
+        - Tiempo de respuesta del servomotor
+        """
+        try:
+            # Obtener configuración de timing
+            belt_config = self.config.get("conveyor_belt_settings", {})
+            diverter_config = self.config.get("diverter_settings", {})
+            
+            # Parámetros de cálculo
+            belt_speed_mps = belt_config.get("belt_speed_mps", 0.5)  # m/s
+            distance_labeler_to_diverter_m = diverter_config.get("distance_labeler_to_diverter_m", 1.0)  # metros
+            servo_response_time_s = diverter_config.get("servo_response_time_s", 0.3)  # segundos
+            
+            # Calcular tiempo de viaje
+            travel_time = distance_labeler_to_diverter_m / belt_speed_mps
+            
+            # Tiempo total = tiempo de viaje - tiempo de respuesta del servo
+            # (restamos el tiempo de respuesta para que el servo esté listo cuando llegue la fruta)
+            classification_delay = max(0.1, travel_time - servo_response_time_s)
+            
+            logger.debug(f"⏱️ Timing clasificación {category.emoji}: viaje={travel_time:.1f}s, respuesta_servo={servo_response_time_s:.1f}s, delay={classification_delay:.1f}s")
+            
+            return classification_delay
+            
+        except Exception as e:
+            logger.error(f"Error calculando timing de clasificación: {e}")
+            return 2.0  # Valor por defecto seguro
+    
+    async def _update_classification_metrics(self, category: FruitCategory, result, success: bool):
+        """Actualiza las métricas de clasificación."""
+        try:
+            # Actualizar métricas por categoría
+            if category in self.category_metrics:
+                metrics = self.category_metrics[category]
+                if success:
+                    metrics.total_labeled += result.fruit_count  # Contamos las frutas clasificadas correctamente
+                else:
+                    metrics.error_count += 1
+                
+                # Recalcular tasa de precisión de clasificación
+                total_attempts = metrics.total_labeled + metrics.error_count
+                if total_attempts > 0:
+                    metrics.accuracy_rate = (metrics.total_labeled / total_attempts) * 100
+            
+            logger.debug(f"📊 Métricas de clasificación actualizadas para {category.emoji}")
+            
+        except Exception as e:
+            logger.error(f"Error actualizando métricas de clasificación: {e}")
     
     async def _update_category_metrics(self, categories: List[FruitCategory], result):
         """Actualiza métricas por categoría de fruta."""
@@ -2197,6 +2397,10 @@ class UltraIndustrialFruitLabelingSystem:
             # Apagar todas las etiquetadoras
             for labeler in self.labelers.values():
                 await labeler.cleanup()
+            
+            # Apagar sistema de desviadores
+            if self.diverter_controller:
+                await self.diverter_controller.cleanup()
             
             # Apagar componentes base
             if self.trigger_sensor:
