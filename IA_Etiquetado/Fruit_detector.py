@@ -4,8 +4,8 @@ FruPrint - Sistema Avanzado de Detección de Frutas por IA
 =========================================================
 
 Módulo de detección de frutas de alta performance para sistemas industriales
-de etiquetado automático. Utiliza YOLOv12 con optimizaciones especializadas
-para entornos de producción en tiempo real.
+de etiquetado automático. Utiliza RT-DETR (Real-Time Detection Transformer)
+con optimizaciones especializadas para entornos de producción en tiempo real.
 
 Características avanzadas:
 - Detección multi-hilo con balanceamiento de carga
@@ -42,7 +42,19 @@ from enum import Enum, auto
 import numpy as np
 import torch
 import psutil
-from ultralytics import YOLO
+# RT-DETR imports - manteniendo compatibilidad
+try:
+    from .RTDetr_detector import EnterpriseRTDetrDetector, RTDetrInferenceWorker
+    RTDETR_AVAILABLE = True
+except ImportError:
+    # Fallback para compatibilidad con YOLO
+    try:
+        from ultralytics import YOLO
+        RTDETR_AVAILABLE = False
+        YOLO_FALLBACK = True
+    except ImportError:
+        RTDETR_AVAILABLE = False
+        YOLO_FALLBACK = False
 import cv2
 
 # Configuración del logger para este módulo
@@ -361,7 +373,7 @@ class AdvancedInferenceWorker(Thread):
 
     def _load_model(self):
         """
-        Carga el modelo YOLOv12 con optimizaciones avanzadas y configuración inteligente.
+        Carga el modelo RT-DETR con optimizaciones avanzadas y configuración inteligente.
         Incluye detección automática de hardware, warmup inteligente y validación.
         """
         try:
@@ -378,8 +390,16 @@ class AdvancedInferenceWorker(Thread):
             
             with self._model_lock:
                 logger.info(f"Worker-{self.worker_id}: Cargando modelo desde {self._model_path} en {self.device}")
-                self.model = YOLO(self._model_path)
-                self.model.to(self.device)
+                # Determinar qué modelo usar basado en disponibilidad
+                if RTDETR_AVAILABLE:
+                    logger.info(f"Worker-{self.worker_id}: Usando RT-DETR")
+                    self.model = self._load_rtdetr_model()
+                elif YOLO_FALLBACK:
+                    logger.warning(f"Worker-{self.worker_id}: RT-DETR no disponible, usando YOLO como fallback")
+                    self.model = YOLO(self._model_path)
+                    self.model.to(self.device)
+                else:
+                    raise RuntimeError("Ningún modelo de detección disponible (RT-DETR o YOLO)")
                 
                 # Configurar optimizaciones específicas del dispositivo
                 self._configure_device_optimizations()
@@ -394,7 +414,7 @@ class AdvancedInferenceWorker(Thread):
             self.model_status = ModelStatus.READY
             self._model_loaded.set()
             self._send_alert(SystemAlert.INFO, f"Modelo cargado exitosamente en Worker-{self.worker_id}")
-            logger.info(f"Worker-{self.worker_id}: Modelo YOLOv12 cargado y optimizado.")
+            logger.info(f"Worker-{self.worker_id}: Modelo RT-DETR cargado y optimizado.")
 
         except Exception as e:
             self.model_status = ModelStatus.ERROR
@@ -425,6 +445,79 @@ class AdvancedInferenceWorker(Thread):
             logger.warning(f"Usando CPU: {cpu_count} cores, {memory_gb:.1f}GB RAM (rendimiento reducido)")
             return "cpu"
     
+    def _load_rtdetr_model(self):
+        """Carga un modelo RT-DETR compatible con la interfaz existente."""
+        try:
+            # Crear configuración para RT-DETR
+            rtdetr_config = {
+                "model_path": self._model_path,
+                "confidence_threshold": self.config.get("detection_settings", {}).get("confidence_threshold", 0.5),
+                "nms_threshold": self.config.get("detection_settings", {}).get("nms_threshold", 0.4),
+                "class_names": self.config.get("class_names", ["apple", "pear", "lemon"]),
+                "input_size": self.config.get("detection_settings", {}).get("input_size", [640, 640])
+            }
+            
+            # Crear worker RT-DETR individual
+            rtdetr_worker = RTDetrInferenceWorker(
+                worker_id=self.worker_id,
+                config=rtdetr_config,
+                input_queue=None,  # Se manejará internamente
+                output_queue=None,  # Se manejará internamente
+                alert_callback=None
+            )
+            
+            # Cargar el modelo RT-DETR
+            rtdetr_worker._load_model()
+            
+            if rtdetr_worker.model_status != ModelStatus.READY:
+                raise RuntimeError("No se pudo cargar el modelo RT-DETR")
+            
+            # Crear wrapper para compatibilidad con interfaz YOLO
+            class RTDetrModelWrapper:
+                def __init__(self, rtdetr_worker):
+                    self.worker = rtdetr_worker
+                    self.device = rtdetr_worker.device
+                
+                def __call__(self, frame, **kwargs):
+                    """Simula la interfaz de YOLO para RT-DETR."""
+                    # Procesar frame con RT-DETR
+                    raw_results = self.worker._run_inference(frame)
+                    
+                    if not raw_results:
+                        return []
+                    
+                    # Convertir a formato compatible con YOLO
+                    class MockYOLOResult:
+                        def __init__(self, boxes, scores, labels, class_names):
+                            self.boxes = boxes
+                            self.conf = scores  # Compatibilidad con YOLO
+                            self.cls = labels   # Compatibilidad con YOLO
+                            self.names = {i: name for i, name in enumerate(class_names)}
+                    
+                    boxes = raw_results.get('boxes', [])
+                    scores = raw_results.get('scores', [])
+                    labels = raw_results.get('labels', [])
+                    
+                    # Asegurar que son numpy arrays
+                    if hasattr(boxes, 'cpu'):
+                        boxes = boxes.cpu().numpy()
+                    if hasattr(scores, 'cpu'):
+                        scores = scores.cpu().numpy()
+                    if hasattr(labels, 'cpu'):
+                        labels = labels.cpu().numpy()
+                    
+                    return [MockYOLOResult(boxes, scores, labels, rtdetr_config["class_names"])]
+                
+                def to(self, device):
+                    """Compatibilidad con interfaz YOLO."""
+                    return self
+            
+            return RTDetrModelWrapper(rtdetr_worker)
+            
+        except Exception as e:
+            logger.error(f"Error cargando modelo RT-DETR: {e}")
+            raise
+
     def _configure_device_optimizations(self):
         """Configura optimizaciones específicas según el dispositivo."""
         if self.device == "cuda":
@@ -942,6 +1035,10 @@ class EnterpriseFruitDetector:
     def __init__(self, config: Dict):
         # Configuración del sistema
         self._config = config.get("ai_model_settings", {})
+        
+        # Selección de modelo (RT-DETR por defecto)
+        self._model_type = self._config.get("model_type", "rtdetr")  # "rtdetr" o "yolo"
+        self._use_rtdetr = self._model_type.lower() == "rtdetr" and RTDETR_AVAILABLE
         self._request_timeout_s = self._config.get("request_timeout_s", 10.0)
         self._num_workers = self._config.get("num_workers", min(4, psutil.cpu_count()))
         self._enable_auto_scaling = self._config.get("enable_auto_scaling", True)
@@ -1017,22 +1114,40 @@ class EnterpriseFruitDetector:
     
     async def _create_worker_pool(self):
         """Crea el pool inicial de workers de inferencia."""
-        logger.info(f"Creando pool de {self._num_workers} workers...")
-        
-        for worker_id in range(self._num_workers):
-            worker = AdvancedInferenceWorker(
-                worker_id=worker_id,
-                config=self._config,
-                input_queue=self._input_queue,
-                output_queue=self._output_queue,
-                alert_callback=self._handle_worker_alert
-            )
+        if self._use_rtdetr:
+            logger.info(f"Creando pool de {self._num_workers} workers RT-DETR...")
             
-            self._workers.append(worker)
-            self._worker_load_balancer[worker_id] = 0.0
-            worker.start()
+            for worker_id in range(self._num_workers):
+                worker = RTDetrInferenceWorker(
+                    worker_id=worker_id,
+                    config=self._config,
+                    input_queue=self._input_queue,
+                    output_queue=self._output_queue,
+                    alert_callback=self._handle_worker_alert
+                )
+                
+                self._workers.append(worker)
+                self._worker_load_balancer[worker_id] = 0.0
+                worker.start()
+                
+            logger.info(f"Pool de {len(self._workers)} workers RT-DETR creado")
+        else:
+            logger.info(f"Creando pool de {self._num_workers} workers YOLO (fallback)...")
             
-        logger.info(f"Pool de {len(self._workers)} workers creado")
+            for worker_id in range(self._num_workers):
+                worker = AdvancedInferenceWorker(
+                    worker_id=worker_id,
+                    config=self._config,
+                    input_queue=self._input_queue,
+                    output_queue=self._output_queue,
+                    alert_callback=self._handle_worker_alert
+                )
+                
+                self._workers.append(worker)
+                self._worker_load_balancer[worker_id] = 0.0
+                worker.start()
+                
+            logger.info(f"Pool de {len(self._workers)} workers YOLO creado")
     
     async def _wait_for_all_models(self, timeout: float = 60.0):
         """Espera a que todos los workers carguen sus modelos."""
@@ -1843,15 +1958,29 @@ def create_fruit_detector(config: Dict, enterprise_mode: bool = True) -> Union[E
         enterprise_mode: Si True, usa EnterpriseFruitDetector, sino AdvancedInferenceWorker standalone
     
     Returns:
-        Instancia del detector apropiado
+        Instancia del detector apropiado (RT-DETR por defecto)
     """
+    # Asegurar que RT-DETR sea el modelo por defecto si está disponible
+    ai_config = config.get("ai_model_settings", {})
+    if "model_type" not in ai_config:
+        ai_config["model_type"] = "rtdetr" if RTDETR_AVAILABLE else "yolo"
+        config["ai_model_settings"] = ai_config
+    
     if enterprise_mode:
+        logger.info(f"Creando EnterpriseFruitDetector con modelo: {ai_config.get('model_type', 'rtdetr')}")
         return EnterpriseFruitDetector(config)
     else:
         # Modo standalone para pruebas o sistemas simples
         input_q = PriorityQueue(maxsize=10)
         output_q = Queue(maxsize=20)
-        return AdvancedInferenceWorker(0, config.get("ai_model_settings", {}), input_q, output_q)
+        
+        model_type = ai_config.get("model_type", "rtdetr")
+        if model_type == "rtdetr" and RTDETR_AVAILABLE:
+            logger.info("Creando RTDetrInferenceWorker standalone")
+            return RTDetrInferenceWorker(0, ai_config, input_q, output_q)
+        else:
+            logger.info("Creando AdvancedInferenceWorker standalone (YOLO fallback)")
+            return AdvancedInferenceWorker(0, ai_config, input_q, output_q)
 
 # --- Punto de Entrada Principal ---
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Ejemplo de Integración: YOLOv12 + Sincronización Posicional - VisiFruit System
+Ejemplo de Integración: RT-DETR + Sincronización Posicional - VisiFruit System
 ==============================================================================
 
 Este ejemplo muestra cómo integrar completamente:
-1. Detección de frutas con YOLOv12
+1. Detección de frutas con RT-DETR (Real-Time Detection Transformer)
 2. Sincronización temporal con etiquetadores L298N
 3. Control de banda transportadora
 
@@ -27,18 +27,25 @@ from typing import Dict, List, Optional
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Imports del sistema VisiFruit
-from IA_Etiquetado.Train_Yolo import FruitDatasetManager, YOLOv12Trainer
+from IA_Etiquetado.Train_RTDetr import FruitDatasetManager, RTDetrTrainer
 from Control_Etiquetado.position_synchronizer import PositionSynchronizer, DetectionEvent, create_mockup_synchronizer
 from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
 from IA_Etiquetado.smart_position_detector import SmartPositionDetector, SpatialCalibration
 
-# Imports de YOLO
+# Imports de RT-DETR
 try:
-    from ultralytics import YOLO
-    YOLO_AVAILABLE = True
+    from IA_Etiquetado.RTDetr_detector import EnterpriseRTDetrDetector
+    RTDETR_AVAILABLE = True
 except ImportError:
-    YOLO_AVAILABLE = False
-    print("⚠️  YOLO no disponible - modo simulación")
+    try:
+        from ultralytics import YOLO
+        RTDETR_AVAILABLE = False
+        YOLO_FALLBACK = True
+        print("⚠️  RT-DETR no disponible - usando YOLO como fallback")
+    except ImportError:
+        RTDETR_AVAILABLE = False
+        YOLO_FALLBACK = False
+        print("⚠️  Ningún modelo de detección disponible - modo simulación")
 
 # Configuración de logging
 logging.basicConfig(
@@ -57,7 +64,7 @@ class VisiFruitIntegratedSystem:
         self.config_file = config_file
         
         # Sistemas
-        self.yolo_model = None
+        self.rtdetr_model = None
         self.synchronizer = None
         self.belt_controller = None
         self.smart_detector = None  # Detector de posición inteligente
@@ -88,13 +95,19 @@ class VisiFruitIntegratedSystem:
         logger.info("=== Inicializando Sistema VisiFruit Integrado ===")
         
         try:
-            # 1. Inicializar modelo YOLO
-            if self.model_path and YOLO_AVAILABLE:
-                logger.info(f"Cargando modelo YOLO: {self.model_path}")
-                self.yolo_model = YOLO(self.model_path)
-                logger.info("✓ Modelo YOLO cargado")
+            # 1. Inicializar modelo RT-DETR
+            if self.model_path and RTDETR_AVAILABLE:
+                logger.info(f"Cargando modelo RT-DETR: {self.model_path}")
+                config = {"model_path": self.model_path}
+                self.rtdetr_model = EnterpriseRTDetrDetector(config)
+                await self.rtdetr_model.initialize()
+                logger.info("✓ Modelo RT-DETR cargado")
+            elif self.model_path and YOLO_FALLBACK:
+                logger.info(f"Cargando modelo YOLO (fallback): {self.model_path}")
+                self.rtdetr_model = YOLO(self.model_path)
+                logger.info("✓ Modelo YOLO (fallback) cargado")
             else:
-                logger.warning("⚠️  Modo simulación - sin modelo YOLO real")
+                logger.warning("⚠️  Modo simulación - sin modelo real")
             
             # 2. Inicializar detector de posición inteligente
             logger.info("Inicializando detector de posición inteligente...")
@@ -270,9 +283,9 @@ class VisiFruitIntegratedSystem:
         except Exception as e:
             logger.error(f"Error en activación inteligente del etiquetador: {e}")
     
-    def detect_fruits_in_frame(self, frame: np.ndarray) -> List[Dict]:
+    async def detect_fruits_in_frame(self, frame: np.ndarray) -> List[Dict]:
         """
-        Detectar frutas en un frame usando YOLO y procesar con detección inteligente.
+        Detectar frutas en un frame usando RT-DETR y procesar con detección inteligente.
         
         Args:
             frame: Frame de video (numpy array)
@@ -284,9 +297,23 @@ class VisiFruitIntegratedSystem:
         raw_detections = []
         
         try:
-            if self.yolo_model and YOLO_AVAILABLE:
-                # Detección real con YOLO
-                results = self.yolo_model(frame, conf=0.5, iou=0.4, verbose=False)
+            if self.rtdetr_model and RTDETR_AVAILABLE:
+                # Detección real con RT-DETR
+                from IA_Etiquetado.Fruit_detector import ProcessingPriority
+                result = await self.rtdetr_model.detect_fruits(frame, ProcessingPriority.HIGH)
+                
+                if result and result.detections:
+                    for detection in result.detections:
+                        x1, y1, x2, y2 = detection.bbox
+                        raw_detections.append({
+                            'class': detection.class_id,
+                            'confidence': detection.confidence,
+                            'bbox': [x1, y1, x2, y2],
+                            'class_name': detection.class_name
+                        })
+            elif self.rtdetr_model and YOLO_FALLBACK:
+                # Detección con YOLO (fallback)
+                results = self.rtdetr_model(frame, conf=0.5, iou=0.4, verbose=False)
                 
                 for result in results:
                     if result.boxes is not None:
@@ -637,11 +664,11 @@ def main():
     print("\n" + "="*60)
     print("SISTEMA INTEGRADO VISIFRUIT - DETECCIÓN INTELIGENTE")
     print("="*60)
-    print("1. Demo completo (YOLO + Detección Inteligente + Banda)")
+    print("1. Demo completo (RT-DETR + Detección Inteligente + Banda)")
     print("2. Solo sincronización posicional (clásica)")
     print("3. Prueba detección inteligente")
     print("4. Calibrador visual")
-    print("5. Entrenar modelo YOLO")
+    print("5. Entrenar modelo RT-DETR")
     print("6. Mostrar información de timing")
     print("0. Salir")
     
@@ -661,8 +688,8 @@ def main():
             from IA_Etiquetado.visual_calibrator import main as calibrator_main
             calibrator_main()
         elif opcion == "5":
-            # Ejecutar entrenamiento YOLO
-            from IA_Etiquetado.Train_Yolo import main as train_main
+            # Ejecutar entrenamiento RT-DETR
+            from IA_Etiquetado.Train_RTDetr import main as train_main
             train_main()
         elif opcion == "6":
             # Mostrar información de timing
