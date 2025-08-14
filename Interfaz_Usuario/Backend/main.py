@@ -840,6 +840,29 @@ if __name__ == "__main__":
         # Inicializar backend
         app = await startup_backend()
         
+        # Iniciar sistema de etiquetado en segundo plano junto al backend
+        labeling_process = None
+        try:
+            from pathlib import Path
+            repo_root = Path(__file__).resolve().parents[2]
+            labeling_script = repo_root / "main_etiquetadora.py"
+            if labeling_script.exists():
+                try:
+                    safe_log(logger, "info", "🎯 Lanzando sistema de etiquetado: main_etiquetadora.py")
+                    labeling_process = await asyncio.create_subprocess_exec(
+                        sys.executable,
+                        "-u",
+                        str(labeling_script),
+                        cwd=str(repo_root)
+                    )
+                    safe_log(logger, "info", "🏷️  Sistema de etiquetado lanzado en segundo plano")
+                except Exception as e:
+                    safe_log(logger, "error", f"❌ No se pudo iniciar main_etiquetadora.py: {e}")
+            else:
+                safe_log(logger, "warning", f"⚠️ No se encontró {labeling_script}. Omitiendo inicio de etiquetadora")
+        except Exception as e:
+            safe_log(logger, "error", f"❌ Error preparando inicio de etiquetadora: {e}")
+        
         if app:
             # Configurar servidor (puerto 8001 para evitar conflicto con sistema principal)
             config = uvicorn.Config(
@@ -860,6 +883,19 @@ if __name__ == "__main__":
             except KeyboardInterrupt:
                 logger.info("Interrupción recibida")
             finally:
+                # Intentar apagar sistema de etiquetado si está activo
+                try:
+                    if labeling_process and labeling_process.returncode is None:
+                        safe_log(logger, "info", "🛑 Deteniendo sistema de etiquetado...")
+                        labeling_process.terminate()
+                        try:
+                            await asyncio.wait_for(labeling_process.wait(), timeout=10)
+                        except asyncio.TimeoutError:
+                            safe_log(logger, "warning", "Forzando cierre del sistema de etiquetado")
+                            labeling_process.kill()
+                            await labeling_process.wait()
+                except Exception as e:
+                    safe_log(logger, "error", f"Error deteniendo etiquetadora: {e}")
                 await shutdown_backend()
         else:
             logger.error("❌ No se pudo inicializar el backend")

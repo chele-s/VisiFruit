@@ -312,3 +312,111 @@
 [2025-08-12 12:50:33,186] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
 [2025-08-12 12:50:39,786] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.018s
 [2025-08-12 12:50:49,438] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.017s
+[2025-08-13 09:46:46,044] [UltraWebSocketManager] [INFO] - Redis desactivado por configuración (VISIFRUIT_REDIS_ENABLED=0) - modo standalone
+[2025-08-13 09:46:46,076] [UltraBackend] [INFO] - === Inicializando Backend Ultra-Avanzado ===
+[2025-08-13 09:46:46,080] [UltraMetricsManager] [INFO] - No se encontró configuración personalizada de umbrales, usando valores por defecto
+[2025-08-13 09:46:46,081] [UltraMetricsManager] [INFO] - ✅ Gestor de métricas inicializado
+[2025-08-13 09:46:46,101] [UltraAlertSystem] [INFO] - Cargadas 0 reglas de alerta
+[2025-08-13 09:46:46,101] [UltraAlertSystem] [INFO] - No se encontró configuración de notificaciones
+[2025-08-13 09:46:46,103] [UltraAlertSystem] [INFO] - Cargadas 0 alertas activas
+[2025-08-13 09:46:46,103] [UltraAlertSystem] [INFO] - ✅ Sistema de alertas inicializado
+[2025-08-13 09:46:46,104] [UltraWebSocketManager] [INFO] - Canal configurado: realtime
+[2025-08-13 09:46:46,105] [UltraWebSocketManager] [INFO] - Canal configurado: dashboard
+[2025-08-13 09:46:46,106] [UltraWebSocketManager] [INFO] - Canal configurado: alerts
+[2025-08-13 09:46:46,107] [UltraWebSocketManager] [INFO] - Canal configurado: metrics
+[2025-08-13 09:46:46,107] [UltraWebSocketManager] [INFO] - Canal configurado: production
+[2025-08-13 09:46:46,108] [UltraWebSocketManager] [INFO] - Canal configurado: maintenance
+[2025-08-13 09:46:46,109] [UltraWebSocketManager] [INFO] - ✅ Gestor de WebSockets inicializado
+[2025-08-13 09:46:46,110] [UltraDatabaseManager] [INFO] - 🗃️ Usando SQLite
+[2025-08-13 09:46:46,140] [UltraDatabaseManager] [INFO] - 🗃️ Pool de 10 conexiones SQLite creado
+[2025-08-13 09:46:46,142] [UltraDatabaseManager] [INFO] - ✅ Tabla production_data verificada/creada
+[2025-08-13 09:46:46,144] [UltraDatabaseManager] [INFO] - ✅ Tabla system_metrics verificada/creada
+[2025-08-13 09:46:46,145] [UltraDatabaseManager] [INFO] - ✅ Tabla system_alerts verificada/creada
+[2025-08-13 09:46:46,145] [UltraDatabaseManager] [INFO] - ✅ Tabla system_config verificada/creada
+[2025-08-13 09:46:46,145] [UltraDatabaseManager] [INFO] - ✅ Tabla users verificada/creada
+[2025-08-13 09:46:46,147] [UltraDatabaseManager] [INFO] - ✅ Tabla user_sessions verificada/creada
+[2025-08-13 09:46:46,148] [UltraDatabaseManager] [INFO] - ✅ Tabla system_logs verificada/creada
+[2025-08-13 09:46:46,149] [UltraDatabaseManager] [INFO] - ✅ Tabla generated_reports verificada/creada
+[2025-08-13 09:46:46,149] [UltraDatabaseManager] [INFO] - ✅ Tabla maintenance_logs verificada/creada
+[2025-08-13 09:46:46,150] [UltraDatabaseManager] [INFO] - ✅ Tabla query_performance verificada/creada
+[2025-08-13 09:46:46,152] [UltraDatabaseManager] [INFO] - ✅ Gestor de base de datos inicializado (sqlite)
+[2025-08-13 09:46:46,156] [UltraReportGenerator] [INFO] - ✅ Generador de reportes inicializado
+[2025-08-13 09:46:46,158] [UltraConfigManager] [INFO] - 🌍 Entorno detectado: development
+[2025-08-13 09:46:46,161] [UltraConfigManager] [INFO] - 📄 Configuración cargada desde Config_Etiquetadora.json
+[2025-08-13 09:46:46,163] [UltraConfigManager] [WARNING] - ⚠️ Errores de validación encontrados: ai_model_settings.model_path: Archivo no encontrado: IA_Etiquetado/Models/best_fruit_model.pt
+[2025-08-13 09:46:46,166] [UltraConfigManager] [INFO] - 💾 Backup creado: config_initialization_20250813_094646.json
+[2025-08-13 09:46:46,167] [UltraConfigManager] [INFO] - ✅ Gestor de configuración inicializado
+[2025-08-13 09:46:46,176] [UltraAuthManager] [INFO] - 📄 1 usuarios cargados en cache
+[2025-08-13 09:46:46,177] [UltraAuthManager] [INFO] - ✅ Gestor de autenticación inicializado
+[2025-08-13 09:46:46,179] [UltraCacheManager] [INFO] - Redis desactivado por configuración (VISIFRUIT_REDIS_ENABLED=0) - modo standalone
+[2025-08-13 09:46:46,180] [UltraCacheManager] [INFO] - ✅ Gestor de cache inicializado
+[2025-08-13 09:46:46,180] [UltraAPIs] [INFO] - ✅ ProductionAPI inicializada
+[2025-08-13 09:46:46,181] [UltraAPIs] [INFO] - ✅ SystemAPI inicializada
+[2025-08-13 09:46:46,181] [UltraAPIs] [INFO] - ✅ MetricsAPI inicializada
+[2025-08-13 09:46:46,182] [UltraAPIs] [INFO] - ✅ AlertsAPI inicializada
+[2025-08-13 09:46:46,182] [UltraAPIs] [INFO] - ✅ ConfigAPI inicializada
+[2025-08-13 09:46:46,183] [UltraAPIs] [INFO] - ✅ ReportsAPI inicializada
+[2025-08-13 09:46:46,183] [UltraAPIs] [INFO] - ✅ AnalyticsAPI inicializada
+[2025-08-13 09:46:46,183] [UltraAPIs] [INFO] - ✅ MaintenanceAPI inicializada
+[2025-08-13 09:46:46,211] [UltraBackend] [INFO] - [OK] Iniciadas 5 tareas en background
+[2025-08-13 09:46:46,212] [UltraBackend] [INFO] - [OK] Backend Ultra-Avanzado inicializado exitosamente
+[2025-08-13 09:46:46,214] [UltraBackend] [INFO] - [START] Iniciando servidor Backend Ultra-Avanzado en http://0.0.0.0:8001
+[2025-08-13 09:46:46,215] [UltraBackend] [INFO] - [METRICS] Dashboard disponible en http://0.0.0.0:8001/api/docs
+[2025-08-13 09:47:01,327] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.006s
+[2025-08-13 09:47:10,781] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.010s
+[2025-08-13 09:47:12,993] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts - Status: 200 - Time: 0.000s
+[2025-08-13 09:47:14,144] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
+[2025-08-13 09:47:14,282] [UltraBackend] [INFO] - Request: OPTIONS /api/alerts/ - Status: 200 - Time: 0.001s
+[2025-08-13 09:47:14,415] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.002s
+[2025-08-13 09:47:21,784] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.015s
+[2025-08-13 09:47:33,959] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.014s
+[2025-08-13 09:47:35,073] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-13 09:47:35,187] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-13 09:47:35,241] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-13 09:47:35,305] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.002s
+[2025-08-13 09:47:35,422] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:47:35,499] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.017s
+[2025-08-13 09:47:41,051] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-13 09:47:43,337] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.010s
+[2025-08-13 09:47:45,776] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:47:46,876] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:47:46,882] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-13 09:47:52,247] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:47:54,504] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.022s
+[2025-08-13 09:47:59,032] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:00,137] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:00,487] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:00,491] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:00,883] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.148s
+[2025-08-13 09:48:00,886] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:06,528] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.008s
+[2025-08-13 09:48:06,530] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:11,653] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:12,817] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:15,996] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.006s
+[2025-08-13 09:48:18,354] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:23,662] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:24,805] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:25,885] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:25,961] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:25,966] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:27,014] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.009s
+[2025-08-13 09:48:27,060] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:31,413] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:31,416] [UltraBackend] [INFO] - Request: OPTIONS /api/metrics/history/production - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:31,419] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:32,579] [UltraBackend] [INFO] - Request: GET /api/metrics/history/production - Status: 200 - Time: 0.006s
+[2025-08-13 09:48:32,581] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:38,842] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.009s
+[2025-08-13 09:48:38,845] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:42,729] [UltraBackend] [INFO] - Request: GET /api/metrics/summary - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:45,028] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.001s
+[2025-08-13 09:48:47,063] [UltraWebSocketManager] [INFO] - [METRICS] WebSocket Metrics: 0 conexiones activas, 0 mensajes enviados
+[2025-08-13 09:48:48,429] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.007s
+[2025-08-13 09:48:50,642] [UltraBackend] [INFO] - Request: GET /api/metrics/performance - Status: 200 - Time: 0.000s
+[2025-08-13 09:48:59,268] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.006s
+[2025-08-13 09:49:04,978] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.004s
+[2025-08-13 09:49:05,211] [UltraBackend] [INFO] - Request: GET /api/alerts/ - Status: 200 - Time: 0.005s
+[2025-08-13 09:49:11,213] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.022s
+[2025-08-13 09:49:20,709] [UltraBackend] [INFO] - Request: GET /health - Status: 200 - Time: 1.015s
+[2025-08-13 09:49:20,817] [UltraBackend] [INFO] - Request: GET /api/alerts - Status: 307 - Time: 0.001s
