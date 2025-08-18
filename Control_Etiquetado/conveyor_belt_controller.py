@@ -44,6 +44,7 @@ class ControlType(Enum):
     GPIO_ON_OFF = "gpio_on_off"
     PWM_DC_MOTOR = "pwm_dc_motor"
     L298N_MOTOR = "l298n_motor"
+    RELAY_MOTOR = "relay_motor"
     EXTERNAL_PLC = "external_plc"
     SERVO_CONTROL = "servo_control"
 
@@ -55,6 +56,8 @@ class BeltConfiguration:
     enable_pin_bcm: Optional[int] = None
     direction_pin_bcm: Optional[int] = None
     direction_pin2_bcm: Optional[int] = None  # Para L298N (IN2)
+    relay1_pin_bcm: Optional[int] = None      # Para relays (adelante)
+    relay2_pin_bcm: Optional[int] = None      # Para relays (atrás)
     active_state_on: str = "HIGH"
     pwm_frequency_hz: int = 100
     min_duty_cycle: int = 20
@@ -738,6 +741,8 @@ class ConveyorBeltController:
                 enable_pin_bcm=belt_config.get('enable_pin_bcm'),
                 direction_pin_bcm=belt_config.get('direction_pin_bcm'),
                 direction_pin2_bcm=belt_config.get('direction_pin2_bcm'),
+                relay1_pin_bcm=belt_config.get('relay1_pin_bcm'),
+                relay2_pin_bcm=belt_config.get('relay2_pin_bcm'),
                 active_state_on=belt_config.get('active_state_on', 'HIGH'),
                 pwm_frequency_hz=belt_config.get('pwm_frequency_hz', 100),
                 min_duty_cycle=belt_config.get('min_duty_cycle', 20),
@@ -766,6 +771,14 @@ class ConveyorBeltController:
                 self.driver = PWMDriver(self.config)
             elif control_type == ControlType.L298N_MOTOR:
                 self.driver = L298NDriver(self.config)
+            elif control_type == ControlType.RELAY_MOTOR:
+                # Importar driver de relays dinámicamente
+                try:
+                    from .relay_motor_controller import RelayMotorDriver
+                    self.driver = RelayMotorDriver(self.config)
+                except ImportError:
+                    self.logger.error("Driver de relays no disponible")
+                    return False
             elif control_type == ControlType.EXTERNAL_PLC:
                 self.logger.warning("Control PLC externo configurado - funcionalidad limitada")
                 return True

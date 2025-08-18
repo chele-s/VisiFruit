@@ -1,0 +1,87 @@
+{
+  "system_settings": {
+    "installation_id": "VISIFRUIT-RELAY-001",
+    "system_name": "VisiFruit Relay Motor System",
+    "log_level": "INFO"
+  },
+  "conveyor_belt_settings": {
+    "control_type": "relay_motor",
+    "relay1_pin_bcm": 18,
+    "relay2_pin_bcm": 19,
+    "enable_pin_bcm": 26,
+    "active_state_on": "LOW",
+    "safety_timeout_s": 10.0,
+    "recovery_attempts": 3,
+    "health_check_interval_s": 1.0,
+    "direction_change_delay_s": 0.5,
+    "belt_speed_mps": 0.5,
+    "motor_specifications": {
+      "voltage": "12V",
+      "current_max_a": 5.0,
+      "power_max_w": 60,
+      "relay_specifications": {
+        "coil_voltage": "5V",
+        "contact_rating": "10A/250VAC",
+        "switching_time_ms": 10
+      }
+    }
+  },
+  "relay_module_settings": {
+    "module_type": "2_channel_relay_board",
+    "optocoupler_isolation": true,
+    "led_indicators": true,
+    "screw_terminals": true,
+    "control_logic": "active_low",
+    "recommended_models": [
+      "SRD-05VDC-SL-C",
+      "Elegoo 2-Channel Relay Module", 
+      "KEYESTUDIO 2-Channel Relay Module"
+    ]
+  },
+  "wiring_configuration": {
+    "raspberry_pi_5": {
+      "gpio_18": "Relay 1 Control (Forward)",
+      "gpio_19": "Relay 2 Control (Backward)", 
+      "gpio_26": "Enable Signal (Optional)",
+      "5v_pin": "Relay Module VCC",
+      "gnd_pin": "Relay Module GND"
+    },
+    "relay_connections": {
+      "relay_1": {
+        "function": "Motor Forward Direction",
+        "nc_terminal": "12V+",
+        "common_terminal": "Motor Terminal 1",
+        "no_terminal": "Not Connected"
+      },
+      "relay_2": {
+        "function": "Motor Backward Direction", 
+        "nc_terminal": "12V+",
+        "common_terminal": "Motor Terminal 2",
+        "no_terminal": "Not Connected"
+      }
+    },
+    "power_supply": {
+      "raspberry_pi": "5V/3A USB-C",
+      "motor_supply": "12V/5A External",
+      "relay_logic": "5V from RPi"
+    }
+  },
+  "safety_features": {
+    "direction_change_lockout": true,
+    "emergency_stop_gpio": 21,
+    "safety_timeout_enabled": true,
+    "relay_state_monitoring": true,
+    "overcurrent_protection": "External Fuse 7A"
+  },
+  "api_settings": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8000
+  },
+  "monitoring": {
+    "log_relay_changes": true,
+    "track_switching_cycles": true,
+    "measure_response_time": true,
+    "alert_on_relay_failure": true
+  }
+}
