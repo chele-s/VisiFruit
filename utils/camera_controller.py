@@ -452,11 +452,34 @@ class CameraController:
             self.driver = self._create_driver()
             
             # Ejecutar inicialización de forma síncrona
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            success = loop.run_until_complete(self.driver.initialize())
-            loop.close()
+            try:
+                # Intentar obtener el loop actual
+                loop = asyncio.get_running_loop()
+                # Si hay un loop corriendo, ejecutar en un hilo separado
+                import concurrent.futures
+                import threading
+                
+                def _init_in_thread():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        result = new_loop.run_until_complete(self.driver.initialize())
+                        return result
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(_init_in_thread)
+                    success = future.result(timeout=10.0)
+                    
+            except RuntimeError:
+                # No hay loop corriendo, crear uno nuevo
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    success = loop.run_until_complete(self.driver.initialize())
+                finally:
+                    loop.close()
             
             if not success:
                 raise RuntimeError("Fallo al inicializar driver")
@@ -573,10 +596,33 @@ class CameraController:
             # Captura directa
             self.state = CameraState.CAPTURING
             
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            frame = loop.run_until_complete(self.driver.capture_frame())
-            loop.close()
+            try:
+                # Intentar obtener el loop actual
+                loop = asyncio.get_running_loop()
+                # Si hay un loop corriendo, ejecutar en un hilo separado
+                import concurrent.futures
+                
+                def _capture_in_thread():
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        result = new_loop.run_until_complete(self.driver.capture_frame())
+                        return result
+                    finally:
+                        new_loop.close()
+                
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(_capture_in_thread)
+                    frame = future.result(timeout=5.0)
+                    
+            except RuntimeError:
+                # No hay loop corriendo, crear uno nuevo
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    frame = loop.run_until_complete(self.driver.capture_frame())
+                finally:
+                    loop.close()
             
             self.state = CameraState.IDLE
             
@@ -839,10 +885,32 @@ class CameraController:
             
             # Limpiar driver
             if self.driver:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.driver.cleanup())
-                loop.close()
+                try:
+                    # Intentar obtener el loop actual
+                    loop = asyncio.get_running_loop()
+                    # Si hay un loop corriendo, ejecutar en un hilo separado
+                    import concurrent.futures
+                    
+                    def _cleanup_in_thread():
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            new_loop.run_until_complete(self.driver.cleanup())
+                        finally:
+                            new_loop.close()
+                    
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(_cleanup_in_thread)
+                        future.result(timeout=5.0)
+                        
+                except RuntimeError:
+                    # No hay loop corriendo, crear uno nuevo
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(self.driver.cleanup())
+                    finally:
+                        loop.close()
             
             # Guardar calibración
             self._save_calibration()

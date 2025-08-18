@@ -33,11 +33,11 @@
     "api_key_rotation_days": 30
   },
   "camera_settings": {
-    "type": "usb_webcam",
-    "name": "IndustrialCamera-Main",
+    "type": "mock",
+    "name": "RaspberryPi-CSI-OV5647",
     "device_id": 0,
-    "frame_width": 1920,
-    "frame_height": 1080,
+    "frame_width": 1280,
+    "frame_height": 720,
     "fps": 30,
     "buffer_size": 15,
     "auto_optimize": true,
@@ -232,7 +232,7 @@
   "api_settings": {
     "enabled": true,
     "host": "0.0.0.0",
-    "port": 8000,
+    "port": 8002,
     "enable_cors": true,
     "cors_origins": ["http://localhost:3000", "http://localhost:5173"],
     "enable_swagger_ui": true,

@@ -1216,7 +1216,7 @@ class UltraIndustrialFruitLabelingSystem:
             belt_config = self.config["conveyor_belt_settings"]
             self.belt_controller = ConveyorBeltController(belt_config)
             
-            if not self.belt_controller.initialize():
+            if not await self.belt_controller.initialize():
                 raise RuntimeError("Fallo al inicializar banda")
             
             logger.info("Controlador de banda inicializado correctamente")
@@ -1417,7 +1417,7 @@ class UltraIndustrialFruitLabelingSystem:
                         "labeler_id": labeler_id,
                         "category": group["category"].fruit_name,
                         "group_id": group["category"].labeler_group_id,
-                        "pin": base_labeler_config.get("base_pin", 26) + labeler_id,  # Pines consecutivos
+                        "pin": int(base_labeler_config.get("pin", 26)) + labeler_id,  # Pines consecutivos
                         "type": "solenoid"  # Por defecto solenoides
                     })
                     
@@ -2732,8 +2732,8 @@ class UltraIndustrialFruitLabelingSystem:
                 self.trigger_sensor.shutdown()
             
             if self.belt_controller:
-                self.belt_controller.stop_belt()
-                self.belt_controller.cleanup()
+                await self.belt_controller.stop_belt()
+                await self.belt_controller.cleanup()
             
             if self.ai_detector:
                 await self.ai_detector.shutdown()

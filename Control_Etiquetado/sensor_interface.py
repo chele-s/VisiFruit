@@ -384,6 +384,196 @@ def cleanup_sensor_gpio():
     # a GPIO.cleanup() por sí mismo si es parte de un sistema más grande.
     logger.info("Limpieza de GPIOs de sensores completada (no se requiere acción específica aquí si se limpia en main).")
 
+
+class SensorInterface:
+    """
+    Interfaz principal para el manejo de sensores del sistema.
+    
+    Esta clase encapsula toda la funcionalidad de sensores incluyendo:
+    - Sensor de disparo de cámara
+    - Sensores de nivel de tolva
+    - Configuración y manejo de GPIO
+    """
+    
+    def __init__(self, config: dict, trigger_callback=None):
+        """
+        Inicializa la interfaz de sensores.
+        
+        Args:
+            config: Diccionario de configuración de sensores
+            trigger_callback: Función callback para cuando se active el trigger
+        """
+        self.config = config
+        self.trigger_callback = trigger_callback
+        self.is_initialized = False
+        self.trigger_enabled = False
+        
+        logger.info("SensorInterface inicializada")
+    
+    def initialize(self) -> bool:
+        """
+        Inicializa todos los sensores del sistema.
+        
+        Returns:
+            bool: True si la inicialización fue exitosa
+        """
+        try:
+            # Cargar configuración de sensores
+            if not load_sensor_config():
+                logger.error("Error cargando configuración de sensores")
+                return False
+            
+            # Configurar GPIO para sensores
+            if not setup_sensor_gpio():
+                logger.error("Error configurando GPIO para sensores")
+                return False
+            
+            self.is_initialized = True
+            logger.info("SensorInterface inicializada correctamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error inicializando SensorInterface: {e}")
+            return False
+    
+    def enable_trigger_monitoring(self):
+        """Habilita el monitoreo del sensor de trigger."""
+        if not self.is_initialized:
+            logger.warning("SensorInterface no inicializada")
+            return False
+        
+        try:
+            self.trigger_enabled = True
+            
+            # Configurar detección de eventos si está disponible el callback
+            if self.trigger_callback and camera_trigger_config.get('pin_bcm'):
+                pin = camera_trigger_config['pin_bcm']
+                trigger_edge = GPIO.FALLING if camera_trigger_config.get('trigger_on_state', 'LOW') == 'LOW' else GPIO.RISING
+                debounce_ms = int(camera_trigger_config.get('debounce_s', 0.05) * 1000)
+                
+                def _trigger_event_handler(channel):
+                    """Handler interno para eventos de trigger."""
+                    try:
+                        if self.trigger_enabled and self.trigger_callback:
+                            self.trigger_callback()
+                    except Exception as e:
+                        logger.error(f"Error en callback de trigger: {e}")
+                
+                GPIO.add_event_detect(pin, trigger_edge, callback=_trigger_event_handler, bouncetime=debounce_ms)
+                logger.info(f"Monitoreo de trigger habilitado en GPIO {pin}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error habilitando monitoreo de trigger: {e}")
+            return False
+    
+    def disable_trigger_monitoring(self):
+        """Deshabilita el monitoreo del sensor de trigger."""
+        try:
+            self.trigger_enabled = False
+            
+            if camera_trigger_config.get('pin_bcm'):
+                pin = camera_trigger_config['pin_bcm']
+                GPIO.remove_event_detect(pin)
+                logger.info(f"Monitoreo de trigger deshabilitado en GPIO {pin}")
+            
+        except Exception as e:
+            logger.error(f"Error deshabilitando monitoreo de trigger: {e}")
+    
+    def check_trigger_state(self) -> bool:
+        """
+        Verifica el estado actual del sensor de trigger.
+        
+        Returns:
+            bool: True si el trigger está activado
+        """
+        if not self.is_initialized:
+            return False
+        
+        return check_camera_trigger()
+    
+    def wait_for_trigger(self, timeout_s=None) -> bool:
+        """
+        Espera a que se active el sensor de trigger.
+        
+        Args:
+            timeout_s: Tiempo máximo de espera en segundos
+            
+        Returns:
+            bool: True si se detectó trigger, False si hubo timeout
+        """
+        if not self.is_initialized:
+            return False
+        
+        return wait_for_camera_trigger(timeout_s)
+    
+    def get_bin_fill_levels(self) -> dict:
+        """
+        Obtiene los niveles de llenado de todas las tolvas.
+        
+        Returns:
+            dict: Niveles de llenado por categoría
+        """
+        if not self.is_initialized:
+            return {}
+        
+        return get_all_bin_fill_levels()
+    
+    def get_bin_fill_level(self, category: str) -> float:
+        """
+        Obtiene el nivel de llenado de una tolva específica.
+        
+        Args:
+            category: Nombre de la categoría/tolva
+            
+        Returns:
+            float: Nivel de llenado (0-100%) o None si hay error
+        """
+        if not self.is_initialized:
+            return None
+        
+        return get_bin_fill_level(category)
+    
+    def update_temperature(self, temperature_c: float):
+        """
+        Actualiza la temperatura ambiente para compensación en sensores ultrasónicos.
+        
+        Args:
+            temperature_c: Temperatura en grados Celsius
+        """
+        if not self.is_initialized:
+            return
+        
+        set_current_temperature(temperature_c)
+    
+    def get_status(self) -> dict:
+        """
+        Obtiene el estado completo del sistema de sensores.
+        
+        Returns:
+            dict: Estado y métricas de todos los sensores
+        """
+        return {
+            "is_initialized": self.is_initialized,
+            "trigger_enabled": self.trigger_enabled,
+            "trigger_config": camera_trigger_config.copy(),
+            "bin_sensors_config": bin_specific_configs.copy(),
+            "current_temperature_c": current_temperature_c,
+            "bin_fill_levels": self.get_bin_fill_levels() if self.is_initialized else {}
+        }
+    
+    def shutdown(self):
+        """Cierra y limpia todos los recursos de sensores."""
+        try:
+            self.disable_trigger_monitoring()
+            cleanup_sensor_gpio()
+            self.is_initialized = False
+            logger.info("SensorInterface cerrada correctamente")
+            
+        except Exception as e:
+            logger.error(f"Error cerrando SensorInterface: {e}")
+
 # --- Código de Prueba ---
 if __name__ == '__main__':
     logging.basicConfig(
