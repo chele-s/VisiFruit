@@ -6,9 +6,9 @@
   },
   "conveyor_belt_settings": {
     "control_type": "relay_motor",
-    "relay1_pin_bcm": 18,
-    "relay2_pin_bcm": 19,
-    "enable_pin_bcm": 26,
+    "relay1_pin_bcm": 9,
+    "relay2_pin_bcm": 10,
+    "enable_pin_bcm": 11,
     "active_state_on": "LOW",
     "safety_timeout_s": 10.0,
     "recovery_attempts": 3,
@@ -40,9 +40,9 @@
   },
   "wiring_configuration": {
     "raspberry_pi_5": {
-      "gpio_18": "Relay 1 Control (Forward)",
-      "gpio_19": "Relay 2 Control (Backward)", 
-      "gpio_26": "Enable Signal (Optional)",
+      "gpio_9": "Relay 1 Control (Forward)",
+      "gpio_10": "Relay 2 Control (Backward)", 
+      "gpio_11": "Enable Signal (Optional)",
       "5v_pin": "Relay Module VCC",
       "gnd_pin": "Relay Module GND"
     },
@@ -68,7 +68,7 @@
   },
   "safety_features": {
     "direction_change_lockout": true,
-    "emergency_stop_gpio": 21,
+    "emergency_stop_gpio": 27,
     "safety_timeout_enabled": true,
     "relay_state_monitoring": true,
     "overcurrent_protection": "External Fuse 7A"

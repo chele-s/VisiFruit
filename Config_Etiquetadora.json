@@ -114,9 +114,9 @@
     "direction_pin_bcm": 20,
     "direction_pin2_bcm": 21,
     "speed_control_pin": 13,
-    "encoder_pin_a": 5,
-    "encoder_pin_b": 6,
-    "emergency_stop_pin": 4,
+    "encoder_pin_a": -1,
+    "encoder_pin_b": -1,
+    "emergency_stop_pin": -1,
     "belt_speed_mps": 0.15,
     "max_speed_mps": 0.5,
     "acceleration_mps2": 0.1,
@@ -124,7 +124,7 @@
     "default_pwm_duty_cycle": 75,
     "pwm_frequency": 1000,
     "enable_speed_control": true,
-    "enable_position_tracking": true,
+    "enable_position_tracking": false,
     "encoder_resolution": 1024,
     "wheel_diameter_m": 0.1,
     "belt_length_m": 2.0,
@@ -154,41 +154,13 @@
       "false_positive_threshold": 3,
       "calibration_value": 512
     },
-    "secondary_sensors": [
-      {
-        "type": "ultrasonic",
-        "name": "BackupDistanceSensor",
-        "trigger_pin": 23,
-        "echo_pin": 24,
-        "max_distance_cm": 100,
-        "timeout_ms": 30,
-        "enable_temperature_compensation": true
-      },
-      {
-        "type": "load_cell",
-        "name": "BeltLoadSensor",
-        "data_pin": 7,
-        "clock_pin": 8,
-        "reference_unit": 2345,
-        "enable_tare": true,
-        "overload_threshold_kg": 10.0
-      }
-    ],
+    "secondary_sensors": [],
     "environmental_sensors": {
       "temperature_humidity": {
-        "enabled": true,
-        "type": "dht22",
-        "pin": 22,
-        "reading_interval_seconds": 60,
-        "temperature_range_c": [-10, 60],
-        "humidity_range_percent": [0, 100]
+        "enabled": false
       },
       "vibration": {
-        "enabled": true,
-        "type": "mpu6050",
-        "address": "0x68",
-        "sampling_rate_hz": 100,
-        "alert_threshold_g": 2.0
+        "enabled": false
       }
     }
   },
@@ -196,7 +168,7 @@
     "type": "solenoid",
     "name": "PrimaryLabeler",
     "pin": 26,
-    "backup_pin": 19,
+    "backup_pin": -1,
     "pwm_frequency": 1000,
     "voltage_rating": 12.0,
     "current_rating": 1.5,
@@ -205,8 +177,8 @@
     "min_rest_time_seconds": 0.1,
     "max_activations_per_minute": 120,
     "duty_cycle_percent": 100,
-    "enable_feedback": true,
-    "feedback_pin": 25,
+    "enable_feedback": false,
+    "feedback_pin": -1,
     "distance_camera_to_labeler_m": 0.52,
     "labeler_width_m": 0.15,
     "label_application_offset_m": 0.02,
@@ -440,7 +412,7 @@
     "emergency_return_to_straight": true,
     "diverters": {
       "0": {
-        "pin": 18,
+        "pin": 5,
         "name": "Diverter-Apple",
         "category": "apple",
         "straight_angle": 0,
@@ -458,7 +430,7 @@
         }
       },
       "1": {
-        "pin": 19,
+        "pin": 6,
         "name": "Diverter-Pear",
         "category": "pear",
         "straight_angle": 0,
