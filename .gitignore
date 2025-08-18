@@ -17,3 +17,4 @@
 
 .venv/**
 
+logs/backend_ultra.log
