@@ -34,11 +34,26 @@ from contextlib import contextmanager
 import numpy as np
 
 try:
-    import RPi.GPIO as GPIO
+    import sys
+    from pathlib import Path
+    # Añadir directorio padre al path para importar utils
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    
+    from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
     import pigpio
-    GPIO_AVAILABLE = True
+    PIGPIO_AVAILABLE = True
+    
+    if is_simulation_mode():
+        print("🏷️ Etiquetadoras: Modo simulación activo (ideal para desarrollo)")
+    else:
+        print("✅ Etiquetadoras: GPIO hardware activo")
+        
 except ImportError:
+    print("⚠️ GPIO/Pigpio no disponible - Modo simulación para etiquetadoras")
     GPIO_AVAILABLE = False
+    PIGPIO_AVAILABLE = False
 
 # Configuración del logger
 logger = logging.getLogger(__name__)

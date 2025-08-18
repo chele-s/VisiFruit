@@ -18,9 +18,16 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 try:
-    import RPi.GPIO as GPIO
-    GPIO_AVAILABLE = True
+    import sys
+    from pathlib import Path
+    # Añadir directorio padre al path para importar utils
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    
+    from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
 except ImportError:
+    print("⚠️ GPIO wrapper no disponible - Usando modo simulación básico")
     GPIO_AVAILABLE = False
 
 # Importar clase base si está disponible

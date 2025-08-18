@@ -73,12 +73,21 @@ except ImportError as e:
 
 # Motor DC para posicionamiento de etiquetadoras
 try:
-    import RPi.GPIO as GPIO
+    from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, get_gpio_info, is_simulation_mode
     import pigpio
-    GPIO_AVAILABLE = True
-except ImportError:
-    print("GPIO no disponible - Modo simulación activado")
+    PIGPIO_AVAILABLE = True
+    # Mostrar información del sistema GPIO cargado
+    gpio_info = get_gpio_info()
+    print(f"🔧 Sistema GPIO: {gpio_info['gpio_type']} ({gpio_info['mode']})")
+    if is_simulation_mode():
+        print("⚠️ Modo simulación GPIO activo - Ideal para desarrollo en Windows")
+    else:
+        print("✅ GPIO hardware activo - Raspberry Pi detectado")
+except ImportError as e:
+    print(f"❌ Error cargando GPIO wrapper: {e}")
+    print("🔄 Usando modo simulación básico...")
     GPIO_AVAILABLE = False
+    PIGPIO_AVAILABLE = False
 
 # Cache Redis (opcional)
 try:

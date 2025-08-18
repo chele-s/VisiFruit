@@ -11,7 +11,36 @@
 #   dinámica. Soporta múltiples tipos de control: PWM, ON/OFF y PLC externo.
 # -----------------------------------------------------------------------------
 
-import RPi.GPIO as GPIO
+try:
+    import sys
+    from pathlib import Path
+    # Añadir directorio padre al path para importar utils
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    
+    from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
+except ImportError:
+    print("⚠️ GPIO wrapper no disponible - Usando modo simulación básico")
+    # Crear GPIO mock básico para que no falle
+    class MockGPIO:
+        BCM = "bcm"
+        OUT = "out"
+        HIGH = 1
+        LOW = 0
+        def setmode(self, mode): pass
+        def setup(self, pin, mode): pass
+        def output(self, pin, state): pass
+        def PWM(self, pin, freq): return MockPWM()
+        def cleanup(self): pass
+    
+    class MockPWM:
+        def start(self, duty): pass
+        def ChangeDutyCycle(self, duty): pass
+        def stop(self): pass
+    
+    GPIO = MockGPIO()
+    GPIO_AVAILABLE = False
 import time
 import logging
 import json

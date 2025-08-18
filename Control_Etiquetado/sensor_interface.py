@@ -13,7 +13,46 @@
 #   La configuración se carga desde 'config_industrial.json'.
 # -----------------------------------------------------------------------------
 
-import RPi.GPIO as GPIO
+try:
+    import sys
+    from pathlib import Path
+    # Añadir directorio padre al path para importar utils
+    parent_dir = Path(__file__).parent.parent
+    if str(parent_dir) not in sys.path:
+        sys.path.insert(0, str(parent_dir))
+    
+    from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
+    
+    if is_simulation_mode():
+        print("📡 Sensores: Modo simulación activo (ideal para desarrollo)")
+    else:
+        print("✅ Sensores: GPIO hardware activo")
+        
+except ImportError:
+    print("⚠️ GPIO wrapper no disponible - Usando modo simulación básico para sensores")
+    # Crear GPIO mock básico
+    class MockGPIO:
+        BCM = "bcm"
+        IN = "in"
+        OUT = "out"
+        HIGH = 1
+        LOW = 0
+        PUD_UP = 1
+        PUD_DOWN = 2
+        PUD_OFF = 0
+        RISING = "rising"
+        FALLING = "falling"
+        BOTH = "both"
+        
+        def setmode(self, mode): pass
+        def setup(self, pin, mode, pull_up_down=0): pass
+        def input(self, pin): return 0
+        def add_event_detect(self, pin, edge, callback=None, bouncetime=None): pass
+        def remove_event_detect(self, pin): pass
+        def cleanup(self): pass
+    
+    GPIO = MockGPIO()
+    GPIO_AVAILABLE = False
 import time
 import logging
 import json
