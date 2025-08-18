@@ -23,11 +23,22 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 try:
-    from Control_Etiquetado.relay_motor_controller import create_relay_motor_driver
+    # Intentar primero el controlador Pi5 (lgpio)
+    from Control_Etiquetado.relay_motor_controller_pi5 import create_relay_motor_driver_pi5
     RELAY_MODULE_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠️ Módulo de relays no disponible: {e}")
-    RELAY_MODULE_AVAILABLE = False
+    USE_PI5_DRIVER = True
+    print("🔧 Usando controlador Pi5 con lgpio")
+except ImportError:
+    try:
+        # Fallback al controlador original (RPi.GPIO)
+        from Control_Etiquetado.relay_motor_controller import create_relay_motor_driver
+        RELAY_MODULE_AVAILABLE = True
+        USE_PI5_DRIVER = False
+        print("🔧 Usando controlador original con RPi.GPIO")
+    except ImportError as e:
+        print(f"⚠️ Módulo de relays no disponible: {e}")
+        RELAY_MODULE_AVAILABLE = False
+        USE_PI5_DRIVER = False
 
 # Configuración de logging simple
 logging.basicConfig(
@@ -68,11 +79,20 @@ class DemoRelayMotor:
         
         try:
             # Crear driver con configuración simple
-            self.driver = create_relay_motor_driver(
-                relay1_pin=self.RELAY1_PIN,
-                relay2_pin=self.RELAY2_PIN, 
-                enable_pin=self.ENABLE_PIN
-            )
+            if USE_PI5_DRIVER:
+                self.driver = create_relay_motor_driver_pi5(
+                    relay1_pin=self.RELAY1_PIN,
+                    relay2_pin=self.RELAY2_PIN, 
+                    enable_pin=self.ENABLE_PIN
+                )
+                print("✅ Usando driver optimizado para Raspberry Pi 5")
+            else:
+                self.driver = create_relay_motor_driver(
+                    relay1_pin=self.RELAY1_PIN,
+                    relay2_pin=self.RELAY2_PIN, 
+                    enable_pin=self.ENABLE_PIN
+                )
+                print("⚠️ Usando driver legacy (puede no funcionar en Pi 5)")
             
             # Inicializar
             if await self.driver.initialize():
