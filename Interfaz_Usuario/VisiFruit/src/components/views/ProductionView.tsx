@@ -30,10 +30,12 @@ import {
   Timeline,
   Assignment,
   TuneRounded,
+  DirectionsRun,
 } from '@mui/icons-material'
 import { animate, stagger } from 'animejs'
 import { useAppSelector } from '../../types/redux'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import BeltControls from '../production/BeltControls'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -239,6 +241,7 @@ const ProductionView: React.FC = () => {
         >
           <Tab label="Estado Actual" icon={<Speed />} />
           <Tab label="Historial" icon={<Timeline />} />
+          <Tab label="Controles de Banda" icon={<DirectionsRun />} />
           <Tab label="Configuración" icon={<Settings />} />
           <Tab label="Reportes" icon={<Assignment />} />
         </Tabs>
@@ -491,9 +494,43 @@ const ProductionView: React.FC = () => {
           </Box>
         </TabPanel>
 
-        {/* Tab 3: Configuración */}
+        {/* Tab 3: Controles de Banda */}
         <TabPanel value={tabValue} index={2}>
-          <Box data-tab="2">
+          <Box data-tab="2" sx={{ height: '100%' }}>
+            <BeltControls 
+              onBeltAction={async (action, params) => {
+                console.log('Acción de banda:', action, params);
+                // Aquí se integrará con la API del backend
+                try {
+                  const response = await fetch(`http://localhost:8000/belt/${action}`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(params || {}),
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error(`Error en la respuesta: ${response.status}`);
+                  }
+                  
+                  const result = await response.json();
+                  console.log('Resultado de la acción:', result);
+                  return result;
+                } catch (error) {
+                  console.error('Error ejecutando acción de banda:', error);
+                  throw error;
+                }
+              }}
+              isConnected={true}
+              disabled={false}
+            />
+          </Box>
+        </TabPanel>
+
+        {/* Tab 4: Configuración */}
+        <TabPanel value={tabValue} index={3}>
+          <Box data-tab="3">
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card
@@ -572,9 +609,9 @@ const ProductionView: React.FC = () => {
           </Box>
         </TabPanel>
 
-        {/* Tab 4: Reportes */}
-        <TabPanel value={tabValue} index={3}>
-          <Box data-tab="3">
+        {/* Tab 5: Reportes */}
+        <TabPanel value={tabValue} index={4}>
+          <Box data-tab="4">
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
               Generación de Reportes
             </Typography>

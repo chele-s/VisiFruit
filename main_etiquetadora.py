@@ -47,6 +47,9 @@ from functools import lru_cache, wraps
 from contextlib import asynccontextmanager
 
 import uvicorn
+import subprocess
+import shutil
+import os
 import numpy as np
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -213,6 +216,159 @@ def intelligent_cache(ttl_seconds: int = 300, max_size: int = 1000):
     return decorator
 
 logger = logging.getLogger("FruPrintUltra")
+
+# ==================== FUNCIONES DE AUTO-INICIO ====================
+
+def load_env_variables():
+    """Carga variables de entorno desde archivo .env si existe."""
+    env_file = Path(".env")
+    if env_file.exists():
+        try:
+            with open(env_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        os.environ[key.strip()] = value.strip()
+            logger.info("✅ Variables de entorno cargadas desde .env")
+        except Exception as e:
+            logger.warning(f"⚠️ Error cargando .env: {e}")
+    else:
+        logger.info("ℹ️ Archivo .env no encontrado - usando variables del sistema")
+
+async def start_frontend_process():
+    """Inicia el proceso del frontend React."""
+    try:
+        frontend_dir = Path("Interfaz_Usuario/VisiFruit")
+        if not frontend_dir.exists():
+            logger.warning("❌ Directorio del frontend no encontrado")
+            return None
+        
+        # Verificar si Node.js está disponible
+        if not shutil.which("npm"):
+            logger.warning("❌ npm no encontrado - frontend no se puede iniciar")
+            return None
+        
+        # Verificar si las dependencias están instaladas
+        node_modules = frontend_dir / "node_modules"
+        if not node_modules.exists():
+            logger.info("📦 Instalando dependencias del frontend...")
+            install_process = await asyncio.create_subprocess_exec(
+                "npm", "install",
+                cwd=str(frontend_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            await install_process.wait()
+            if install_process.returncode != 0:
+                logger.error("❌ Error instalando dependencias del frontend")
+                return None
+        
+        # Configurar variables de entorno para el frontend
+        env = os.environ.copy()
+        env.update({
+            "VITE_API_URL": os.getenv("VITE_API_URL", "http://localhost:8001"),
+            "VITE_WS_URL": os.getenv("VITE_WS_URL", "ws://localhost:8001/ws/realtime"),
+            "VITE_MAIN_API_URL": os.getenv("VITE_MAIN_API_URL", "http://localhost:8000"),
+            "NODE_ENV": os.getenv("NODE_ENV", "production")
+        })
+        
+        logger.info("🚀 Iniciando servidor frontend en puerto 3000...")
+        frontend_process = await asyncio.create_subprocess_exec(
+            "npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000",
+            cwd=str(frontend_dir),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        logger.info("✅ Frontend iniciado en http://0.0.0.0:3000")
+        return frontend_process
+        
+    except Exception as e:
+        logger.error(f"❌ Error iniciando frontend: {e}")
+        return None
+
+async def start_backend_process():
+    """Inicia el proceso del backend dashboard."""
+    try:
+        backend_dir = Path("Interfaz_Usuario/Backend")
+        if not backend_dir.exists():
+            logger.warning("❌ Directorio del backend no encontrado")
+            return None
+        
+        # Verificar si Python está disponible en el venv
+        python_executable = sys.executable
+        
+        logger.info("🚀 Iniciando servidor backend dashboard en puerto 8001...")
+        backend_process = await asyncio.create_subprocess_exec(
+            python_executable, "-u", "main.py",
+            cwd=str(backend_dir),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        logger.info("✅ Backend dashboard iniciado en http://0.0.0.0:8001")
+        return backend_process
+        
+    except Exception as e:
+        logger.error(f"❌ Error iniciando backend dashboard: {e}")
+        return None
+
+async def check_and_start_services():
+    """Verifica y inicia los servicios frontend y backend si está habilitado."""
+    services = {}
+    
+    # Cargar variables de entorno
+    load_env_variables()
+    
+    # Verificar si el auto-inicio está habilitado
+    auto_start_frontend = os.getenv("AUTO_START_FRONTEND", "true").lower() == "true"
+    auto_start_backend = os.getenv("AUTO_START_BACKEND", "true").lower() == "true"
+    
+    if auto_start_backend:
+        logger.info("🔄 Iniciando backend dashboard automáticamente...")
+        backend_process = await start_backend_process()
+        if backend_process:
+            services["backend"] = backend_process
+            # Esperar un poco para que el backend se inicie
+            await asyncio.sleep(3)
+    
+    if auto_start_frontend:
+        logger.info("🔄 Iniciando frontend automáticamente...")
+        frontend_process = await start_frontend_process()
+        if frontend_process:
+            services["frontend"] = frontend_process
+            # Esperar un poco para que el frontend se inicie
+            await asyncio.sleep(5)
+    
+    if services:
+        logger.info(f"✅ Servicios iniciados: {list(services.keys())}")
+        logger.info("🌐 URLs disponibles:")
+        if "backend" in services:
+            logger.info("   📊 Dashboard Backend: http://localhost:8001")
+        if "frontend" in services:
+            logger.info("   🎨 Frontend React: http://localhost:3000")
+        logger.info("   🏷️ Sistema Principal: http://localhost:8000")
+    
+    return services
+
+async def cleanup_services(services):
+    """Limpia los procesos de servicios al cerrar."""
+    for service_name, process in services.items():
+        try:
+            if process and process.returncode is None:
+                logger.info(f"🛑 Deteniendo {service_name}...")
+                process.terminate()
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=10)
+                except asyncio.TimeoutError:
+                    logger.warning(f"⚠️ Forzando cierre de {service_name}")
+                    process.kill()
+                    await process.wait()
+                logger.info(f"✅ {service_name} detenido")
+        except Exception as e:
+            logger.error(f"❌ Error deteniendo {service_name}: {e}")
 
 # ==================== ENUMS Y TIPOS ====================
 
@@ -1387,6 +1543,166 @@ class UltraIndustrialFruitLabelingSystem:
                 raise HTTPException(404, "Motor controller no disponible")
             return self.motor_controller.get_status()
         
+        # ============ CONTROL DE BANDA TRANSPORTADORA ============
+        @app.post("/belt/start_forward")
+        async def start_belt_forward():
+            """Inicia la banda transportadora hacia adelante."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                success = await self.belt_controller.start_belt()
+                if success:
+                    return {
+                        "success": True,
+                        "message": "Banda iniciada hacia adelante",
+                        "direction": "forward",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(500, "Error iniciando banda hacia adelante")
+            except Exception as e:
+                raise HTTPException(500, f"Error en control de banda: {e}")
+        
+        @app.post("/belt/start_backward")
+        async def start_belt_backward():
+            """Inicia la banda transportadora hacia atrás."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                success = await self.belt_controller.reverse_direction()
+                if success:
+                    return {
+                        "success": True,
+                        "message": "Banda iniciada hacia atrás",
+                        "direction": "backward", 
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(500, "Error iniciando banda hacia atrás")
+            except Exception as e:
+                raise HTTPException(500, f"Error en control de banda: {e}")
+        
+        @app.post("/belt/stop")
+        async def stop_belt():
+            """Detiene la banda transportadora."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                success = await self.belt_controller.stop_belt()
+                if success:
+                    return {
+                        "success": True,
+                        "message": "Banda detenida",
+                        "direction": "stopped",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(500, "Error deteniendo banda")
+            except Exception as e:
+                raise HTTPException(500, f"Error en control de banda: {e}")
+        
+        @app.post("/belt/emergency_stop")
+        async def emergency_stop_belt():
+            """Parada de emergencia de la banda transportadora."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                success = await self.belt_controller.emergency_brake()
+                if success:
+                    return {
+                        "success": True,
+                        "message": "PARADA DE EMERGENCIA DE BANDA EJECUTADA",
+                        "direction": "emergency_stopped",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(500, "Error en parada de emergencia")
+            except Exception as e:
+                raise HTTPException(500, f"Error en parada de emergencia: {e}")
+        
+        @app.post("/belt/set_speed")
+        async def set_belt_speed(speed_data: dict):
+            """Establece la velocidad de la banda transportadora."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                speed = speed_data.get("speed", 0.5)
+                if not (0.1 <= speed <= 2.0):
+                    raise HTTPException(400, "Velocidad debe estar entre 0.1 y 2.0 m/s")
+                
+                # Convertir velocidad m/s a porcentaje (asumiendo máximo 2.0 m/s = 100%)
+                speed_percent = (speed / 2.0) * 100
+                success = await self.belt_controller.set_speed(speed_percent)
+                
+                if success:
+                    return {
+                        "success": True,
+                        "message": f"Velocidad establecida a {speed} m/s",
+                        "speed_ms": speed,
+                        "speed_percent": speed_percent,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    raise HTTPException(500, "Error estableciendo velocidad")
+            except Exception as e:
+                raise HTTPException(500, f"Error estableciendo velocidad: {e}")
+        
+        @app.post("/belt/toggle_enable")
+        async def toggle_belt_enable():
+            """Habilita o deshabilita el sistema de banda."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                # Obtener estado actual
+                status = await self.belt_controller.get_status()
+                current_state = status.get("running", False)
+                
+                if current_state:
+                    success = await self.belt_controller.stop_belt()
+                    message = "Sistema de banda deshabilitado"
+                    enabled = False
+                else:
+                    # Para habilitar, simplemente devolvemos success sin iniciar
+                    success = True
+                    message = "Sistema de banda habilitado"
+                    enabled = True
+                
+                return {
+                    "success": success,
+                    "message": message,
+                    "enabled": enabled,
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Error en toggle de banda: {e}")
+        
+        @app.get("/belt/status")
+        async def get_belt_status():
+            """Obtiene el estado de la banda transportadora."""
+            try:
+                if not self.belt_controller:
+                    raise HTTPException(404, "Controlador de banda no disponible")
+                
+                status = await self.belt_controller.get_status()
+                
+                # Enriquecer el status con información adicional
+                enriched_status = {
+                    **status,
+                    "timestamp": datetime.now().isoformat(),
+                    "system_connected": True,
+                    "last_update": datetime.now().isoformat()
+                }
+                
+                return enriched_status
+            except Exception as e:
+                raise HTTPException(500, f"Error obteniendo estado de banda: {e}")
+        
         # ============ CONTROL DE DESVIADORES (CLASIFICACIÓN) ============
         @app.get("/diverters/status")
         async def get_diverters_status():
@@ -2440,13 +2756,19 @@ class UltraIndustrialFruitLabelingSystem:
 
 
 async def main():
-    """Punto de entrada principal."""
+    """Punto de entrada principal con auto-inicio de servicios."""
     system = None
+    services = {}
     
     try:
-        logger.info("=== FruPrint Industrial v2.0 ===")
+        logger.info("=== FruPrint Industrial v3.0 ULTRA ===")
+        logger.info("🚀 Iniciando sistema completo con frontend y backend")
         
-        # Crear sistema
+        # Iniciar servicios auxiliares (frontend y backend)
+        logger.info("📡 Verificando e iniciando servicios auxiliares...")
+        services = await check_and_start_services()
+        
+        # Crear sistema principal
         config_file = "Config_Etiquetadora.json"
         system = UltraIndustrialFruitLabelingSystem(config_file)
         
@@ -2465,26 +2787,46 @@ async def main():
             # Windows
             signal.signal(signal.SIGINT, lambda s, f: signal_handler())
         
-        # Inicializar
+        # Inicializar sistema principal
+        logger.info("🔧 Inicializando sistema principal de etiquetado...")
         if await system.initialize():
-            logger.info("Sistema ejecutándose...")
+            logger.info("✅ Sistema principal inicializado correctamente")
+            logger.info("")
+            logger.info("🌐 === URLS DEL SISTEMA COMPLETO ===")
+            logger.info("   🏷️ Sistema Principal (API): http://localhost:8000")
+            if "backend" in services:
+                logger.info("   📊 Dashboard Backend: http://localhost:8001")
+                logger.info("   📄 Documentación API: http://localhost:8001/docs")
+            if "frontend" in services:
+                logger.info("   🎨 Interfaz Frontend: http://localhost:3000")
+            logger.info("🌐 =====================================")
+            logger.info("")
+            logger.info("🚀 Sistema ejecutándose - Presiona Ctrl+C para detener")
             
             # Mantener funcionando
             while system._system_state != SystemState.OFFLINE:
                 await asyncio.sleep(1)
         else:
-            logger.critical("Fallo al inicializar")
+            logger.critical("❌ Fallo al inicializar sistema principal")
             return 1
         
     except KeyboardInterrupt:
-        logger.info("Interrupción recibida")
+        logger.info("⚡ Interrupción recibida - Iniciando apagado ordenado...")
     except Exception as e:
-        logger.exception(f"Error crítico: {e}")
+        logger.exception(f"❌ Error crítico: {e}")
         return 1
     finally:
+        # Apagar sistema principal
         if system:
+            logger.info("🛑 Apagando sistema principal...")
             await system.shutdown()
-        logger.info("Sistema terminado")
+        
+        # Limpiar servicios auxiliares
+        if services:
+            logger.info("🧹 Limpiando servicios auxiliares...")
+            await cleanup_services(services)
+        
+        logger.info("✅ Sistema terminado correctamente")
     
     return 0
 
