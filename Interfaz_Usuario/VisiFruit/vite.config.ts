@@ -4,11 +4,12 @@ import react from '@vitejs/plugin-react-swc'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  
+
   // Configuración del servidor de desarrollo
   server: {
     port: 3000,
     host: true,
+    strictPort: true,
     cors: true,
     // Proxy para el backend (opcional - las URLs absolutas también funcionan)
     proxy: {
@@ -21,8 +22,8 @@ export default defineConfig({
         target: 'ws://localhost:8001',
         ws: true,
         changeOrigin: true,
-      }
-    }
+      },
+    },
   },
 
   // Configuración de build para producción
@@ -37,9 +38,9 @@ export default defineConfig({
           ui: ['@mui/material', '@mui/icons-material'],
           three: ['three', '@react-three/fiber', '@react-three/drei'],
           charts: ['recharts'],
-        }
-      }
-    }
+        },
+      },
+    },
   },
 
   // Variables de entorno
@@ -50,12 +51,6 @@ export default defineConfig({
 
   // Optimización de dependencias
   optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      '@mui/material',
-      '@react-three/fiber',
-      'three'
-    ]
-  }
+    include: ['react', 'react-dom', '@mui/material', '@react-three/fiber', 'three'],
+  },
 })

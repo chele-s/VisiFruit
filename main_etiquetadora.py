@@ -261,9 +261,7 @@ async def start_frontend_process():
             logger.info("📦 Instalando dependencias del frontend...")
             install_process = await asyncio.create_subprocess_exec(
                 "npm", "install",
-                cwd=str(frontend_dir),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                cwd=str(frontend_dir)
             )
             await install_process.wait()
             if install_process.returncode != 0:
@@ -276,16 +274,15 @@ async def start_frontend_process():
             "VITE_API_URL": os.getenv("VITE_API_URL", "http://localhost:8001"),
             "VITE_WS_URL": os.getenv("VITE_WS_URL", "ws://localhost:8001/ws/realtime"),
             "VITE_MAIN_API_URL": os.getenv("VITE_MAIN_API_URL", "http://localhost:8000"),
-            "NODE_ENV": os.getenv("NODE_ENV", "production")
+            # Asegurar modo desarrollo para servidor Vite
+            "NODE_ENV": os.getenv("NODE_ENV", "development")
         })
         
         logger.info("🚀 Iniciando servidor frontend en puerto 3000...")
         frontend_process = await asyncio.create_subprocess_exec(
             "npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000",
             cwd=str(frontend_dir),
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            env=env
         )
         
         logger.info("✅ Frontend iniciado en http://0.0.0.0:3000")

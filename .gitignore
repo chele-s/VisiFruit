@@ -18,3 +18,4 @@
 .venv/**
 
 logs/backend_ultra.log
+Interfaz_Usuario/Backend/__pycache__/
