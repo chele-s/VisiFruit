@@ -93,7 +93,7 @@ class ServoMotorSG995:
     """
     
     def __init__(self, pin: int, name: str, config: Dict[str, Any]):
-        self.pin = pin
+        self.pin = int(pin)
         self.name = name
         self.config = config
         
@@ -104,8 +104,8 @@ class ServoMotorSG995:
         self.center_pulse_width = 1.5  # ms para 90°
         
         # Posiciones configurables
-        self.straight_angle = config.get("straight_angle", 0)    # Ángulo para posición recta
-        self.diverted_angle = config.get("diverted_angle", 90)   # Ángulo para desviar
+        self.straight_angle = int(config.get("straight_angle", 0))    # Ángulo para posición recta
+        self.diverted_angle = int(config.get("diverted_angle", 90))   # Ángulo para desviar
         
         # Estado
         self.current_position = DiverterPosition.STRAIGHT

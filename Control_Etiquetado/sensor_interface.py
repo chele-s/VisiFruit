@@ -75,25 +75,18 @@ current_sound_speed_cm_s = 34300.0 # cm/s a 20°C
 # Caché para niveles de llenado para evitar lecturas fallidas consecutivas
 bin_fill_level_cache = {}
 
-def load_sensor_config(config_file='Control_Banda/config_industrial.json'):
+def load_sensor_config(sensor_config_dict: dict):
     """
-    Carga la configuración de todos los sensores desde el archivo JSON.
+    Carga la configuración de todos los sensores desde un diccionario.
     """
     global config_data, camera_trigger_config, bin_level_common_config, \
            bin_specific_configs, current_temperature_c, current_sound_speed_cm_s
     try:
-        if not os.path.exists(config_file):
-            logger.error(f"Archivo de configuración {config_file} no encontrado.")
-            return False
-        
-        with open(config_file, 'r') as f:
-            full_config = json.load(f)
-        
-        if 'sensors_settings' not in full_config:
-            logger.error("'sensors_settings' no encontrado en el archivo de configuración.")
+        if not sensor_config_dict:
+            logger.error("El diccionario de configuración de sensores está vacío.")
             return False
             
-        config_data = full_config['sensors_settings']
+        config_data = sensor_config_dict
         
         # Cargar configuración del sensor de disparo de cámara
         camera_trigger_config = config_data.get('camera_trigger_sensor', {})
@@ -395,31 +388,34 @@ class SensorInterface:
     - Configuración y manejo de GPIO
     """
     
-    def __init__(self, config: dict, trigger_callback=None):
+    def __init__(self, trigger_callback=None):
         """
         Inicializa la interfaz de sensores.
         
         Args:
-            config: Diccionario de configuración de sensores
             trigger_callback: Función callback para cuando se active el trigger
         """
-        self.config = config
         self.trigger_callback = trigger_callback
         self.is_initialized = False
         self.trigger_enabled = False
+        self.config = {} # Se cargará en initialize
         
-        logger.info("SensorInterface inicializada")
+        logger.info("SensorInterface instanciada")
     
-    def initialize(self) -> bool:
+    def initialize(self, sensor_config: dict) -> bool:
         """
         Inicializa todos los sensores del sistema.
         
+        Args:
+            sensor_config: El diccionario con la configuración de los sensores.
+            
         Returns:
             bool: True si la inicialización fue exitosa
         """
+        self.config = sensor_config
         try:
             # Cargar configuración de sensores
-            if not load_sensor_config():
+            if not load_sensor_config(self.config):
                 logger.error("Error cargando configuración de sensores")
                 return False
             

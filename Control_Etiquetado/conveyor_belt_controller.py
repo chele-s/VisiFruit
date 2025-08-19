@@ -166,6 +166,12 @@ class GPIOOnOffDriver(BeltDriver):
     async def initialize(self) -> bool:
         """Inicializar control ON/OFF."""
         try:
+            # Asegurar modo de numeración correcto
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+            except Exception:
+                pass
             if self.config.motor_pin_bcm is None:
                 raise ValueError("motor_pin_bcm no especificado para control ON/OFF")
                 
@@ -281,6 +287,12 @@ class L298NDriver(BeltDriver):
     async def initialize(self) -> bool:
         """Inicializar control L298N."""
         try:
+            # Asegurar modo de numeración correcto
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+            except Exception:
+                pass
             # Validar pines requeridos
             if self.config.motor_pin_bcm is None:
                 raise ValueError("motor_pin_bcm (ENA) no especificado para L298N")
@@ -561,6 +573,12 @@ class PWMDriver(BeltDriver):
     async def initialize(self) -> bool:
         """Inicializar control PWM."""
         try:
+            # Asegurar modo de numeración correcto
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+            except Exception:
+                pass
             if self.config.motor_pin_bcm is None:
                 raise ValueError("motor_pin_bcm no especificado para control PWM")
                 
@@ -698,8 +716,14 @@ class PWMDriver(BeltDriver):
 class ConveyorBeltController:
     """Controlador avanzado de banda transportadora con recuperación automática."""
     
-    def __init__(self, config_file: str = 'Control_Banda/config_industrial.json'):
-        self.config_file = config_file
+    def __init__(self, config: Union[str, Dict[str, Any]]):
+        """Inicializa el controlador.
+
+        Args:
+            config: Puede ser un path a un archivo de configuración (str) o un 
+                    diccionario con la configuración 'conveyor_belt_settings'.
+        """
+        self.config_source = config
         self.logger = logging.getLogger(f"{__name__}.Controller")
         
         # Estado interno
@@ -749,37 +773,45 @@ class ConveyorBeltController:
             return False
     
     async def _load_configuration(self) -> bool:
-        """Cargar configuración desde archivo."""
+        """Cargar configuración desde archivo o diccionario."""
         try:
-            if not os.path.exists(self.config_file):
-                self.logger.error(f"Archivo de configuración no encontrado: {self.config_file}")
-                return False
-                
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                full_config = json.load(f)
-                
-            belt_config = full_config.get('conveyor_belt_settings', {})
+            belt_config = None
+            if isinstance(self.config_source, str):
+                # Cargar desde path de archivo
+                if not os.path.exists(self.config_source):
+                    self.logger.error(f"Archivo de configuración no encontrado: {self.config_source}")
+                    return False
+                with open(self.config_source, 'r', encoding='utf-8') as f:
+                    full_config = json.load(f)
+                belt_config = full_config.get('conveyor_belt_settings', {})
+            elif isinstance(self.config_source, dict):
+                # Usar diccionario directamente
+                belt_config = self.config_source
+            
             if not belt_config:
-                self.logger.error("Sección 'conveyor_belt_settings' no encontrada en configuración")
+                self.logger.error("No se encontró la sección 'conveyor_belt_settings' o el diccionario está vacío.")
                 return False
                 
             # Cargar configuración en dataclass
+            # Soportar alias de claves históricas (pwm_frequency, default_pwm_duty_cycle)
+            pwm_freq = belt_config.get('pwm_frequency_hz', belt_config.get('pwm_frequency', 100))
+            default_speed = belt_config.get('default_speed_percent', belt_config.get('default_pwm_duty_cycle', 75))
             self.config = BeltConfiguration(
                 control_type=belt_config.get('control_type', 'gpio_on_off'),
-                motor_pin_bcm=belt_config.get('motor_pin_bcm'),
-                enable_pin_bcm=belt_config.get('enable_pin_bcm'),
-                direction_pin_bcm=belt_config.get('direction_pin_bcm'),
-                direction_pin2_bcm=belt_config.get('direction_pin2_bcm'),
-                relay1_pin_bcm=belt_config.get('relay1_pin_bcm'),
-                relay2_pin_bcm=belt_config.get('relay2_pin_bcm'),
+                motor_pin_bcm=int(belt_config.get('motor_pin_bcm')) if belt_config.get('motor_pin_bcm') is not None else None,
+                enable_pin_bcm=int(belt_config.get('enable_pin_bcm')) if belt_config.get('enable_pin_bcm') is not None else None,
+                direction_pin_bcm=int(belt_config.get('direction_pin_bcm')) if belt_config.get('direction_pin_bcm') is not None else None,
+                direction_pin2_bcm=int(belt_config.get('direction_pin2_bcm')) if belt_config.get('direction_pin2_bcm') is not None else None,
+                relay1_pin_bcm=int(belt_config.get('relay1_pin_bcm')) if belt_config.get('relay1_pin_bcm') is not None else None,
+                relay2_pin_bcm=int(belt_config.get('relay2_pin_bcm')) if belt_config.get('relay2_pin_bcm') is not None else None,
                 active_state_on=belt_config.get('active_state_on', 'HIGH'),
-                pwm_frequency_hz=belt_config.get('pwm_frequency_hz', 100),
-                min_duty_cycle=belt_config.get('min_duty_cycle', 20),
-                max_duty_cycle=belt_config.get('max_duty_cycle', 100),
-                default_speed_percent=belt_config.get('default_speed_percent', 75),
-                safety_timeout_s=belt_config.get('safety_timeout_s', 10.0),
-                recovery_attempts=belt_config.get('recovery_attempts', 3),
-                health_check_interval_s=belt_config.get('health_check_interval_s', 1.0)
+                pwm_frequency_hz=int(pwm_freq),
+                min_duty_cycle=int(belt_config.get('min_duty_cycle', 20)),
+                max_duty_cycle=int(belt_config.get('max_duty_cycle', 100)),
+                default_speed_percent=int(default_speed),
+                safety_timeout_s=float(belt_config.get('safety_timeout_s', 10.0)),
+                recovery_attempts=int(belt_config.get('recovery_attempts', 3)),
+                health_check_interval_s=float(belt_config.get('health_check_interval_s', 1.0))
             )
             
             self.logger.info(f"Configuración cargada: {self.config.control_type}")

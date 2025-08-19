@@ -340,7 +340,7 @@ def _detect_and_load_gpio():
             logger.info("🍓 Raspberry Pi detectado")
             
             # 3. Detectar versión de Raspberry Pi
-            if 'BCM2712' in cpuinfo:  # Raspberry Pi 5
+            if 'BCM2712' in cpuinfo or 'bcm2712' in cpuinfo:  # Raspberry Pi 5 (robusto)
                 logger.info("🚀 Raspberry Pi 5 detectado - Usando LGPIO")
                 try:
                     return LGPIOWrapper(), GPIOMode.LGPIO
@@ -348,17 +348,17 @@ def _detect_and_load_gpio():
                     logger.error("❌ lgpio no disponible. Instalar con: sudo apt install python3-lgpio")
                     raise
             else:
+                # Si no se detectó explícitamente Pi 5, intentar usar lgpio si está disponible
+                try:
+                    import lgpio  # noqa: F401
+                    logger.info("🧪 lgpio disponible - usándolo como backend GPIO")
+                    return LGPIOWrapper(), GPIOMode.LGPIO
+                except Exception:
+                    pass
                 # Raspberry Pi < 5 - usar RPi.GPIO como fallback
                 logger.info("📟 Raspberry Pi < 5 detectado - Usando RPi.GPIO")
                 try:
                     import RPi.GPIO as GPIO_module
-                    # Configurar RPi.GPIO con interface compatible
-                    GPIO_module.LOW = GPIOState.LOW
-                    GPIO_module.HIGH = GPIOState.HIGH
-                    GPIO_module.IN = GPIOState.IN
-                    GPIO_module.OUT = GPIOState.OUT
-                    GPIO_module.BCM = GPIO_module.BCM
-                    GPIO_module.BOARD = GPIO_module.BOARD
                     return GPIO_module, GPIOMode.RPI_GPIO
                 except ImportError:
                     logger.warning("RPi.GPIO no disponible, usando simulador")

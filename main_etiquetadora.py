@@ -675,12 +675,14 @@ class UltraLinearMotorController:
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.motor_pins = config.get("motor_pins", {
+        motor_pins_raw = config.get("motor_pins", {
             "pwm_pin": 12,
             "dir_pin1": 20,
             "dir_pin2": 21,
             "enable_pin": 16
         })
+        # Asegurar que todos los pines sean enteros
+        self.motor_pins = {k: int(v) for k, v in motor_pins_raw.items()}
         
         # Sistema lineal: 3 grupos de 2 etiquetadoras cada uno
         self.labeler_groups = {
@@ -1198,14 +1200,25 @@ class UltraIndustrialFruitLabelingSystem:
         logger.info("Inicializando detector de IA...")
         
         try:
+            # Verificar si el archivo del modelo existe ANTES de inicializar
+            model_path = self.config.get("ai_model_settings", {}).get("model_path")
+            if not model_path or not Path(model_path).exists():
+                raise FileNotFoundError(f"Modelo de IA no encontrado en: {model_path}")
+
             self.ai_detector = EnterpriseFruitDetector(self.config)
             
             if not await self.ai_detector.initialize():
-                raise RuntimeError("Fallo al inicializar IA")
+                # Esta excepción será capturada abajo
+                raise RuntimeError("Fallo al inicializar la IA, workers no pudieron cargar modelo")
             
-            logger.info("Detector de IA inicializado correctamente")
+            logger.info("✅ Detector de IA inicializado correctamente")
+            
+        except (FileNotFoundError, RuntimeError) as e:
+            logger.warning(f"⚠️  ADVERTENCIA: {e}")
+            logger.warning("     El sistema continuará sin la funcionalidad de IA.")
+            self.ai_detector = None
         except Exception as e:
-            logger.error(f"Error inicializando IA: {e}")
+            logger.error(f"❌ Error inesperado inicializando IA: {e}")
             self.ai_detector = None
     
     async def _initialize_belt_controller(self):
@@ -1247,11 +1260,10 @@ class UltraIndustrialFruitLabelingSystem:
         try:
             sensor_config = self.config["sensor_settings"]
             self.trigger_sensor = SensorInterface(
-                sensor_config,
-                self._sensor_trigger_callback
+                trigger_callback=self._sensor_trigger_callback
             )
             
-            if not self.trigger_sensor.initialize():
+            if not self.trigger_sensor.initialize(sensor_config):
                 raise RuntimeError("Fallo al inicializar sensores")
             
             logger.info("Sensores inicializados correctamente")

@@ -157,11 +157,11 @@ class SolenoidDriver(BaseActuatorDriver):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.pin = config.get("pin", 26)
-        self.pwm_frequency = config.get("pwm_frequency", 1000)
-        self.voltage_rating = config.get("voltage_rating", 12.0)
-        self.current_rating = config.get("current_rating", 1.5)
-        self.response_time_ms = config.get("response_time_ms", 10)
+        self.pin = int(config.get("pin", 26))
+        self.pwm_frequency = int(config.get("pwm_frequency", 1000))
+        self.voltage_rating = float(config.get("voltage_rating", 12.0))
+        self.current_rating = float(config.get("current_rating", 1.5))
+        self.response_time_ms = float(config.get("response_time_ms", 10))
         
         self.pwm_instance = None
         self.is_active = False
@@ -333,11 +333,11 @@ class ServoDriver(BaseActuatorDriver):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.pin = config.get("pin", 18)
-        self.min_angle = config.get("min_angle", 0)
-        self.max_angle = config.get("max_angle", 180)
-        self.rest_angle = config.get("rest_angle", 90)
-        self.active_angle = config.get("active_angle", 45)
+        self.pin = int(config.get("pin", 18))
+        self.min_angle = int(config.get("min_angle", 0))
+        self.max_angle = int(config.get("max_angle", 180))
+        self.rest_angle = int(config.get("rest_angle", 90))
+        self.active_angle = int(config.get("active_angle", 45))
         self.pwm_frequency = 50  # Estándar para servos
         
         self.pwm_instance = None

@@ -33,7 +33,7 @@
     "api_key_rotation_days": 30
   },
   "camera_settings": {
-    "type": "mock",
+    "type": "csi_camera",
     "name": "RaspberryPi-CSI-OV5647",
     "device_id": 0,
     "frame_width": 1280,
