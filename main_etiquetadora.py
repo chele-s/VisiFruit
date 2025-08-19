@@ -45,6 +45,7 @@ from typing import Dict, Optional, List, Any, Union, Tuple, NamedTuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache, wraps
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 import uvicorn
 import subprocess
@@ -61,18 +62,23 @@ import sqlite3
 
 # Importaciones del proyecto con manejo de errores
 try:
-    from IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector, FrameAnalysisResult, ProcessingPriority
+    # Importar módulos locales de control y utilidades
     from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
     from Control_Etiquetado.sensor_interface import SensorInterface
     from Control_Etiquetado.labeler_actuator import LabelerActuator
     from Control_Etiquetado.fruit_diverter_controller import FruitDiverterController
     from utils.camera_controller import CameraController
     from utils.config_validator import ConfigValidator, ValidationLevel
+    # Importar IA de forma diferida en _initialize_ai_detector (evita dependencias y warnings si no hay modelo)
     MODULES_AVAILABLE = True
 except ImportError as e:
     print(f"Error de importación: {e}")
     print("Algunos módulos pueden no estar disponibles. Usando modos de simulación.")
     MODULES_AVAILABLE = False
+
+# Tipos solo para chequeo estático (pyright) sin forzar import en runtime
+if TYPE_CHECKING:
+    from IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector, FrameAnalysisResult  # type: ignore
 
 # Motor DC para posicionamiento de etiquetadoras
 try:
@@ -1200,6 +1206,8 @@ class UltraIndustrialFruitLabelingSystem:
         logger.info("Inicializando detector de IA...")
         
         try:
+            # Importar IA solo si hay modelo presente para evitar dependencias innecesarias
+            from IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector, FrameAnalysisResult, ProcessingPriority  # type: ignore
             # Verificar si el archivo del modelo existe ANTES de inicializar
             model_path = self.config.get("ai_model_settings", {}).get("model_path")
             if not model_path or not Path(model_path).exists():
