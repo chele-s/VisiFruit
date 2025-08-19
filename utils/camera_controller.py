@@ -39,6 +39,27 @@ from contextlib import contextmanager
 # Configuración del logger
 logger = logging.getLogger(__name__)
 
+# Intentar importar Picamera2 (libcamera Python) para Raspberry Pi 5
+_PICAMERA2_AVAILABLE = False
+try:
+    from picamera2 import Picamera2  # type: ignore
+    _PICAMERA2_AVAILABLE = True
+except Exception:
+    # Intentar añadir rutas comunes del sistema (Debian/RPi OS) para fuera del venv
+    try:
+        import sys
+        for path in (
+            '/usr/lib/python3/dist-packages',
+            '/usr/local/lib/python3.11/dist-packages',
+            '/usr/lib/python3.11/dist-packages',
+        ):
+            if path not in sys.path:
+                sys.path.append(path)
+        from picamera2 import Picamera2  # type: ignore
+        _PICAMERA2_AVAILABLE = True
+    except Exception:
+        _PICAMERA2_AVAILABLE = False
+
 class CameraType(Enum):
     """Tipos de cámaras soportados."""
     USB_WEBCAM = "usb_webcam"
@@ -169,20 +190,23 @@ class OpenCVCameraDriver(BaseCameraDriver):
     async def initialize(self) -> bool:
         """Inicializa la cámara OpenCV."""
         try:
-            # Crear captura de video
-            self.cap = cv2.VideoCapture(self.device_id)
+            # Crear captura de video con backend V4L2 cuando sea posible
+            try:
+                self.cap = cv2.VideoCapture(self.device_id, cv2.CAP_V4L2)
+            except Exception:
+                self.cap = cv2.VideoCapture(self.device_id)
             
             if not self.cap.isOpened():
                 raise RuntimeError(f"No se pudo abrir cámara {self.device_id}")
             
-            # Configurar propiedades
+            # Configurar propiedades (algunos combos no aplican con compat libcamera)
+            # Intentar MJPG, si falla, usar RGB24 (BGR3)
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
             self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-            
-            # Optimizaciones para mejor rendimiento
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Buffer mínimo
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            # Buffer mínimo
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             
             # Verificar configuración
             actual_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -191,8 +215,12 @@ class OpenCVCameraDriver(BaseCameraDriver):
             
             logger.info(f"Cámara inicializada: {actual_width}x{actual_height} @ {actual_fps}fps")
             
-            # Prueba de captura
+            # Prueba de captura (reintentar con RGB si MJPG falla)
             ret, frame = self.cap.read()
+            if (not ret or frame is None) and self.cap.isOpened():
+                # Cambiar a RGB24
+                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('B','G','R','3'))
+                ret, frame = self.cap.read()
             if not ret or frame is None:
                 raise RuntimeError("No se pudo capturar frame de prueba")
             
@@ -206,69 +234,34 @@ class OpenCVCameraDriver(BaseCameraDriver):
                 self.cap.release()
                 self.cap = None
             return False
-    
+
     async def capture_frame(self) -> Optional[np.ndarray]:
         """Captura un frame de la cámara."""
         try:
             if not self.is_initialized or not self.cap:
                 return None
-            
             ret, frame = self.cap.read()
-            
             if ret and frame is not None:
                 return frame
-            else:
-                logger.warning("Captura de frame falló")
-                return None
-                
+            logger.warning("Captura de frame falló")
+            return None
         except Exception as e:
             self.last_error = f"Error capturando frame: {e}"
             logger.error(self.last_error)
             return None
-    
+
     async def start_streaming(self) -> bool:
-        """Inicia streaming (para OpenCV no hay diferencia)."""
         self.is_streaming = True
         return True
-    
+
     async def stop_streaming(self) -> bool:
-        """Detiene streaming."""
         self.is_streaming = False
         return True
-    
+
     async def set_parameter(self, param: str, value: Any) -> bool:
-        """Establece parámetro de cámara."""
         try:
             if not self.cap:
                 return False
-            
-            # Mapeo de parámetros comunes
-            param_map = {
-                'brightness': cv2.CAP_PROP_BRIGHTNESS,
-                'contrast': cv2.CAP_PROP_CONTRAST,
-                'saturation': cv2.CAP_PROP_SATURATION,
-                'exposure': cv2.CAP_PROP_EXPOSURE,
-                'gain': cv2.CAP_PROP_GAIN,
-                'auto_exposure': cv2.CAP_PROP_AUTO_EXPOSURE,
-                'fps': cv2.CAP_PROP_FPS
-            }
-            
-            if param in param_map:
-                return self.cap.set(param_map[param], value)
-            
-            return False
-            
-        except Exception as e:
-            self.last_error = f"Error estableciendo parámetro {param}: {e}"
-            logger.error(self.last_error)
-            return False
-    
-    async def get_parameter(self, param: str) -> Any:
-        """Obtiene parámetro de cámara."""
-        try:
-            if not self.cap:
-                return None
-            
             param_map = {
                 'brightness': cv2.CAP_PROP_BRIGHTNESS,
                 'contrast': cv2.CAP_PROP_CONTRAST,
@@ -278,31 +271,178 @@ class OpenCVCameraDriver(BaseCameraDriver):
                 'auto_exposure': cv2.CAP_PROP_AUTO_EXPOSURE,
                 'fps': cv2.CAP_PROP_FPS,
                 'width': cv2.CAP_PROP_FRAME_WIDTH,
-                'height': cv2.CAP_PROP_FRAME_HEIGHT
+                'height': cv2.CAP_PROP_FRAME_HEIGHT,
             }
-            
+            if param in param_map:
+                return self.cap.set(param_map[param], value)
+            return False
+        except Exception as e:
+            self.last_error = f"Error estableciendo parámetro {param}: {e}"
+            logger.error(self.last_error)
+            return False
+
+    async def get_parameter(self, param: str) -> Any:
+        try:
+            if not self.cap:
+                return None
+            param_map = {
+                'brightness': cv2.CAP_PROP_BRIGHTNESS,
+                'contrast': cv2.CAP_PROP_CONTRAST,
+                'saturation': cv2.CAP_PROP_SATURATION,
+                'exposure': cv2.CAP_PROP_EXPOSURE,
+                'gain': cv2.CAP_PROP_GAIN,
+                'auto_exposure': cv2.CAP_PROP_AUTO_EXPOSURE,
+                'fps': cv2.CAP_PROP_FPS,
+                'width': cv2.CAP_PROP_FRAME_WIDTH,
+                'height': cv2.CAP_PROP_FRAME_HEIGHT,
+            }
             if param in param_map:
                 return self.cap.get(param_map[param])
-            
             return None
-            
         except Exception as e:
             self.last_error = f"Error obteniendo parámetro {param}: {e}"
             logger.error(self.last_error)
             return None
-    
+
     async def cleanup(self):
-        """Limpia recursos."""
         try:
             if self.cap:
                 self.cap.release()
                 self.cap = None
-            
             self.is_initialized = False
             self.is_streaming = False
-            
         except Exception as e:
             logger.error(f"Error limpiando cámara: {e}")
+
+
+class Picamera2CameraDriver(BaseCameraDriver):
+    """Driver para cámaras CSI usando Picamera2 (libcamera)."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.width = int(config.get("frame_width", 1280))
+        self.height = int(config.get("frame_height", 720))
+        self.fps = float(config.get("fps", 30))
+        self.picam2: Optional[Picamera2] = None  # type: ignore
+        self.is_streaming = False
+        self._convert_to_bgr = True
+    
+    async def initialize(self) -> bool:
+        try:
+            if not _PICAMERA2_AVAILABLE:
+                raise RuntimeError("Picamera2 no disponible")
+            
+            # Crear y configurar cámara
+            self.picam2 = Picamera2()  # type: ignore
+            # Configuración de captura RGB para fácil conversión a OpenCV (BGR)
+            video_config = self.picam2.create_video_configuration(
+                main={"size": (self.width, self.height), "format": "RGB888"}
+            )
+            self.picam2.configure(video_config)
+            
+            # Intentar ajustar FPS objetivo (puede ser aproximado)
+            try:
+                self.picam2.set_controls({"FrameRate": int(self.fps)})
+            except Exception:
+                pass
+            
+            self.picam2.start()
+            # Captura de prueba
+            test_frame = await asyncio.to_thread(self.picam2.capture_array)  # type: ignore
+            if test_frame is None:
+                raise RuntimeError("No se pudo capturar frame de prueba (Picamera2)")
+            
+            self.is_streaming = True
+            self.is_initialized = True
+            logger.info(f"Picamera2 inicializada: {self.width}x{self.height} @ ~{self.fps}fps")
+            return True
+        except Exception as e:
+            self.last_error = f"Error inicializando Picamera2: {e}"
+            logger.error(self.last_error)
+            try:
+                if self.picam2:
+                    self.picam2.close()  # type: ignore
+            except Exception:
+                pass
+            self.picam2 = None
+            return False
+    
+    async def capture_frame(self) -> Optional[np.ndarray]:
+        try:
+            if not self.is_initialized or not self.picam2:
+                return None
+            frame = await asyncio.to_thread(self.picam2.capture_array)  # type: ignore
+            if frame is None:
+                return None
+            # Convertir RGB -> BGR para OpenCV
+            if self._convert_to_bgr:
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            return frame
+        except Exception as e:
+            self.last_error = f"Error capturando frame (Picamera2): {e}"
+            logger.error(self.last_error)
+            return None
+    
+    async def start_streaming(self) -> bool:
+        self.is_streaming = True
+        return True
+    
+    async def stop_streaming(self) -> bool:
+        self.is_streaming = False
+        return True
+    
+    async def set_parameter(self, param: str, value: Any) -> bool:
+        try:
+            if not self.picam2:
+                return False
+            # Mapear algunos controles comunes
+            controls = {}
+            if param == "fps":
+                controls["FrameRate"] = int(value)
+            # Se pueden añadir más controles según sea necesario
+            if controls:
+                await asyncio.to_thread(self.picam2.set_controls, controls)  # type: ignore
+                return True
+            return False
+        except Exception as e:
+            self.last_error = f"Error set_parameter (Picamera2): {e}"
+            logger.error(self.last_error)
+            return False
+    
+    async def get_parameter(self, param: str) -> Any:
+        # Picamera2 no expone un get_controls directo simple; devolver None o valores conocidos
+        if param in ("width", "height"):
+            return (self.width if param == "width" else self.height)
+        if param == "fps":
+            return self.fps
+        return None
+    
+    async def cleanup(self):
+        try:
+            if self.picam2:
+                await asyncio.to_thread(self.picam2.stop)  # type: ignore
+                await asyncio.to_thread(self.picam2.close)  # type: ignore
+        except Exception as e:
+            logger.error(f"Error limpiando Picamera2: {e}")
+        finally:
+            self.picam2 = None
+            self.is_initialized = False
+
+    # Fin de Picamera2CameraDriver
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
 class MockCameraDriver(BaseCameraDriver):
     """Driver mock para pruebas sin hardware."""
@@ -435,7 +575,14 @@ class CameraController:
     
     def _create_driver(self) -> BaseCameraDriver:
         """Crea el driver apropiado según el tipo de cámara."""
-        if self.camera_type in [CameraType.USB_WEBCAM, CameraType.CSI_CAMERA]:
+        if self.camera_type == CameraType.CSI_CAMERA:
+            # Preferir Picamera2 en Raspberry Pi 5 si está disponible
+            if _PICAMERA2_AVAILABLE:
+                logger.info("Usando driver Picamera2 para cámara CSI")
+                return Picamera2CameraDriver(self.config)
+            logger.info("Picamera2 no disponible; usando OpenCV V4L2 para cámara CSI")
+            return OpenCVCameraDriver(self.config)
+        if self.camera_type == CameraType.USB_WEBCAM:
             return OpenCVCameraDriver(self.config)
         elif self.camera_type == CameraType.MOCK:
             return MockCameraDriver(self.config)

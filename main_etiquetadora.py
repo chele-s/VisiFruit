@@ -2006,11 +2006,28 @@ class UltraIndustrialFruitLabelingSystem:
             app=self.app,
             host=host,
             port=port,
-            log_level="warning"
+            log_level="info"
         )
         
         server = uvicorn.Server(config)
-        await server.serve()
+        # Ejecutar el server en una tarea para no bloquear y poder confirmar arranque
+        server_task = asyncio.create_task(server.serve())
+        
+        # Esperar a que el server esté listo (si soporta el evento 'started')
+        try:
+            started_event = getattr(server, 'started', None)
+            if started_event is not None:
+                await started_event.wait()
+            else:
+                # Fallback: pequeña espera y asumir que ya está arriba
+                await asyncio.sleep(0.5)
+            logger.info(f"✅ Servidor API escuchando en http://{host}:{port}")
+        except Exception:
+            # No bloquear si no se puede confirmar el evento de arranque
+            pass
+        
+        # Mantener la tarea viva hasta que termine
+        await server_task
     
     async def start_production(self):
         """Inicia la producción."""
