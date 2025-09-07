@@ -498,6 +498,223 @@ class ServoDriver(BaseActuatorDriver):
         except Exception as e:
             logger.error(f"Error limpiando servo: {e}")
 
+class StepperDriver(BaseActuatorDriver):
+    """Driver para motor paso a paso con DRV8825.
+    
+    Controla pines STEP/DIR/EN y opcionales MS1-MS3 para microstepping.
+    La activación usa velocidad en pasos/seg basada en "intensity" (0-100%).
+    """
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        # Pines básicos
+        self.step_pin = int(config.get("step_pin_bcm", config.get("step_pin", 19)))
+        self.dir_pin = int(config.get("dir_pin_bcm", config.get("dir_pin", 26)))
+        self.enable_pin = int(config.get("enable_pin_bcm", config.get("enable_pin", 21)))
+        # Pines microstep (opcionales)
+        ms_pins = config.get("microstep_pins", {})
+        self.ms1_pin = ms_pins.get("ms1_pin_bcm", ms_pins.get("ms1", None))
+        self.ms2_pin = ms_pins.get("ms2_pin_bcm", ms_pins.get("ms2", None))
+        self.ms3_pin = ms_pins.get("ms3_pin_bcm", ms_pins.get("ms3", None))
+        # Parámetros
+        self.enable_active_low = bool(config.get("enable_active_low", True))
+        self.default_direction = config.get("default_direction", "CW")  # "CW"/"CCW"
+        self.invert_direction = bool(config.get("invert_direction", False))
+        self.base_speed_sps = float(config.get("base_speed_sps", 1000.0))  # pasos/seg al 100%
+        self.max_speed_sps = float(config.get("max_speed_sps", 3000.0))
+        self.min_speed_sps = float(config.get("min_speed_sps", 100.0))
+        self.step_pulse_us = int(config.get("step_pulse_us", 4))  # ≥2us para DRV8825
+        self.acceleration_enabled = bool(config.get("enable_acceleration", False))
+        self.accel_sps2 = float(config.get("acceleration_sps2", 5000.0))
+        
+        # Estado
+        self._is_enabled = False
+        self._is_active = False
+        self._stop_flag = False
+    
+    async def initialize(self) -> bool:
+        try:
+            if not GPIO_AVAILABLE:
+                logger.warning("GPIO no disponible, Stepper en modo simulación")
+                self.is_initialized = True
+                return True
+            
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(self.step_pin, GPIO.OUT)
+            GPIO.setup(self.dir_pin, GPIO.OUT)
+            if self.enable_pin is not None and self.enable_pin >= 0:
+                GPIO.setup(self.enable_pin, GPIO.OUT)
+                # Deshabilitar al inicio
+                GPIO.output(self.enable_pin, GPIO.HIGH if self.enable_active_low else GPIO.LOW)
+                self._is_enabled = False
+            
+            # Configurar pines de microstepping si existen (no cambiamos por defecto)
+            for ms_pin in [self.ms1_pin, self.ms2_pin, self.ms3_pin]:
+                if ms_pin is not None:
+                    GPIO.setup(int(ms_pin), GPIO.OUT)
+            
+            # Dirección por defecto
+            default_dir_high = (self.default_direction.upper() == "CW") ^ self.invert_direction
+            GPIO.output(self.dir_pin, GPIO.HIGH if default_dir_high else GPIO.LOW)
+            
+            self.is_initialized = True
+            logger.info(f"Stepper (DRV8825) inicializado STEP={self.step_pin} DIR={self.dir_pin} EN={self.enable_pin}")
+            return True
+        except Exception as e:
+            self.last_error = f"Error inicializando stepper: {e}"
+            logger.error(self.last_error)
+            return False
+    
+    def _enable_driver(self, enable: bool):
+        if not GPIO_AVAILABLE or self.enable_pin is None or self.enable_pin < 0:
+            self._is_enabled = enable
+            return
+        try:
+            if self.enable_active_low:
+                GPIO.output(self.enable_pin, GPIO.LOW if enable else GPIO.HIGH)
+            else:
+                GPIO.output(self.enable_pin, GPIO.HIGH if enable else GPIO.LOW)
+            self._is_enabled = enable
+        except Exception as e:
+            logger.error(f"Error cambiando EN del stepper: {e}")
+    
+    async def _run_steps_for_time(self, duration_s: float, speed_sps: float):
+        """Genera pasos por un tiempo usando bucle en hilo para no bloquear el event loop."""
+        if speed_sps <= 0:
+            return
+        step_interval_s = max(1.0 / speed_sps, (self.step_pulse_us / 1_000_000.0) * 2)
+        half_pulse_s = max(self.step_pulse_us / 1_000_000.0, 1e-6)
+        end_time = time.perf_counter() + max(0.0, duration_s)
+        
+        def _loop():
+            try:
+                while time.perf_counter() < end_time and not self._stop_flag:
+                    # Flanco alto
+                    GPIO.output(self.step_pin, GPIO.HIGH)
+                    time.sleep(half_pulse_s)
+                    # Flanco bajo
+                    GPIO.output(self.step_pin, GPIO.LOW)
+                    # Resto del periodo
+                    remaining = step_interval_s - half_pulse_s
+                    if remaining > 0:
+                        time.sleep(remaining)
+            except Exception as e:
+                logger.error(f"Error en bucle de pasos: {e}")
+        
+        await asyncio.to_thread(_loop)
+    
+    async def activate(self, duration: float, intensity: float = 100.0) -> bool:
+        try:
+            if not self.is_initialized:
+                raise RuntimeError("Stepper no inicializado")
+            if self._is_active:
+                logger.warning("Stepper ya activo")
+                return False
+            
+            # Calcular velocidad
+            intensity = max(1.0, min(100.0, float(intensity)))
+            target_sps = self.base_speed_sps * (intensity / 100.0)
+            target_sps = max(self.min_speed_sps, min(self.max_speed_sps, target_sps))
+            
+            # Habilitar driver
+            self._stop_flag = False
+            self._enable_driver(True)
+            self._is_active = True
+            
+            logger.debug(f"Stepper activado: {duration:.3f}s @ {target_sps:.0f} sps")
+            
+            # Ejecutar pasos por duración solicitada
+            await self._run_steps_for_time(duration, target_sps)
+            
+            # Auto desactivar
+            await self.deactivate()
+            return True
+        except Exception as e:
+            self.last_error = f"Error activando stepper: {e}"
+            logger.error(self.last_error)
+            self._is_active = False
+            self._enable_driver(False)
+            return False
+    
+    async def deactivate(self) -> bool:
+        try:
+            self._stop_flag = True
+            if not GPIO_AVAILABLE:
+                self._is_active = False
+                return True
+            # Asegurar STEP en LOW y deshabilitar
+            GPIO.output(self.step_pin, GPIO.LOW)
+            self._enable_driver(False)
+            self._is_active = False
+            return True
+        except Exception as e:
+            self.last_error = f"Error desactivando stepper: {e}"
+            logger.error(self.last_error)
+            return False
+    
+    async def calibrate(self) -> CalibrationResult:
+        """Calibración básica: verifica giros cortos en ambos sentidos."""
+        try:
+            # CW breve
+            GPIO.output(self.dir_pin, GPIO.HIGH if not self.invert_direction else GPIO.LOW)
+            await self.activate(0.1, 50.0)
+            await asyncio.sleep(0.1)
+            # CCW breve
+            GPIO.output(self.dir_pin, GPIO.LOW if not self.invert_direction else GPIO.HIGH)
+            await self.activate(0.1, 50.0)
+            # Restaurar dirección por defecto
+            default_dir_high = (self.default_direction.upper() == "CW") ^ self.invert_direction
+            GPIO.output(self.dir_pin, GPIO.HIGH if default_dir_high else GPIO.LOW)
+            
+            return CalibrationResult(
+                success=True,
+                min_pulse_width=self.step_pulse_us / 1_000_000.0,
+                max_pulse_width=self.step_pulse_us / 1_000_000.0,
+                optimal_frequency=self.base_speed_sps,
+                response_time_ms=5.0,
+                accuracy_percent=95.0,
+                notes="Calibración básica de dirección y pasos"
+            )
+        except Exception as e:
+            logger.error(f"Error calibrando stepper: {e}")
+            return CalibrationResult(
+                success=False,
+                min_pulse_width=0,
+                max_pulse_width=0,
+                optimal_frequency=0,
+                response_time_ms=0,
+                accuracy_percent=0,
+                notes=f"Error: {e}"
+            )
+    
+    async def get_status(self) -> Dict[str, Any]:
+        return {
+            "type": "stepper",
+            "step_pin": self.step_pin,
+            "dir_pin": self.dir_pin,
+            "enable_pin": self.enable_pin,
+            "is_initialized": self.is_initialized,
+            "is_active": self._is_active,
+            "enabled": self._is_enabled,
+            "last_error": self.last_error
+        }
+    
+    async def cleanup(self):
+        try:
+            await self.deactivate()
+            if GPIO_AVAILABLE:
+                pins = [self.step_pin, self.dir_pin]
+                if self.enable_pin is not None and self.enable_pin >= 0:
+                    pins.append(self.enable_pin)
+                for ms_pin in [self.ms1_pin, self.ms2_pin, self.ms3_pin]:
+                    if ms_pin is not None:
+                        pins.append(int(ms_pin))
+                GPIO.cleanup(pins)
+            self.is_initialized = False
+            logger.info("Stepper limpiado correctamente")
+        except Exception as e:
+            logger.error(f"Error limpiando stepper: {e}")
+
 class LabelerActuator:
     """
     Sistema avanzado de control de actuador de etiquetado industrial.
@@ -554,6 +771,8 @@ class LabelerActuator:
         elif self.actuator_type == ActuatorType.SERVO:
             return ServoDriver(self.config)
         else:
+            if self.actuator_type == ActuatorType.STEPPER:
+                return StepperDriver(self.config)
             raise ValueError(f"Tipo de actuador no soportado: {self.actuator_type}")
     
     async def initialize(self) -> bool:

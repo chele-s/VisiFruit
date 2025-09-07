@@ -75,6 +75,39 @@ current_sound_speed_cm_s = 34300.0 # cm/s a 20°C
 # Caché para niveles de llenado para evitar lecturas fallidas consecutivas
 bin_fill_level_cache = {}
 
+def _map_trigger_config_if_needed(src_cfg: dict) -> dict:
+    """Acepta formatos alternativos (p.ej., 'trigger_sensor' del main config) y
+    los convierte a la estructura interna 'camera_trigger_sensor'."""
+    if not src_cfg:
+        return {}
+    # Caso 1: ya viene con la clave esperada
+    if 'camera_trigger_sensor' in src_cfg:
+        return src_cfg
+    mapped = dict(src_cfg)
+    trig = src_cfg.get('trigger_sensor') or src_cfg.get('laser_sensor') or src_cfg.get('yk0008_sensor')
+    if trig:
+        # Mapear campos comunes
+        pin_bcm = trig.get('pin_bcm', trig.get('pin'))
+        level = trig.get('trigger_on_state') or trig.get('trigger_level') or trig.get('edge')
+        # Inferir HIGH/LOW desde 'rising'/'falling'
+        if isinstance(level, str):
+            lvl = level.lower()
+            trigger_on_state = 'HIGH' if 'high' in lvl or 'rising' in lvl else 'LOW'
+        else:
+            trigger_on_state = 'LOW'
+        debounce_s = (trig.get('debounce_s') if 'debounce_s' in trig else None)
+        if debounce_s is None:
+            debounce_ms = trig.get('debounce_time_ms', 50)
+            debounce_s = float(debounce_ms) / 1000.0
+        pull = trig.get('pull_up_down') or ('PUD_UP' if trig.get('pull', '').upper() == 'UP' else None)
+        mapped['camera_trigger_sensor'] = {
+            'pin_bcm': pin_bcm,
+            'trigger_on_state': trigger_on_state,
+            'pull_up_down': pull,
+            'debounce_s': debounce_s
+        }
+    return mapped
+
 def load_sensor_config(sensor_config_dict: dict):
     """
     Carga la configuración de todos los sensores desde un diccionario.
@@ -86,7 +119,8 @@ def load_sensor_config(sensor_config_dict: dict):
             logger.error("El diccionario de configuración de sensores está vacío.")
             return False
             
-        config_data = sensor_config_dict
+        # Permitir distintos esquemas (main config vs industrial)
+        config_data = _map_trigger_config_if_needed(sensor_config_dict)
         
         # Cargar configuración del sensor de disparo de cámara
         camera_trigger_config = config_data.get('camera_trigger_sensor', {})

@@ -1095,6 +1095,11 @@ class UltraIndustrialFruitLabelingSystem:
         # Compatibilidad con código legado (un solo etiquetador)
         self.labeler: Optional[LabelerActuator] = None
         
+        # Stepper DRV8825 para aplicador controlado por láser (YK0008)
+        self.laser_stepper: Optional[LabelerActuator] = None
+        self.laser_stepper_settings = self.config.get("laser_stepper_settings", {})
+        self._last_laser_activation_time: float = 0.0
+        
         # Sistema de eventos ultra-concurrente
         self._trigger_queue = asyncio.Queue(maxsize=200)
         self._alert_queue = asyncio.Queue(maxsize=1000)
@@ -1330,6 +1335,9 @@ class UltraIndustrialFruitLabelingSystem:
             # 5. Inicializar etiquetadoras lineales (6 total)
             await self._initialize_ultra_labelers()
             
+            # 5b. Inicializar stepper DRV8825 para aplicador por sensor láser (opcional)
+            await self._initialize_laser_stepper()
+            
             # 6. Inicializar sensores
             await self._initialize_sensors()
             
@@ -1442,6 +1450,11 @@ class UltraIndustrialFruitLabelingSystem:
             
             if not self.trigger_sensor.initialize(sensor_config):
                 raise RuntimeError("Fallo al inicializar sensores")
+            # Habilitar monitoreo de trigger (eventos por borde)
+            try:
+                self.trigger_sensor.enable_trigger_monitoring()
+            except Exception:
+                pass
             
             logger.info("Sensores inicializados correctamente")
         except Exception as e:
@@ -1581,6 +1594,26 @@ class UltraIndustrialFruitLabelingSystem:
         except Exception as e:
             logger.error(f"Error inicializando motor DC lineal: {e}")
             self.motor_controller = None
+
+    async def _initialize_laser_stepper(self):
+        """Inicializa el stepper DRV8825 que se activa con el sensor láser (YK0008)."""
+        try:
+            stepper_cfg = self.laser_stepper_settings
+            if not stepper_cfg or not stepper_cfg.get("enabled", True):
+                logger.info("Stepper láser (DRV8825) deshabilitado o sin configuración")
+                return
+            cfg = stepper_cfg.copy()
+            cfg["type"] = "stepper"
+            cfg.setdefault("name", "LabelApplicatorStepper")
+            self.laser_stepper = LabelerActuator(cfg)
+            if await self.laser_stepper.initialize():
+                logger.info("✅ Stepper DRV8825 para aplicador inicializado")
+            else:
+                logger.error("❌ Fallo al inicializar stepper DRV8825")
+                self.laser_stepper = None
+        except Exception as e:
+            logger.error(f"Error inicializando stepper DRV8825: {e}")
+            self.laser_stepper = None
     
     async def _initialize_ultra_labelers(self):
         """Inicializa las 6 etiquetadoras lineales (3 grupos de 2)."""
@@ -1731,6 +1764,24 @@ class UltraIndustrialFruitLabelingSystem:
             if not self.motor_controller:
                 raise HTTPException(404, "Motor controller no disponible")
             return self.motor_controller.get_status()
+
+        # ============ CONTROL STEPPER LÁSER (DRV8825) ============
+        @app.post("/laser_stepper/toggle")
+        async def toggle_laser_stepper(enabled: bool):
+            if self.laser_stepper_settings is None:
+                self.laser_stepper_settings = {}
+            self.laser_stepper_settings.setdefault("activation_on_laser", {})
+            self.laser_stepper_settings["activation_on_laser"]["enabled"] = bool(enabled)
+            return {"success": True, "enabled": bool(enabled)}
+
+        @app.post("/laser_stepper/test")
+        async def test_laser_stepper(payload: dict):
+            if not self.laser_stepper:
+                raise HTTPException(404, "Stepper no inicializado")
+            duration = float(payload.get("duration", 0.5))
+            intensity = float(payload.get("intensity", 80.0))
+            ok = await self.laser_stepper.activate_for_duration(duration, intensity)
+            return {"success": ok, "duration": duration, "intensity": intensity}
         
         # ============ CONTROL DE BANDA TRANSPORTADORA ============
         @app.post("/belt/start_forward")
@@ -2031,6 +2082,18 @@ class UltraIndustrialFruitLabelingSystem:
                 self._loop.call_soon_threadsafe(self._trigger_queue.put_nowait, trigger_time)
             else:
                 self._trigger_queue.put_nowait(trigger_time)
+            
+            # Activación rápida del stepper (DRV8825) al detectar el láser YK0008
+            if self.laser_stepper and self.laser_stepper_settings.get("activation_on_laser", {}).get("enabled", True):
+                min_interval = float(self.laser_stepper_settings.get("activation_on_laser", {}).get("min_interval_seconds", 0.15))
+                if (trigger_time - self._last_laser_activation_time) >= min_interval:
+                    self._last_laser_activation_time = trigger_time
+                    duration = float(self.laser_stepper_settings.get("activation_on_laser", {}).get("activation_duration_seconds", 0.6))
+                    intensity = float(self.laser_stepper_settings.get("activation_on_laser", {}).get("intensity_percent", 80.0))
+                    if self._loop is not None:
+                        self._loop.call_soon_threadsafe(lambda: asyncio.create_task(self.laser_stepper.activate_for_duration(duration, intensity)))
+                    else:
+                        asyncio.create_task(self.laser_stepper.activate_for_duration(duration, intensity))
         except asyncio.QueueFull:
             logger.warning("Cola de triggers llena")
     
@@ -2250,6 +2313,9 @@ class UltraIndustrialFruitLabelingSystem:
                         pass
             elif self.labeler:
                 await self.labeler.emergency_stop()
+            # Parar stepper láser si está presente
+            if self.laser_stepper:
+                await self.laser_stepper.emergency_stop()
         except Exception:
             pass
         
@@ -2946,6 +3012,10 @@ class UltraIndustrialFruitLabelingSystem:
             
             if self.camera:
                 self.camera.shutdown()
+            
+            # Apagar stepper de aplicador
+            if self.laser_stepper:
+                await self.laser_stepper.cleanup()
             
             # Cerrar base de datos
             if self.db_connection:

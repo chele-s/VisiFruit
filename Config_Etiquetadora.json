@@ -139,20 +139,14 @@
   },
   "sensor_settings": {
     "trigger_sensor": {
-      "type": "infrared",
-      "name": "MainTriggerSensor",
-      "pin": 16,
+      "type": "laser_yk0008",
+      "name": "LaserYK0008",
+      "pin_bcm": 17,
       "trigger_level": "falling",
-      "debounce_time_ms": 50,
-      "sensitivity": 0.8,
-      "enable_filtering": true,
-      "filter_window_ms": 20,
-      "detection_range_cm": 30,
-      "beam_angle_degrees": 15,
-      "response_time_ms": 5,
-      "enable_diagnostics": true,
-      "false_positive_threshold": 3,
-      "calibration_value": 512
+      "debounce_time_ms": 30,
+      "pull_up_down": "PUD_UP",
+      "response_time_ms": 3,
+      "enable_diagnostics": true
     },
     "secondary_sensors": [],
     "environmental_sensors": {
@@ -209,6 +203,32 @@
       "enable_overuse_protection": true,
       "max_continuous_operations": 1000,
       "mandatory_rest_after_operations": 100
+    }
+  },
+  "laser_stepper_settings": {
+    "enabled": true,
+    "name": "LabelApplicatorStepper",
+    "type": "stepper",
+    "step_pin_bcm": 19,
+    "dir_pin_bcm": 26,
+    "enable_pin_bcm": 21,
+    "enable_active_low": true,
+    "default_direction": "CW",
+    "invert_direction": false,
+    "base_speed_sps": 1500,
+    "max_speed_sps": 3000,
+    "min_speed_sps": 100,
+    "step_pulse_us": 4,
+    "microstep_pins": {
+      "ms1_pin_bcm": -1,
+      "ms2_pin_bcm": -1,
+      "ms3_pin_bcm": -1
+    },
+    "activation_on_laser": {
+      "enabled": true,
+      "activation_duration_seconds": 0.6,
+      "intensity_percent": 80.0,
+      "min_interval_seconds": 0.15
     }
   },
   "timing_configuration": {
