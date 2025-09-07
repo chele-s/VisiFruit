@@ -66,7 +66,7 @@ logger = logging.getLogger(__name__)
 class SimpleBeltController:
     """Controlador simple de banda usando GPIO wrapper directamente."""
     
-    def __init__(self, relay1_pin=18, relay2_pin=19, enable_pin=26):
+    def __init__(self, relay1_pin=22, relay2_pin=23, enable_pin=27):
         self.relay1_pin = relay1_pin  # Adelante
         self.relay2_pin = relay2_pin  # Atrás  
         self.enable_pin = enable_pin  # Enable (opcional)
@@ -248,9 +248,9 @@ class DemoSistemaCompleto:
                 }
             },
             "conveyor_belt_settings": {
-                "relay1_pin": 18,  # Adelante
-                "relay2_pin": 19,  # Atrás
-                "enable_pin": 26   # Enable
+                "relay1_pin": 22,  # Adelante (BCM 22 → físico 15)
+                "relay2_pin": 23,  # Atrás   (BCM 23 → físico 16)
+                "enable_pin": 27   # Enable  (BCM 27 → físico 13)
             }
         }
     
@@ -292,9 +292,9 @@ class DemoSistemaCompleto:
         """Inicializa el controlador de banda."""
         try:
             belt_config = self.config.get("conveyor_belt_settings", {})
-            relay1_pin = belt_config.get("relay1_pin", 18)
-            relay2_pin = belt_config.get("relay2_pin", 19)
-            enable_pin = belt_config.get("enable_pin", 26)
+            relay1_pin = belt_config.get("relay1_pin", 22)
+            relay2_pin = belt_config.get("relay2_pin", 23)
+            enable_pin = belt_config.get("enable_pin", 27)
             
             # Intentar drivers específicos primero
             if USE_PI5_DRIVER and BELT_AVAILABLE:
