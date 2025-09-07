@@ -31,6 +31,7 @@ import sys
 import time
 import threading
 import traceback
+import atexit
 import uuid
 import hashlib
 import pickle
@@ -225,6 +226,157 @@ logger = logging.getLogger("FruPrintUltra")
 
 # ==================== FUNCIONES DE AUTO-INICIO ====================
 
+# Bloqueo de instancia única y limpieza forzada en salida
+GLOBAL_SERVICES = {}
+LOCK_FILE_PATH = Path("/tmp/visifruit_main.lock")
+
+def ensure_single_instance():
+    """Evita múltiples instancias simultáneas del proceso principal.
+
+    Crea un lockfile con el PID actual. Si existe y el PID previo sigue vivo,
+    aborta el arranque.
+    """
+    try:
+        if LOCK_FILE_PATH.exists():
+            try:
+                previous_pid = int(LOCK_FILE_PATH.read_text().strip() or "0")
+            except Exception:
+                previous_pid = 0
+
+            if previous_pid and previous_pid != os.getpid():
+                # Verificar que realmente sea esta app
+                is_same_app = False
+                try:
+                    cmdline_path = f"/proc/{previous_pid}/cmdline"
+                    with open(cmdline_path, "rb") as f:
+                        cmdline = f.read().decode(errors="ignore")
+                        if "main_etiquetadora.py" in cmdline:
+                            is_same_app = True
+                except Exception:
+                    pass
+
+                try:
+                    # Señal 0 no mata, valida si el proceso existe
+                    os.kill(previous_pid, 0)
+                    process_exists = True
+                except ProcessLookupError:
+                    process_exists = False
+
+                if process_exists and is_same_app and os.getenv("ALLOW_MULTIPLE_INSTANCES", "false").lower() != "true":
+                    print(f"Otra instancia ya está en ejecución (PID {previous_pid}). Establece ALLOW_MULTIPLE_INSTANCES=true para forzar.")
+                    sys.exit(1)
+                elif not process_exists or not is_same_app:
+                    # Limpiar lockfile viejo
+                    try:
+                        LOCK_FILE_PATH.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+
+        # Escribir PID actual
+        try:
+            LOCK_FILE_PATH.write_text(str(os.getpid()))
+        except Exception:
+            # No bloquear si no podemos escribir; continuar sin lock
+            pass
+    except Exception:
+        # En caso de fallo inesperado, no impedir el inicio
+        pass
+
+def _sync_force_kill_services():
+    """Cierre de seguridad sincronizado para servicios auxiliares.
+
+    Útil cuando el event loop ya no está disponible (atexit) o en fallos inesperados.
+    """
+    try:
+        for name, process in list(GLOBAL_SERVICES.items()):
+            try:
+                if process and process.returncode is None:
+                    # Intento de cierre amable del grupo de procesos
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except Exception:
+                        try:
+                            process.terminate()
+                        except Exception:
+                            pass
+                    # Breve espera y cierre forzado si sigue vivo
+                    time.sleep(0.5)
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except Exception:
+                        try:
+                            process.kill()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+def preflight_cleanup():
+    """Limpieza preventiva de conflictos comunes (instancias previas, puertos y cámara).
+
+    Controlado por AUTO_CLEAN_ON_START=true (por defecto true) y
+    DISABLE_DESKTOP_CAMERA_SERVICES=true (por defecto true).
+    """
+    # Matar instancias previas de este mismo programa (excluyendo el PID actual)
+    try:
+        current_pid = os.getpid()
+        try:
+            output = subprocess.check_output(["pgrep", "-f", "main_etiquetadora.py"], text=True)
+        except subprocess.CalledProcessError:
+            output = ""
+        pids = []
+        for line in output.strip().splitlines():
+            try:
+                pid = int(line.strip())
+                if pid != current_pid:
+                    pids.append(pid)
+            except Exception:
+                continue
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except Exception:
+                pass
+        time.sleep(0.3)
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Liberar puertos si hay procesos escuchando (si fuser está disponible)
+    for port in ("8002", "8001", "3000"):
+        try:
+            if shutil.which("fuser"):
+                subprocess.run(["fuser", "-k", f"{port}/tcp"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+    # Detener servicios de escritorio que puedan tomar la cámara
+    if os.getenv("DISABLE_DESKTOP_CAMERA_SERVICES", "true").lower() == "true":
+        try:
+            subprocess.run([
+                "systemctl", "--user", "stop", "--now",
+                "pipewire.service", "pipewire.socket", "wireplumber.service"
+            ], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+# Registro de limpieza al salir del proceso
+@atexit.register
+def _on_exit_cleanup():
+    try:
+        _sync_force_kill_services()
+    finally:
+        try:
+            LOCK_FILE_PATH.unlink(missing_ok=True)
+        except Exception:
+            pass
+
 def load_env_variables():
     """Carga variables de entorno desde archivo .env si existe."""
     env_file = Path(".env")
@@ -282,7 +434,8 @@ async def start_frontend_process():
         frontend_process = await asyncio.create_subprocess_exec(
             "npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000",
             cwd=str(frontend_dir),
-            env=env
+            env=env,
+            start_new_session=True  # nuevo grupo de procesos para matar en cleanup
         )
         
         logger.info("✅ Frontend iniciado en http://0.0.0.0:3000")
@@ -307,8 +460,7 @@ async def start_backend_process():
         backend_process = await asyncio.create_subprocess_exec(
             python_executable, "-u", "main.py",
             cwd=str(backend_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            start_new_session=True  # nuevo grupo de procesos para matar en cleanup
         )
         
         logger.info("✅ Backend dashboard iniciado en http://0.0.0.0:8001")
@@ -345,7 +497,10 @@ async def check_and_start_services():
             # Esperar un poco para que el frontend se inicie
             await asyncio.sleep(5)
     
+    # Exponer servicios globalmente para limpieza atexit
     if services:
+        GLOBAL_SERVICES.clear()
+        GLOBAL_SERVICES.update(services)
         logger.info(f"✅ Servicios iniciados: {list(services.keys())}")
         logger.info("🌐 URLs disponibles:")
         if "backend" in services:
@@ -362,13 +517,30 @@ async def cleanup_services(services):
         try:
             if process and process.returncode is None:
                 logger.info(f"🛑 Deteniendo {service_name}...")
-                process.terminate()
+                # Intento amable
+                try:
+                    process.terminate()
+                except Exception:
+                    pass
                 try:
                     await asyncio.wait_for(process.wait(), timeout=10)
                 except asyncio.TimeoutError:
                     logger.warning(f"⚠️ Forzando cierre de {service_name}")
-                    process.kill()
-                    await process.wait()
+                    try:
+                        # Matar grupo completo si fue lanzado con start_new_session
+                        os.killpg(process.pid, signal.SIGTERM)
+                    except Exception:
+                        try:
+                            process.kill()
+                        except Exception:
+                            pass
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=5)
+                    except Exception:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except Exception:
+                            pass
                 logger.info(f"✅ {service_name} detenido")
         except Exception as e:
             logger.error(f"❌ Error deteniendo {service_name}: {e}")
@@ -2797,6 +2969,12 @@ async def main():
     try:
         logger.info("=== FruPrint Industrial v3.0 ULTRA ===")
         logger.info("🚀 Iniciando sistema completo con frontend y backend")
+        
+        # Instancia única y pre-limpieza (configurable)
+        ensure_single_instance()
+        if os.getenv("AUTO_CLEAN_ON_START", "true").lower() == "true":
+            logger.info("🧹 Limpieza preventiva de procesos/puertos/cámara antes de iniciar...")
+            preflight_cleanup()
         
         # Iniciar servicios auxiliares (frontend y backend)
         logger.info("📡 Verificando e iniciando servicios auxiliares...")
