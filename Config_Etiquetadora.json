@@ -142,11 +142,11 @@
   },
   "sensor_settings": {
     "trigger_sensor": {
-      "type": "laser_yk0008",
-      "name": "LaserYK0008",
+      "type": "mh_flying_fish",
+      "name": "MH_FlyingFish",
       "pin_bcm": 17,
       "trigger_level": "falling",
-      "debounce_time_ms": 30,
+      "debounce_time_ms": 5,
       "pull_up_down": "PUD_UP",
       "response_time_ms": 3,
       "enable_diagnostics": true
@@ -227,6 +227,7 @@
       "ms2_pin_bcm": -1,
       "ms3_pin_bcm": -1
     },
+    "sensor_to_labeler_distance_m": 0.0,
     "activation_on_laser": {
       "enabled": true,
       "activation_duration_seconds": 0.6,

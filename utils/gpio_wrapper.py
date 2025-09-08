@@ -156,6 +156,7 @@ class LGPIOWrapper:
         self.pins_setup = {}
         self.pwm_instances = {}
         self.mode = None
+        self._alerts = {}
         logger.info("🍓 LGPIO iniciado (Raspberry Pi 5)")
         
         # Abrir handle del chip GPIO
@@ -268,6 +269,19 @@ class LGPIOWrapper:
             elif isinstance(pins, int):
                 pins = [pins]
             
+            # Detener alertas asociadas
+            for pin in list(self._alerts.keys()):
+                try:
+                    if pins is None or pin in pins:
+                        # Quitar callback y liberar pin si fue reclamado para alertas
+                        try:
+                            self.lgpio.gpio_set_alert_func(self.chip_handle, pin, None)
+                        except Exception:
+                            pass
+                        self._alerts.pop(pin, None)
+                except Exception:
+                    pass
+
             for pin in pins:
                 try:
                     self.lgpio.gpio_free(self.chip_handle, pin)
@@ -288,6 +302,83 @@ class LGPIOWrapper:
                 logger.debug("LGPIO: Chip GPIO cerrado")
         except:
             pass
+
+    # --- Compatibilidad con add_event_detect/remove_event_detect ---
+    def add_event_detect(self, pin, edge, callback=None, bouncetime=None):
+        """Registra callback por flanco usando alertas de lgpio.
+        edge: GPIO.RISING / GPIO.FALLING / GPIO.BOTH (o strings)
+        bouncetime: en milisegundos (opcional)
+        """
+        try:
+            # Determinar bandera de flanco
+            edge_lower = str(edge).lower()
+            if 'both' in edge_lower:
+                lg_edge = self.lgpio.BOTH_EDGES
+            elif 'rising' in edge_lower:
+                lg_edge = self.lgpio.RISING_EDGE
+            else:
+                lg_edge = self.lgpio.FALLING_EDGE
+
+            # Intentar liberar si ya estaba reclamado como input simple
+            try:
+                if pin in self.pins_setup:
+                    self.lgpio.gpio_free(self.chip_handle, pin)
+            except Exception:
+                pass
+
+            # Reclamar pin como alerta
+            try:
+                self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, 0)
+            except Exception:
+                # Si falla, volver a intentar reclamando como entrada y luego alerta
+                try:
+                    self._claim_input_with_retry(pin, 0)
+                    self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, 0)
+                except Exception as e2:
+                    logger.warning(f"LGPIO: No se pudo reclamar alerta en pin {pin}: {e2}. Usando polling.")
+                    return
+
+            # Debounce/glitch filter si está disponible
+            try:
+                if bouncetime and int(bouncetime) > 0 and hasattr(self.lgpio, 'gpio_set_debounce_micros'):
+                    self.lgpio.gpio_set_debounce_micros(self.chip_handle, pin, int(bouncetime) * 1000)
+            except Exception:
+                pass
+
+            # Registrar callback adaptador
+            def _lg_callback(handle, gpio, level, tick):
+                try:
+                    if callback:
+                        callback(gpio)
+                except Exception as e:
+                    logger.error(f"LGPIO: Error en callback de alerta pin {gpio}: {e}")
+
+            try:
+                self.lgpio.gpio_set_alert_func(self.chip_handle, pin, _lg_callback)
+                self._alerts[pin] = _lg_callback
+                # Guardar configuración como entrada para consistencia
+                self.pins_setup[pin] = {"mode": GPIOState.IN, "pull": self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)}
+            except Exception as e:
+                logger.warning(f"LGPIO: No se pudo establecer callback de alerta en pin {pin}: {e}. Usando polling.")
+                try:
+                    self.lgpio.gpio_free(self.chip_handle, pin)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"LGPIO: add_event_detect fallback/polling: {e}")
+
+    def remove_event_detect(self, pin):
+        """Elimina un callback de evento previamente registrado."""
+        try:
+            if pin in self._alerts:
+                try:
+                    self.lgpio.gpio_set_alert_func(self.chip_handle, pin, None)
+                except Exception:
+                    pass
+                self._alerts.pop(pin, None)
+            # Mantener el pin reclamado como entrada si estaba en uso
+        except Exception as e:
+            logger.debug(f"LGPIO: remove_event_detect ignorado para pin {pin}: {e}")
 
 class LGPIOPWMWrapper:
     """Wrapper PWM para lgpio."""

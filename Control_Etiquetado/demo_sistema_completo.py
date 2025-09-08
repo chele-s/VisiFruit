@@ -7,7 +7,7 @@
 Demo interactiva que integra:
 - Motor DC banda transportadora (L298N/Relays)
 - Driver DRV8825 stepper (real o simulado)
-- Sensor láser YK0008
+- Sensor digital (MH Flying Fish)
 - Control completo por consola
 
 Autor(es): Gabriel Calderón, Elias Bautista, Cristian Hernandez
@@ -201,12 +201,16 @@ class DemoSistemaCompleto:
             'laser_triggers': 0,
             'stepper_activations': 0,
             'belt_starts': 0,
-            'start_time': time.time()
+            'start_time': time.time(),
+            'stepper_total_active_time_s': 0.0,
+            'last_trigger_time': None,
+            'last_stepper_activation_time': None
         }
         
         # Control de activación láser
         self.last_laser_activation = 0.0
         self.min_laser_interval = 0.15  # segundos
+        self.sensor_to_labeler_delay_s = 0.0
     
     def _load_default_config(self) -> Dict[str, Any]:
         """Carga configuración por defecto."""
@@ -248,12 +252,14 @@ class DemoSistemaCompleto:
                     "activation_duration_seconds": 0.6,
                     "intensity_percent": 80.0,
                     "min_interval_seconds": 0.15
-                }
+                },
+                "sensor_to_labeler_distance_m": 0.05 # Nuevo parámetro
             },
             "conveyor_belt_settings": {
                 "relay1_pin": 22,  # Adelante (BCM 22 → físico 15)
                 "relay2_pin": 23,  # Atrás   (BCM 23 → físico 16)
-                "enable_pin": 27   # Enable  (BCM 27 → físico 13)
+                "enable_pin": 27,   # Enable  (BCM 27 → físico 13)
+                "belt_speed_mps": 0.15 # Nuevo parámetro
             }
         }
     
@@ -276,7 +282,7 @@ class DemoSistemaCompleto:
         # 2. Inicializar stepper DRV8825
         success &= await self._initialize_stepper()
         
-        # 3. Inicializar sensor láser
+        # 3. Inicializar sensor (MH Flying Fish)
         if SENSOR_AVAILABLE:
             success &= await self._initialize_sensor()
         else:
@@ -352,6 +358,14 @@ class DemoSistemaCompleto:
             
             if await self.laser_stepper.initialize():
                 print("✅ Stepper DRV8825 inicializado")
+                try:
+                    distance_m = float(self.config.get("laser_stepper_settings", {}).get("sensor_to_labeler_distance_m", 0.0))
+                    belt_speed_mps = float(self.config.get("conveyor_belt_settings", {}).get("belt_speed_mps", 0.15))
+                    if distance_m > 0 and belt_speed_mps > 0:
+                        self.sensor_to_labeler_delay_s = max(0.0, distance_m / belt_speed_mps)
+                        print(f"⏱️ Delay sensor→etiquetadora: {self.sensor_to_labeler_delay_s:.3f}s (dist={distance_m:.3f}m, v_banda={belt_speed_mps:.3f}m/s)")
+                except Exception:
+                    pass
                 return True
             else:
                 print("⚠️ Stepper DRV8825 en modo simulación")
@@ -362,7 +376,7 @@ class DemoSistemaCompleto:
             return True  # Continuar en modo simulación
     
     async def _initialize_sensor(self) -> bool:
-        """Inicializa el sensor láser."""
+        """Inicializa el sensor digital (MH Flying Fish)."""
         try:
             sensor_config = self.config.get("sensor_settings", {})
             self.sensor_interface = SensorInterface(
@@ -374,12 +388,12 @@ class DemoSistemaCompleto:
                 try:
                     self.sensor_interface.enable_trigger_monitoring()
                     self.laser_monitoring = True
-                    print("✅ Sensor láser YK0008 inicializado y monitoreo ACTIVO")
+                    print("✅ Sensor MH Flying Fish inicializado y monitoreo ACTIVO")
                 except Exception as e:
-                    print(f"⚠️ Sensor láser inicializado, pero no se pudo habilitar el monitoreo: {e}")
+                    print(f"⚠️ Sensor inicializado, pero no se pudo habilitar el monitoreo: {e}")
                 return True
             else:
-                print("⚠️ Sensor láser en modo simulación")
+                print("⚠️ Sensor en modo simulación")
                 return True
                 
         except Exception as e:
@@ -387,7 +401,7 @@ class DemoSistemaCompleto:
             return True
     
     def _laser_trigger_callback(self):
-        """Callback cuando se detecta el láser."""
+        """Callback cuando se detecta el sensor (disparo)."""
         try:
             current_time = time.time()
             
@@ -397,8 +411,9 @@ class DemoSistemaCompleto:
             
             self.last_laser_activation = current_time
             self.stats['laser_triggers'] += 1
+            self.stats['last_trigger_time'] = current_time
             
-            print(f"\n🔴 LÁSER DETECTADO #{self.stats['laser_triggers']} - {datetime.now().strftime('%H:%M:%S')}")
+            print(f"\n🔴 SENSOR DETECTADO #{self.stats['laser_triggers']} - {datetime.now().strftime('%H:%M:%S')}")
             
             # Activar stepper si está habilitado
             if self.stepper_enabled and self.laser_stepper:
@@ -406,12 +421,13 @@ class DemoSistemaCompleto:
                 duration = activation_config.get("activation_duration_seconds", 0.6)
                 intensity = activation_config.get("intensity_percent", 80.0)
                 
-                # Programar activación asíncrona
-                asyncio.create_task(self._activate_stepper_async(duration, intensity))
+                # Programar activación asíncrona después del tiempo de viaje
+                delay_before = max(0.0, float(self.sensor_to_labeler_delay_s))
+                asyncio.create_task(self._activate_stepper_after_delay(duration, intensity, delay_before))
                 
         except Exception as e:
-            logger.error(f"Error en callback láser: {e}")
-    
+            logger.error(f"Error en callback de sensor: {e}")
+
     async def _activate_stepper_async(self, duration: float, intensity: float):
         """Activa el stepper de forma asíncrona."""
         try:
@@ -419,6 +435,8 @@ class DemoSistemaCompleto:
                 success = await self.laser_stepper.activate_for_duration(duration, intensity)
                 if success:
                     self.stats['stepper_activations'] += 1
+                    self.stats['stepper_total_active_time_s'] = self.stats.get('stepper_total_active_time_s', 0.0) + float(duration)
+                    self.stats['last_stepper_activation_time'] = time.time()
                     print(f"  ✅ Stepper activado: {duration:.2f}s @ {intensity:.0f}%")
                 else:
                     print(f"  ❌ Error activando stepper")
@@ -427,10 +445,21 @@ class DemoSistemaCompleto:
                 print(f"  🎭 SIMULACIÓN: Stepper activado {duration:.2f}s @ {intensity:.0f}%")
                 await asyncio.sleep(duration)
                 self.stats['stepper_activations'] += 1
+                self.stats['stepper_total_active_time_s'] = self.stats.get('stepper_total_active_time_s', 0.0) + float(duration)
+                self.stats['last_stepper_activation_time'] = time.time()
                 print(f"  ✅ Stepper simulado completado")
                 
         except Exception as e:
             print(f"  ❌ Error activando stepper: {e}")
+
+    async def _activate_stepper_after_delay(self, duration: float, intensity: float, delay_s: float):
+        """Espera delay_s y luego activa el stepper."""
+        try:
+            if delay_s > 0:
+                await asyncio.sleep(delay_s)
+        except Exception:
+            pass
+        await self._activate_stepper_async(duration, intensity)
     
     async def _show_system_status(self):
         """Muestra el estado actual del sistema."""
@@ -453,16 +482,10 @@ class DemoSistemaCompleto:
                 pass
         
         print(f"🔧 Stepper DRV8825: {'✅ Habilitado' if self.stepper_enabled else '❌ Deshabilitado'}")
-        print(f"📡 Monitoreo láser: {'✅ Activo' if self.laser_monitoring else '⏹️ Inactivo'}")
+        print(f"📡 Monitoreo sensor: {'✅ Activo' if self.laser_monitoring else '⏹️ Inactivo'}")
         print(f"🎭 Modo simulación: {'✅ Activo' if self.simulation_mode else '❌ Hardware real'}")
-        
-        # Estadísticas
-        uptime = time.time() - self.stats['start_time']
-        print(f"\n📈 ESTADÍSTICAS")
-        print(f"⏱️ Tiempo activo: {uptime:.0f}s")
-        print(f"🔴 Triggers láser: {self.stats['laser_triggers']}")
-        print(f"🔧 Activaciones stepper: {self.stats['stepper_activations']}")
-        print(f"🎢 Inicios banda: {self.stats['belt_starts']}")
+        if self.sensor_to_labeler_delay_s > 0:
+            print(f"⏱️ Delay sensor→etiquetadora: {self.sensor_to_labeler_delay_s:.3f}s")
     
     async def run_interactive_demo(self):
         """Ejecuta la demo interactiva."""
@@ -498,14 +521,14 @@ class DemoSistemaCompleto:
         # Control de stepper
         print("\n🔧 STEPPER DRV8825:")
         print("  [S1] - Activar stepper manualmente")
-        print("  [S0] - Toggle habilitación láser→stepper")
+        print("  [S0] - Toggle habilitación sensor→stepper")
         print("  [SS] - Configurar stepper")
         
         # Control de sensor
-        print("\n📡 SENSOR LÁSER:")
-        print("  [L1] - Iniciar monitoreo láser")
-        print("  [L0] - Parar monitoreo láser")
-        print("  [LT] - Simular trigger láser")
+        print("\n📡 SENSOR (MH Flying Fish):")
+        print("  [L1] - Iniciar monitoreo sensor")
+        print("  [L0] - Parar monitoreo sensor")
+        print("  [LT] - Simular trigger sensor")
         
         # Sistema
         print("\n🔧 SISTEMA:")
@@ -633,7 +656,7 @@ class DemoSistemaCompleto:
         """Toggle habilitación del stepper."""
         self.stepper_enabled = not self.stepper_enabled
         status = "HABILITADO" if self.stepper_enabled else "DESHABILITADO"
-        print(f"🔧 Activación láser→stepper: {status}")
+        print(f"🔧 Activación sensor→stepper: {status}")
     
     async def _configure_stepper(self):
         """Configuración del stepper."""
@@ -669,37 +692,37 @@ class DemoSistemaCompleto:
     # === CONTROL DE SENSOR ===
     
     async def _start_laser_monitoring(self):
-        """Inicia monitoreo del láser."""
-        print("📡 Iniciando monitoreo láser...")
+        """Inicia monitoreo del sensor."""
+        print("📡 Iniciando monitoreo del sensor...")
         try:
             if self.sensor_interface:
                 self.sensor_interface.enable_trigger_monitoring()
                 self.laser_monitoring = True
-                print("✅ Monitoreo láser ACTIVO")
-                print("💡 Rompe el haz láser para activar el stepper")
+                print("✅ Monitoreo del sensor ACTIVO")
+                print("💡 Active el sensor para disparar el stepper")
             else:
-                print("🎭 SIMULACIÓN: Monitoreo láser activo")
+                print("🎭 SIMULACIÓN: Monitoreo del sensor activo")
                 self.laser_monitoring = True
         except Exception as e:
             print(f"❌ Error: {e}")
     
     async def _stop_laser_monitoring(self):
-        """Para monitoreo del láser."""
-        print("📡 Parando monitoreo láser...")
+        """Para monitoreo del sensor."""
+        print("📡 Parando monitoreo del sensor...")
         try:
             if self.sensor_interface:
                 self.sensor_interface.disable_trigger_monitoring()
                 self.laser_monitoring = False
-                print("✅ Monitoreo láser PARADO")
+                print("✅ Monitoreo del sensor PARADO")
             else:
-                print("🎭 SIMULACIÓN: Monitoreo láser parado")
+                print("🎭 SIMULACIÓN: Monitoreo del sensor parado")
                 self.laser_monitoring = False
         except Exception as e:
             print(f"❌ Error: {e}")
     
     async def _simulate_laser_trigger(self):
-        """Simula un trigger del láser."""
-        print("🔴 SIMULANDO trigger láser...")
+        """Simula un trigger del sensor."""
+        print("🔴 SIMULANDO trigger del sensor...")
         self._laser_trigger_callback()
     
     # === SISTEMA ===
@@ -733,7 +756,7 @@ class DemoSistemaCompleto:
         if self.sensor_interface:
             try:
                 sensor_status = self.sensor_interface.get_status()
-                print(f"📡 SENSOR LÁSER:")
+                print(f"📡 SENSOR:")
                 print(f"   Inicializado: {sensor_status.get('is_initialized', False)}")
                 print(f"   Monitoreo: {sensor_status.get('trigger_enabled', False)}")
             except:
@@ -743,8 +766,13 @@ class DemoSistemaCompleto:
         uptime = time.time() - self.stats['start_time']
         print(f"\n📈 ESTADÍSTICAS DETALLADAS:")
         print(f"   ⏱️ Tiempo activo: {uptime:.1f}s ({uptime/60:.1f}min)")
-        print(f"   🔴 Triggers láser: {self.stats['laser_triggers']}")
+        print(f"   🔴 Triggers sensor: {self.stats['laser_triggers']}")
         print(f"   🔧 Activaciones stepper: {self.stats['stepper_activations']}")
+        print(f"   ⏱️ Tiempo stepper acumulado: {self.stats.get('stepper_total_active_time_s', 0.0):.1f}s")
+        if self.stats.get('last_trigger_time'):
+            print(f"   🕘 Último trigger: {datetime.fromtimestamp(self.stats['last_trigger_time']).strftime('%H:%M:%S')}")
+        if self.stats.get('last_stepper_activation_time'):
+            print(f"   🕘 Última activación stepper: {datetime.fromtimestamp(self.stats['last_stepper_activation_time']).strftime('%H:%M:%S')}")
         print(f"   🎢 Inicios banda: {self.stats['belt_starts']}")
         
         if self.stats['laser_triggers'] > 0:
@@ -758,10 +786,10 @@ class DemoSistemaCompleto:
         
         demo_steps = [
             ("Iniciando banda transportadora...", self._belt_forward, 2),
-            ("Habilitando monitoreo láser...", self._start_laser_monitoring, 1),
-            ("Simulando triggers láser...", self._demo_laser_sequence, 8),
+            ("Habilitando monitoreo del sensor...", self._start_laser_monitoring, 1),
+            ("Simulando triggers del sensor...", self._demo_laser_sequence, 8),
             ("Activación manual stepper...", self._demo_manual_stepper, 3),
-            ("Parando monitoreo láser...", self._stop_laser_monitoring, 1),
+            ("Parando monitoreo del sensor...", self._stop_laser_monitoring, 1),
             ("Parando banda...", self._belt_stop, 1),
         ]
         
@@ -779,8 +807,8 @@ class DemoSistemaCompleto:
         await self._show_system_status()
     
     async def _demo_laser_sequence(self):
-        """Secuencia de demo del láser."""
-        print("   🔴 Simulando 3 triggers láser con intervalos...")
+        """Secuencia de demo del sensor."""
+        print("   🔴 Simulando 3 triggers del sensor con intervalos...")
         for i in range(3):
             await asyncio.sleep(2)
             print(f"   🔴 Trigger {i+1}/3")
@@ -798,7 +826,10 @@ class DemoSistemaCompleto:
             'laser_triggers': 0,
             'stepper_activations': 0,
             'belt_starts': 0,
-            'start_time': time.time()
+            'start_time': time.time(),
+            'stepper_total_active_time_s': 0.0,
+            'last_trigger_time': None,
+            'last_stepper_activation_time': None
         }
         print("✅ Estadísticas reseteadas")
     
@@ -840,7 +871,7 @@ async def main():
     try:
         # Mostrar información inicial
         print("🚀 VisiFruit v3.0 RT-DETR - Demo Sistema Completo")
-        print("🔧 Motor DC + DRV8825 Stepper + Sensor Láser YK0008")
+        print("🔧 Motor DC + DRV8825 Stepper + Sensor MH Flying Fish")
         print("\n⚠️  IMPORTANTE: Verifica las conexiones antes de continuar")
         
         input("\n📋 Presiona Enter para inicializar el sistema...")

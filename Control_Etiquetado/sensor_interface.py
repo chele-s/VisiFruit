@@ -646,31 +646,29 @@ class SensorInterface:
                 return
             trigger_on_low = camera_trigger_config.get('trigger_on_state', 'LOW') == 'LOW'
             debounce_s = float(camera_trigger_config.get('debounce_s', 0.05))
+            target_level = GPIO.LOW if trigger_on_low else GPIO.HIGH
             last_state = GPIO.input(pin)
-            last_change_time = time.time()
+            last_event_time = 0.0
+            # Intervalo de sondeo: suficientemente rápido para pulsos cortos, sin saturar CPU
+            poll_interval = max(0.0005, min(0.001, debounce_s / 5.0))
             while self.trigger_enabled and self.is_initialized:
                 current = GPIO.input(pin)
                 now = time.time()
                 if current != last_state:
-                    last_change_time = now
+                    # Detección de flanco
+                    if current == target_level and (now - last_event_time) >= debounce_s:
+                        try:
+                            self._trigger_event_count += 1
+                            if self.trigger_enabled and self.trigger_callback:
+                                self.trigger_callback()
+                        finally:
+                            last_event_time = now
+                            # Esperar a que salga del nivel objetivo para evitar múltiples callbacks
+                            t0 = time.time()
+                            while GPIO.input(pin) == target_level and self.trigger_enabled and self.is_initialized and (time.time() - t0) < 0.2:
+                                await asyncio.sleep(poll_interval)
                     last_state = current
-                else:
-                    # Si estable y coincide con trigger y cumplió debounce
-                    if ((trigger_on_low and current == GPIO.LOW) or (not trigger_on_low and current == GPIO.HIGH)):
-                        if (now - last_change_time) >= debounce_s:
-                            try:
-                                self._trigger_event_count += 1
-                                if self.trigger_enabled and self.trigger_callback:
-                                    self.trigger_callback()
-                            finally:
-                                # Evitar múltiples callbacks continuos hasta liberar el haz
-                                await asyncio.sleep(debounce_s)
-                                # Esperar a que cambie el estado
-                                while GPIO.input(pin) == current and self.trigger_enabled and self.is_initialized:
-                                    await asyncio.sleep(0.005)
-                                last_state = GPIO.input(pin)
-                                last_change_time = time.time()
-                await asyncio.sleep(0.002)
+                await asyncio.sleep(poll_interval)
         except asyncio.CancelledError:
             pass
         except Exception as e:
