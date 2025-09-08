@@ -91,10 +91,11 @@ python Control_Etiquetado/demo_laser_stepper.py
 - `S0` - Toggle habilitación láser→stepper
 - `SS` - Configurar parámetros stepper
 
-### 📡 Control Sensor Láser
-- `L1` - Iniciar monitoreo láser
-- `L0` - Parar monitoreo láser
-- `LT` - Simular trigger láser
+### 📡 Control Sensor MH Flying Fish
+- `L1` - Iniciar monitoreo sensor
+- `L0` - Parar monitoreo sensor  
+- `LT` - Simular trigger sensor
+- `LD` - Diagnóstico sensor (lecturas en tiempo real)
 
 ### 🔧 Sistema
 - `I` - Mostrar información detallada
@@ -151,9 +152,10 @@ Las demos utilizan `Config_Etiquetadora.json` para la configuración de pines y 
 - **EN:** GPIO 21 (activo bajo)
 - **Alimentación:** 12V para VMOT, 3.3V para lógica
 
-### Sensor Láser YK0008
-- **Señal:** GPIO 17
-- **VCC:** 3.3V o 5V
+### Sensor MH Flying Fish
+- **Señal:** GPIO 4 (cambiado desde GPIO 17 para mejor detección)
+- **VCC:** 3.3V (recomendado)
+- **Funcionamiento:** HIGH sin detección (~2.7V), LOW con detección (~0.1V)
 - **GND:** GND
 - **Pull-up:** Interno (PUD_UP)
 

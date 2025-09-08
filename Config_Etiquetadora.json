@@ -144,12 +144,16 @@
     "trigger_sensor": {
       "type": "mh_flying_fish",
       "name": "MH_FlyingFish",
-      "pin_bcm": 17,
+      "pin_bcm": 4,
       "trigger_level": "falling",
-      "debounce_time_ms": 5,
+      "trigger_on_state": "LOW",
+      "debounce_time_ms": 50,
+      "debounce_s": 0.050,
       "pull_up_down": "PUD_UP",
-      "response_time_ms": 3,
-      "enable_diagnostics": true
+      "response_time_ms": 10,
+      "enable_diagnostics": true,
+      "voltage_threshold_low": 1.0,
+      "voltage_threshold_high": 2.5
     },
     "secondary_sensors": [],
     "environmental_sensors": {

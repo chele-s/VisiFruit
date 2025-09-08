@@ -229,12 +229,16 @@ class DemoSistemaCompleto:
         return {
             "sensor_settings": {
                 "trigger_sensor": {
-                    "type": "laser_yk0008",
-                    "name": "LaserYK0008",
-                    "pin_bcm": 17,
+                    "type": "mh_flying_fish",
+                    "name": "MH_FlyingFish",
+                    "pin_bcm": 4,
                     "trigger_level": "falling",
-                    "debounce_time_ms": 30,
-                    "pull_up_down": "PUD_UP"
+                    "trigger_on_state": "LOW",
+                    "debounce_time_ms": 50,
+                    "debounce_s": 0.050,
+                    "pull_up_down": "PUD_UP",
+                    "response_time_ms": 10,
+                    "enable_diagnostics": True
                 }
             },
             "laser_stepper_settings": {
@@ -529,6 +533,7 @@ class DemoSistemaCompleto:
         print("  [L1] - Iniciar monitoreo sensor")
         print("  [L0] - Parar monitoreo sensor")
         print("  [LT] - Simular trigger sensor")
+        print("  [LD] - Diagnóstico sensor (lecturas en tiempo real)")
         
         # Sistema
         print("\n🔧 SISTEMA:")
@@ -565,6 +570,8 @@ class DemoSistemaCompleto:
             await self._stop_laser_monitoring()
         elif command == "LT":
             await self._simulate_laser_trigger()
+        elif command == "LD":
+            await self._sensor_diagnostics()
             
         # Sistema
         elif command == "I":
@@ -724,6 +731,113 @@ class DemoSistemaCompleto:
         """Simula un trigger del sensor."""
         print("🔴 SIMULANDO trigger del sensor...")
         self._laser_trigger_callback()
+    
+    async def _sensor_diagnostics(self):
+        """Diagnóstico en tiempo real del sensor MH Flying Fish."""
+        print("\n🔍 DIAGNÓSTICO SENSOR MH FLYING FISH")
+        print("="*50)
+        
+        # Obtener configuración del sensor
+        sensor_config = self.config.get("sensor_settings", {}).get("trigger_sensor", {})
+        pin = sensor_config.get("pin_bcm", 4)
+        
+        print(f"📍 Pin configurado: BCM {pin}")
+        print(f"🔧 Tipo: {sensor_config.get('type', 'N/A')}")
+        print(f"⚡ Trigger en: {sensor_config.get('trigger_on_state', 'LOW')}")
+        print(f"🕰️ Debounce: {sensor_config.get('debounce_time_ms', 50)}ms")
+        print(f"📌 Pull: {sensor_config.get('pull_up_down', 'PUD_UP')}")
+        
+        if not GPIO_AVAILABLE:
+            print("⚠️ GPIO no disponible - modo simulación")
+            return
+            
+        print(f"\n🔄 Iniciando monitoreo en tiempo real del pin BCM {pin}")
+        print("   📊 Lecturas: 0=LOW (~0.10V), 1=HIGH (~2.70V)")
+        print("   🎯 Esperando trigger cuando cambie de HIGH→LOW")
+        print("   ⌨️ Presiona Enter para salir del diagnóstico...\n")
+        
+        try:
+            # Configurar pin si no está configurado
+            if not hasattr(self, '_diagnostic_pin_setup') or self._diagnostic_pin_setup != pin:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                self._diagnostic_pin_setup = pin
+                await asyncio.sleep(0.1)  # Estabilización
+                
+            # Variables de monitoreo
+            last_state = None
+            trigger_count = 0
+            high_count = 0
+            low_count = 0
+            
+            # Crear tarea para leer input del usuario
+            import sys
+            from concurrent.futures import ThreadPoolExecutor
+            
+            def get_input():
+                return input()
+            
+            with ThreadPoolExecutor() as executor:
+                input_task = asyncio.get_event_loop().run_in_executor(executor, get_input)
+                
+                start_time = time.time()
+                last_print_time = 0
+                
+                while not input_task.done():
+                    current_time = time.time()
+                    current_state = GPIO.input(pin)
+                    
+                    # Contar estados
+                    if current_state == GPIO.HIGH:
+                        high_count += 1
+                    else:
+                        low_count += 1
+                    
+                    # Detectar cambio de estado (trigger)
+                    if last_state is not None and last_state != current_state:
+                        if last_state == GPIO.HIGH and current_state == GPIO.LOW:
+                            trigger_count += 1
+                            print(f"🔴 TRIGGER #{trigger_count} detectado! HIGH→LOW a las {datetime.now().strftime('%H:%M:%S.%f')[:-3]}")
+                    
+                    # Imprimir estado cada segundo
+                    if current_time - last_print_time >= 1.0:
+                        elapsed = current_time - start_time
+                        total_reads = high_count + low_count
+                        high_percent = (high_count / total_reads * 100) if total_reads > 0 else 0
+                        low_percent = (low_count / total_reads * 100) if total_reads > 0 else 0
+                        
+                        state_symbol = "🟢 HIGH" if current_state == GPIO.HIGH else "🔴 LOW"
+                        print(f"⏱️ {elapsed:04.1f}s | Estado: {state_symbol} | "
+                              f"HIGH: {high_percent:05.1f}% | LOW: {low_percent:04.1f}% | "
+                              f"Triggers: {trigger_count}")
+                        
+                        last_print_time = current_time
+                    
+                    last_state = current_state
+                    await asyncio.sleep(0.01)  # 10ms polling
+                
+                # Cancelar la tarea de input
+                input_task.cancel()
+                
+                print(f"\n✅ Diagnóstico completado:")
+                print(f"   🎯 Triggers detectados: {trigger_count}")
+                print(f"   📊 Estados HIGH: {high_percent:.1f}%")
+                print(f"   📊 Estados LOW: {low_percent:.1f}%")
+                
+                if trigger_count == 0:
+                    print(f"\n💡 SUGERENCIAS:")
+                    print(f"   - Verifica que el sensor esté conectado al pin BCM {pin}")
+                    print(f"   - Activa manualmente el sensor (bloquea el haz de luz)")
+                    print(f"   - Verifica la alimentación (3.3V conectado correctamente)")
+                    print(f"   - Si los valores se mantienen siempre en HIGH o LOW, revisa el cableado")
+                
+        except KeyboardInterrupt:
+            print("\n⚠️ Diagnóstico interrumpido por usuario")
+        except Exception as e:
+            print(f"\n❌ Error en diagnóstico: {e}")
+            logger.error(f"Error en diagnóstico de sensor: {e}")
+        
+        print("🔄 Regresando al menú principal...")
     
     # === SISTEMA ===
     
