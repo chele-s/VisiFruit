@@ -16,6 +16,7 @@ Versión: 3.0 - RT-DETR Edition
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import signal
@@ -24,6 +25,8 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
+import os
+import subprocess
 
 # Agregar directorio padre para importaciones
 sys.path.append(str(Path(__file__).parent.parent))
@@ -367,7 +370,13 @@ class DemoSistemaCompleto:
             )
             
             if self.sensor_interface.initialize(sensor_config):
-                print("✅ Sensor láser YK0008 inicializado")
+                # Activar monitoreo automáticamente
+                try:
+                    self.sensor_interface.enable_trigger_monitoring()
+                    self.laser_monitoring = True
+                    print("✅ Sensor láser YK0008 inicializado y monitoreo ACTIVO")
+                except Exception as e:
+                    print(f"⚠️ Sensor láser inicializado, pero no se pudo habilitar el monitoreo: {e}")
                 return True
             else:
                 print("⚠️ Sensor láser en modo simulación")
@@ -435,8 +444,13 @@ class DemoSistemaCompleto:
         # Estado de componentes
         print(f"🎢 Banda transportadora: {'✅ Activa' if self.belt_running else '⏹️ Parada'}")
         if self.belt_driver and hasattr(self.belt_driver, 'get_status'):
-            belt_info = self.belt_driver.get_status()
-            print(f"   Estado: {belt_info.get('state', 'unknown')}")
+            try:
+                status_result = self.belt_driver.get_status()
+                belt_info = await status_result if inspect.isawaitable(status_result) else status_result
+                if isinstance(belt_info, dict):
+                    print(f"   Estado: {'Funcionando' if belt_info.get('running') else 'Parada'}")
+            except Exception:
+                pass
         
         print(f"🔧 Stepper DRV8825: {'✅ Habilitado' if self.stepper_enabled else '❌ Deshabilitado'}")
         print(f"📡 Monitoreo láser: {'✅ Activo' if self.laser_monitoring else '⏹️ Inactivo'}")
@@ -830,6 +844,33 @@ async def main():
         print("\n⚠️  IMPORTANTE: Verifica las conexiones antes de continuar")
         
         input("\n📋 Presiona Enter para inicializar el sistema...")
+        # Preflight: cerrar procesos que usan GPIO y pueden bloquear pines
+        try:
+            # Matar instancias de main_etiquetadora.py si están corriendo en este usuario
+            out = subprocess.run(["pgrep", "-af", "main_etiquetadora.py"], capture_output=True, text=True)
+            if out.returncode == 0 and out.stdout.strip():
+                for line in out.stdout.strip().splitlines():
+                    try:
+                        pid = int(line.strip().split()[0])
+                        # Evitar matarnos a nosotros mismos
+                        if pid != os.getpid():
+                            os.kill(pid, signal.SIGTERM)
+                    except Exception:
+                        pass
+                # Pequeña espera y kill -9 si persisten
+                time.sleep(0.3)
+                out2 = subprocess.run(["pgrep", "-af", "main_etiquetadora.py"], capture_output=True, text=True)
+                if out2.returncode == 0 and out2.stdout.strip():
+                    for line in out2.stdout.strip().splitlines():
+                        try:
+                            pid = int(line.strip().split()[0])
+                            if pid != os.getpid():
+                                os.kill(pid, signal.SIGKILL)
+                        except Exception:
+                            pass
+        except Exception:
+            # Si falla preflight, continuamos; el wrapper gestionará reintentos
+            pass
         
         # Inicializar sistema
         if not await demo.initialize():

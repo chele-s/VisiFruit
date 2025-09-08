@@ -17,5 +17,12 @@
 
 .venv/**
 
-logs/backend_ultra.log
-Interfaz_Usuario/Backend/__pycache__/
+logs/backend_ultra.log/**
+Interfaz_Usuario/Backend/__pycache__/**
+Control_Etiquetado/__pycache__/**
+utils/__pycache__/**
+interfaz_usuario/Backend/logs/**
+Interfaz_Usuario/Backend/logs/backend_ultra.log
+Control_Etiquetado/__pycache__/relay_motor_controller_pi5.cpython-311.pyc
+Control_Etiquetado/__pycache__/sensor_interface.cpython-311.pyc
+Control_Etiquetado/__pycache__/relay_motor_controller_pi5.cpython-311.pyc

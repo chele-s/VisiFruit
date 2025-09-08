@@ -54,6 +54,7 @@ except ImportError:
     GPIO = MockGPIO()
     GPIO_AVAILABLE = False
 import time
+import asyncio
 import logging
 import json
 import os
@@ -433,6 +434,10 @@ class SensorInterface:
         self.is_initialized = False
         self.trigger_enabled = False
         self.config = {} # Se cargará en initialize
+        self._poll_task = None
+        self._last_trigger_state = None
+        self._trigger_event_count = 0
+        self._auto_calibrating = False
         
         logger.info("SensorInterface instanciada")
     
@@ -478,19 +483,37 @@ class SensorInterface:
             # Configurar detección de eventos si está disponible el callback
             if self.trigger_callback and camera_trigger_config.get('pin_bcm'):
                 pin = camera_trigger_config['pin_bcm']
-                trigger_edge = GPIO.FALLING if camera_trigger_config.get('trigger_on_state', 'LOW') == 'LOW' else GPIO.RISING
+                # Elegir borde compatible con wrapper
+                trigger_edge = getattr(GPIO, 'FALLING', 'falling') if camera_trigger_config.get('trigger_on_state', 'LOW') == 'LOW' else getattr(GPIO, 'RISING', 'rising')
                 debounce_ms = int(camera_trigger_config.get('debounce_s', 0.05) * 1000)
                 
                 def _trigger_event_handler(channel):
                     """Handler interno para eventos de trigger."""
                     try:
+                        self._trigger_event_count += 1
                         if self.trigger_enabled and self.trigger_callback:
                             self.trigger_callback()
                     except Exception as e:
                         logger.error(f"Error en callback de trigger: {e}")
                 
-                GPIO.add_event_detect(pin, trigger_edge, callback=_trigger_event_handler, bouncetime=debounce_ms)
+                # Algunos backends pueden no exponer add_event_detect/remove_event_detect
+                if hasattr(GPIO, 'add_event_detect'):
+                    GPIO.add_event_detect(pin, trigger_edge, callback=_trigger_event_handler, bouncetime=debounce_ms)
+                    # Guardar bandera para limpieza segura
+                    self._event_detect_registered = True
+                    self._event_detect_pin = pin
+                else:
+                    # Iniciar bucle de polling asíncrono
+                    if self._poll_task is None or self._poll_task.done():
+                        self._poll_task = asyncio.create_task(self._poll_trigger_loop())
+                    logger.warning("Backend GPIO sin soporte de eventos; usando loop de polling")
                 logger.info(f"Monitoreo de trigger habilitado en GPIO {pin}")
+                # Iniciar auto-calibración de borde/pull si no hay eventos
+                try:
+                    if not self._auto_calibrating:
+                        asyncio.create_task(self._auto_calibrate_trigger())
+                except Exception:
+                    pass
             
             return True
             
@@ -505,7 +528,18 @@ class SensorInterface:
             
             if camera_trigger_config.get('pin_bcm'):
                 pin = camera_trigger_config['pin_bcm']
-                GPIO.remove_event_detect(pin)
+                # Solo intentar si el backend soporta la API
+                if hasattr(GPIO, 'remove_event_detect'):
+                    try:
+                        GPIO.remove_event_detect(pin)
+                    except Exception as e:
+                        logger.debug(f"Ignorando error al remover evento: {e}")
+                else:
+                    # Detener polling si está activo
+                    if self._poll_task:
+                        self._poll_task.cancel()
+                        self._poll_task = None
+                    logger.debug("Backend GPIO sin remove_event_detect; detenido polling")
                 logger.info(f"Monitoreo de trigger deshabilitado en GPIO {pin}")
             
         except Exception as e:
@@ -603,6 +637,110 @@ class SensorInterface:
             
         except Exception as e:
             logger.error(f"Error cerrando SensorInterface: {e}")
+
+    async def _poll_trigger_loop(self):
+        """Bucle de polling para detectar trigger cuando no hay soporte de eventos."""
+        try:
+            pin = camera_trigger_config.get('pin_bcm')
+            if pin is None:
+                return
+            trigger_on_low = camera_trigger_config.get('trigger_on_state', 'LOW') == 'LOW'
+            debounce_s = float(camera_trigger_config.get('debounce_s', 0.05))
+            last_state = GPIO.input(pin)
+            last_change_time = time.time()
+            while self.trigger_enabled and self.is_initialized:
+                current = GPIO.input(pin)
+                now = time.time()
+                if current != last_state:
+                    last_change_time = now
+                    last_state = current
+                else:
+                    # Si estable y coincide con trigger y cumplió debounce
+                    if ((trigger_on_low and current == GPIO.LOW) or (not trigger_on_low and current == GPIO.HIGH)):
+                        if (now - last_change_time) >= debounce_s:
+                            try:
+                                self._trigger_event_count += 1
+                                if self.trigger_enabled and self.trigger_callback:
+                                    self.trigger_callback()
+                            finally:
+                                # Evitar múltiples callbacks continuos hasta liberar el haz
+                                await asyncio.sleep(debounce_s)
+                                # Esperar a que cambie el estado
+                                while GPIO.input(pin) == current and self.trigger_enabled and self.is_initialized:
+                                    await asyncio.sleep(0.005)
+                                last_state = GPIO.input(pin)
+                                last_change_time = time.time()
+                await asyncio.sleep(0.002)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Error en polling de trigger: {e}")
+
+    async def _auto_calibrate_trigger(self):
+        """Si no hay eventos en una ventana corta, invertir borde y/o pull-up/down."""
+        if self._auto_calibrating:
+            return
+        self._auto_calibrating = True
+        try:
+            # Esperar ventana inicial
+            await asyncio.sleep(float(camera_trigger_config.get('debounce_s', 0.05)) + 2.0)
+            if not self.trigger_enabled or not self.is_initialized:
+                return
+            if self._trigger_event_count > 0:
+                return
+            pin = camera_trigger_config.get('pin_bcm')
+            if pin is None:
+                return
+            logger.warning("Sin eventos del láser en ventana inicial: intentando invertir borde")
+            # Invertir trigger_on_state
+            current_state = camera_trigger_config.get('trigger_on_state', 'LOW')
+            new_state = 'HIGH' if current_state == 'LOW' else 'LOW'
+            camera_trigger_config['trigger_on_state'] = new_state
+            # Reconfigurar monitoreo
+            try:
+                if hasattr(GPIO, 'remove_event_detect') and getattr(self, '_event_detect_registered', False):
+                    try:
+                        GPIO.remove_event_detect(pin)
+                    except Exception:
+                        pass
+                    # Reagregar con nuevo borde
+                    trigger_edge = getattr(GPIO, 'FALLING', 'falling') if new_state == 'LOW' else getattr(GPIO, 'RISING', 'rising')
+                    debounce_ms = int(camera_trigger_config.get('debounce_s', 0.05) * 1000)
+
+                    def _trigger_event_handler2(channel):
+                        try:
+                            self._trigger_event_count += 1
+                            if self.trigger_enabled and self.trigger_callback:
+                                self.trigger_callback()
+                        except Exception as e:
+                            logger.error(f"Error en callback de trigger: {e}")
+
+                    GPIO.add_event_detect(pin, trigger_edge, callback=_trigger_event_handler2, bouncetime=debounce_ms)
+                    self._event_detect_registered = True
+                    self._event_detect_pin = pin
+                else:
+                    # Polling: nada extra que hacer; el bucle leerá el nuevo estado objetivo
+                    pass
+            except Exception as e:
+                logger.debug(f"Error reconfigurando borde del trigger: {e}")
+            # Esperar otra ventana
+            await asyncio.sleep(2.0)
+            if self._trigger_event_count > 0:
+                logger.info("Auto-calibración: eventos detectados tras invertir borde")
+                return
+            # Intentar cambiar pull-up/down si está definido
+            pull = camera_trigger_config.get('pull_up_down', None)
+            try:
+                if pull in ("PUD_UP", "PUD_DOWN"):
+                    new_pull = "PUD_DOWN" if pull == "PUD_UP" else "PUD_UP"
+                    camera_trigger_config['pull_up_down'] = new_pull
+                    pud = GPIO.PUD_UP if new_pull == "PUD_UP" else GPIO.PUD_DOWN
+                    GPIO.setup(pin, GPIO.IN, pull_up_down=pud)
+                    logger.warning(f"Auto-calibración: cambiando pull a {new_pull}")
+            except Exception as e:
+                logger.debug(f"Error cambiando pull: {e}")
+        finally:
+            self._auto_calibrating = False
 
 # --- Código de Prueba ---
 if __name__ == '__main__':

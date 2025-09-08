@@ -177,20 +177,19 @@ class LGPIOWrapper:
         pass
     
     def setup(self, pin, mode, pull_up_down=GPIOState.PUD_OFF):
-        """Configura un pin."""
+        """Configura un pin con reintentos si está ocupado (GPIO busy)."""
         try:
             if mode == GPIOState.OUT:
-                # Configurar como salida
-                self.lgpio.gpio_claim_output(self.chip_handle, pin, 0)
+                # Configurar como salida (nivel inicial en LOW) con reintentos
+                self._claim_output_with_retry(pin, initial_level=0)
             else:
-                # Configurar como entrada
+                # Configurar como entrada con pull-ups/downs si aplica, con reintentos
                 flags = 0
                 if pull_up_down == GPIOState.PUD_UP:
                     flags = self.lgpio.SET_PULL_UP
                 elif pull_up_down == GPIOState.PUD_DOWN:
                     flags = self.lgpio.SET_PULL_DOWN
-                
-                self.lgpio.gpio_claim_input(self.chip_handle, pin, flags)
+                self._claim_input_with_retry(pin, flags)
             
             self.pins_setup[pin] = {"mode": mode, "pull": pull_up_down}
             logger.debug(f"LGPIO: setup(pin={pin}, mode={mode})")
@@ -198,6 +197,45 @@ class LGPIOWrapper:
         except Exception as e:
             logger.error(f"Error configurando pin {pin}: {e}")
             raise
+
+    def _claim_input_with_retry(self, pin: int, flags: int, attempts: int = 3, delay_s: float = 0.05):
+        """Reintenta reclamar un pin como entrada si está ocupado."""
+        for attempt in range(1, max(1, attempts) + 1):
+            try:
+                self.lgpio.gpio_claim_input(self.chip_handle, pin, flags)
+                return
+            except Exception as e:
+                # Reintento si el error indica ocupado
+                if 'busy' in str(e).lower():
+                    try:
+                        # Intentar liberar por si quedó en mal estado con este handle
+                        self.lgpio.gpio_free(self.chip_handle, pin)
+                    except Exception:
+                        pass
+                    if attempt < attempts:
+                        time.sleep(delay_s)
+                        continue
+                # Otros errores o último intento
+                raise
+
+    def _claim_output_with_retry(self, pin: int, initial_level: int = 0, attempts: int = 3, delay_s: float = 0.05):
+        """Reclama un pin como salida con reintentos y nivel inicial definido."""
+        level = 1 if int(initial_level) != 0 else 0
+        for attempt in range(1, max(1, attempts) + 1):
+            try:
+                # Parámetros: handle, gpio, level, lFlags=0
+                self.lgpio.gpio_claim_output(self.chip_handle, pin, level)
+                return
+            except Exception as e:
+                if 'busy' in str(e).lower():
+                    try:
+                        self.lgpio.gpio_free(self.chip_handle, pin)
+                    except Exception:
+                        pass
+                    if attempt < attempts:
+                        time.sleep(delay_s)
+                        continue
+                raise
     
     def output(self, pin, state):
         """Establece estado de salida."""

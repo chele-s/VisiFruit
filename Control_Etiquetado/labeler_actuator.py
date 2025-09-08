@@ -543,14 +543,20 @@ class StepperDriver(BaseActuatorDriver):
             GPIO.setup(self.step_pin, GPIO.OUT)
             GPIO.setup(self.dir_pin, GPIO.OUT)
             if self.enable_pin is not None and self.enable_pin >= 0:
-                GPIO.setup(self.enable_pin, GPIO.OUT)
-                # Deshabilitar al inicio
-                GPIO.output(self.enable_pin, GPIO.HIGH if self.enable_active_low else GPIO.LOW)
-                self._is_enabled = False
+                try:
+                    GPIO.setup(self.enable_pin, GPIO.OUT)
+                    # Deshabilitar al inicio
+                    GPIO.output(self.enable_pin, GPIO.HIGH if self.enable_active_low else GPIO.LOW)
+                    self._is_enabled = False
+                except Exception as e:
+                    # Si el pin EN está ocupado, continuar sin control de EN
+                    logger.warning(f"No se pudo configurar pin EN {self.enable_pin}: {e}. Continuando sin pin de habilitación.")
+                    self.enable_pin = None
+                    self._is_enabled = True
             
             # Configurar pines de microstepping si existen (no cambiamos por defecto)
             for ms_pin in [self.ms1_pin, self.ms2_pin, self.ms3_pin]:
-                if ms_pin is not None:
+                if ms_pin is not None and int(ms_pin) >= 0:
                     GPIO.setup(int(ms_pin), GPIO.OUT)
             
             # Dirección por defecto
@@ -707,7 +713,7 @@ class StepperDriver(BaseActuatorDriver):
                 if self.enable_pin is not None and self.enable_pin >= 0:
                     pins.append(self.enable_pin)
                 for ms_pin in [self.ms1_pin, self.ms2_pin, self.ms3_pin]:
-                    if ms_pin is not None:
+                    if ms_pin is not None and int(ms_pin) >= 0:
                         pins.append(int(ms_pin))
                 GPIO.cleanup(pins)
             self.is_initialized = False
@@ -881,8 +887,31 @@ class LabelerActuator:
                     return False
                 
                 if self.state not in [ActuatorState.IDLE]:
-                    logger.warning(f"Estado incorrecto para activación: {self.state}")
-                    return False
+                    # Intentar recuperación automática si está en ERROR
+                    if self.state == ActuatorState.ERROR:
+                        logger.info("Intentando recuperación automática del actuador tras estado ERROR...")
+                        try:
+                            if self.driver:
+                                # Asegurar limpieza e intentar re-inicialización del driver
+                                await self.driver.deactivate()
+                                await self.driver.cleanup()
+                            self.driver = self._create_driver()
+                            if not await self.driver.initialize():
+                                logger.error("Recuperación fallida: no se pudo re-inicializar el driver")
+                                return False
+                            # Verificación básica opcional (no fatal si falla)
+                            try:
+                                await self._verify_functionality()
+                            except Exception as e:
+                                logger.warning(f"Verificación tras recuperación falló: {e}")
+                            self.state = ActuatorState.IDLE
+                            logger.info("Recuperación exitosa. Continuando con activación.")
+                        except Exception as e:
+                            logger.error(f"Error en recuperación automática: {e}")
+                            return False
+                    else:
+                        logger.warning(f"Estado incorrecto para activación: {self.state}")
+                        return False
                 
                 if duration > self.max_activation_time:
                     logger.error(f"Duración excede máximo permitido: {duration}s > {self.max_activation_time}s")

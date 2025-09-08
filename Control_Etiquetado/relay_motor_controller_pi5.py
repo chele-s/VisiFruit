@@ -98,19 +98,20 @@ class RelayMotorDriverPi5(BeltDriver):
             if self._gpio_handle < 0:
                 raise RuntimeError(f"No se pudo abrir el chip GPIO: {self._gpio_handle}")
             
-            # Configurar Relay 1 (Adelante)
-            result = lgpio.gpio_claim_output(self._gpio_handle, self.config.relay1_pin_bcm)
+            # Configurar Relay 1 (Adelante) - especificar nivel inicial inactivo
+            inactive_level = 1 if self.config.active_state_on == "LOW" else 0
+            result = lgpio.gpio_claim_output(self._gpio_handle, self.config.relay1_pin_bcm, inactive_level)
             if result < 0:
                 raise RuntimeError(f"Error configurando relay 1 GPIO {self.config.relay1_pin_bcm}: {result}")
             
-            # Configurar Relay 2 (Atrás)
-            result = lgpio.gpio_claim_output(self._gpio_handle, self.config.relay2_pin_bcm)
+            # Configurar Relay 2 (Atrás) - especificar nivel inicial inactivo
+            result = lgpio.gpio_claim_output(self._gpio_handle, self.config.relay2_pin_bcm, inactive_level)
             if result < 0:
                 raise RuntimeError(f"Error configurando relay 2 GPIO {self.config.relay2_pin_bcm}: {result}")
             
             # Configurar pin de habilitación si existe
             if self.config.enable_pin_bcm is not None:
-                result = lgpio.gpio_claim_output(self._gpio_handle, self.config.enable_pin_bcm)
+                result = lgpio.gpio_claim_output(self._gpio_handle, self.config.enable_pin_bcm, 0)
                 if result < 0:
                     raise RuntimeError(f"Error configurando enable GPIO {self.config.enable_pin_bcm}: {result}")
                 # Deshabilitar inicialmente
