@@ -195,6 +195,9 @@ class DemoSistemaCompleto:
         
         # Configuración por defecto
         self.config = self._load_default_config()
+
+        # Loop de asyncio para programar tareas desde callbacks de hilos GPIO
+        self._loop = None
         
         # Estadísticas
         self.stats = {
@@ -273,7 +276,12 @@ class DemoSistemaCompleto:
         print("🚀 DEMO SISTEMA COMPLETO - VisiFruit v3.0 RT-DETR")
         print("="*70)
         print("🔧 Inicializando componentes del sistema...")
-        
+        # Guardar referencia al event loop activo para usarla en callbacks de otros hilos
+        try:
+            self._loop = asyncio.get_running_loop()
+        except Exception:
+            self._loop = None
+
         success = True
         
         # 1. Inicializar banda transportadora
@@ -427,7 +435,27 @@ class DemoSistemaCompleto:
                 
                 # Programar activación asíncrona después del tiempo de viaje
                 delay_before = max(0.0, float(self.sensor_to_labeler_delay_s))
-                asyncio.create_task(self._activate_stepper_after_delay(duration, intensity, delay_before))
+                try:
+                    if self._loop is not None and self._loop.is_running():
+                        # Ejecutar de forma thread‑safe desde el hilo del GPIO
+                        self._loop.call_soon_threadsafe(
+                            lambda: asyncio.create_task(
+                                self._activate_stepper_after_delay(duration, intensity, delay_before)
+                            )
+                        )
+                    else:
+                        # Si estamos en el mismo hilo del loop
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(self._activate_stepper_after_delay(duration, intensity, delay_before))
+                except Exception:
+                    # Último recurso: crear un hilo dedicado con su propio loop
+                    import threading
+                    threading.Thread(
+                        target=lambda: asyncio.run(
+                            self._activate_stepper_after_delay(duration, intensity, delay_before)
+                        ),
+                        daemon=True
+                    ).start()
                 
         except Exception as e:
             logger.error(f"Error en callback de sensor: {e}")
