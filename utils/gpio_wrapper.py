@@ -326,14 +326,25 @@ class LGPIOWrapper:
             except Exception:
                 pass
 
-            # Reclamar pin como alerta
+            # Preparar flags de pull-up/down si estaban configurados previamente
+            flags = 0
             try:
-                self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, 0)
+                pull = self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)
+                if pull == GPIOState.PUD_UP and hasattr(self.lgpio, 'SET_PULL_UP'):
+                    flags |= self.lgpio.SET_PULL_UP
+                elif pull == GPIOState.PUD_DOWN and hasattr(self.lgpio, 'SET_PULL_DOWN'):
+                    flags |= self.lgpio.SET_PULL_DOWN
+            except Exception:
+                pass
+
+            # Reclamar pin como alerta (conservando pull si aplica)
+            try:
+                self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, flags)
             except Exception:
                 # Si falla, volver a intentar reclamando como entrada y luego alerta
                 try:
-                    self._claim_input_with_retry(pin, 0)
-                    self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, 0)
+                    self._claim_input_with_retry(pin, flags)
+                    self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, flags)
                 except Exception as e2:
                     logger.warning(f"LGPIO: No se pudo reclamar alerta en pin {pin}: {e2}. Usando polling.")
                     return
@@ -356,8 +367,9 @@ class LGPIOWrapper:
             try:
                 self.lgpio.gpio_set_alert_func(self.chip_handle, pin, _lg_callback)
                 self._alerts[pin] = _lg_callback
-                # Guardar configuración como entrada para consistencia
-                self.pins_setup[pin] = {"mode": GPIOState.IN, "pull": self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)}
+                # Guardar configuración como entrada para consistencia (mantener pull)
+                existing_pull = self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)
+                self.pins_setup[pin] = {"mode": GPIOState.IN, "pull": existing_pull}
             except Exception as e:
                 logger.warning(f"LGPIO: No se pudo establecer callback de alerta en pin {pin}: {e}. Usando polling.")
                 try:
