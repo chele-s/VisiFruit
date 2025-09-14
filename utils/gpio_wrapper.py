@@ -157,6 +157,7 @@ class LGPIOWrapper:
         self.pwm_instances = {}
         self.mode = None
         self._alerts = {}
+        self._poll_threads = {}
         logger.info("🍓 LGPIO iniciado (Raspberry Pi 5)")
         
         # Abrir handle del chip GPIO
@@ -347,6 +348,8 @@ class LGPIOWrapper:
                     self.lgpio.gpio_claim_alert(self.chip_handle, pin, lg_edge, flags)
                 except Exception as e2:
                     logger.warning(f"LGPIO: No se pudo reclamar alerta en pin {pin}: {e2}. Usando polling.")
+                    # Como fallback, iniciar un hilo de polling que detecte flancos y llame el callback
+                    self._start_polling_edge(pin, edge_lower, callback, bouncetime)
                     return
 
             # Debounce/glitch filter si está disponible
@@ -365,15 +368,24 @@ class LGPIOWrapper:
                     logger.error(f"LGPIO: Error en callback de alerta pin {gpio}: {e}")
 
             try:
-                self.lgpio.gpio_set_alert_func(self.chip_handle, pin, _lg_callback)
-                self._alerts[pin] = _lg_callback
-                # Guardar configuración como entrada para consistencia (mantener pull)
-                existing_pull = self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)
-                self.pins_setup[pin] = {"mode": GPIOState.IN, "pull": existing_pull}
+                # Algunos builds de lgpio no exponen gpio_set_alert_func; hacer fallback si no existe
+                if hasattr(self.lgpio, 'gpio_set_alert_func'):
+                    self.lgpio.gpio_set_alert_func(self.chip_handle, pin, _lg_callback)
+                    self._alerts[pin] = _lg_callback
+                    # Guardar configuración como entrada para consistencia (mantener pull)
+                    existing_pull = self.pins_setup.get(pin, {}).get("pull", GPIOState.PUD_OFF)
+                    self.pins_setup[pin] = {"mode": GPIOState.IN, "pull": existing_pull}
+                else:
+                    raise AttributeError('gpio_set_alert_func not available')
             except Exception as e:
                 logger.warning(f"LGPIO: No se pudo establecer callback de alerta en pin {pin}: {e}. Usando polling.")
                 try:
-                    self.lgpio.gpio_free(self.chip_handle, pin)
+                    # Asegurar que el pin quede como entrada legible
+                    try:
+                        self._claim_input_with_retry(pin, flags)
+                    except Exception:
+                        pass
+                    self._start_polling_edge(pin, edge_lower, callback, bouncetime)
                 except Exception:
                     pass
         except Exception as e:
@@ -388,9 +400,74 @@ class LGPIOWrapper:
                 except Exception:
                     pass
                 self._alerts.pop(pin, None)
+            # Detener polling si activo
+            if pin in self._poll_threads:
+                try:
+                    self._poll_threads[pin]['stop'] = True
+                    th = self._poll_threads[pin].get('thread')
+                    if th and th.is_alive():
+                        # dar tiempo a terminar
+                        import time as _t
+                        for _ in range(10):
+                            if not th.is_alive():
+                                break
+                            _t.sleep(0.005)
+                except Exception:
+                    pass
+                self._poll_threads.pop(pin, None)
             # Mantener el pin reclamado como entrada si estaba en uso
         except Exception as e:
             logger.debug(f"LGPIO: remove_event_detect ignorado para pin {pin}: {e}")
+
+    # --- Fallback: polling por software para detección de flancos ---
+    def _start_polling_edge(self, pin, edge_lower, callback, bouncetime):
+        try:
+            # Asegurar pin legible como entrada si no está reclamado
+            try:
+                self._claim_input_with_retry(pin, 0)
+            except Exception:
+                pass
+
+            import threading
+            import time as _time
+
+            target_edges = edge_lower
+            debounce_s = max(0.0, (int(bouncetime) if bouncetime else 0) / 1000.0)
+
+            def _poll_loop():
+                last = self.input(pin)
+                last_event = 0.0
+                while True:
+                    if self._poll_threads.get(pin, {}).get('stop'):
+                        break
+                    cur = self.input(pin)
+                    now = _time.time()
+                    if cur != last:
+                        is_rising = (last == 0 and cur == 1)
+                        is_falling = (last == 1 and cur == 0)
+                        match = (
+                            ('both' in target_edges) or
+                            ('rising' in target_edges and is_rising) or
+                            ('falling' in target_edges and is_falling)
+                        )
+                        if match and (now - last_event) >= debounce_s:
+                            try:
+                                if callback:
+                                    callback(pin)
+                            except Exception:
+                                pass
+                            last_event = now
+                        last = cur
+                    _time.sleep(0.001)
+
+            self._poll_threads[pin] = {'stop': False}
+            th = threading.Thread(target=_poll_loop, daemon=True)
+            self._poll_threads[pin]['thread'] = th
+            th.start()
+            # Registrar para consistencia API
+            self._alerts[pin] = callback or (lambda *_: None)
+        except Exception as e:
+            logger.debug(f"LGPIO: error iniciando polling para pin {pin}: {e}")
 
 class LGPIOPWMWrapper:
     """Wrapper PWM para lgpio."""
