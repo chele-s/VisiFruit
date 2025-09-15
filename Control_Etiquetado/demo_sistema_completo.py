@@ -215,6 +215,13 @@ class DemoSistemaCompleto:
         self.min_laser_interval = 0.15  # segundos
         self.sensor_to_labeler_delay_s = 0.0
     
+    async def _async_input(self, prompt: str = "") -> str:
+        """Lee input del usuario sin bloquear el event loop."""
+        try:
+            return await asyncio.to_thread(lambda: input(prompt))
+        except Exception:
+            return ""
+    
     def _load_default_config(self) -> Dict[str, Any]:
         """Carga configuración por defecto."""
         config_path = Path("Config_Etiquetadora.json")
@@ -529,7 +536,7 @@ class DemoSistemaCompleto:
             await self._show_menu()
             
             try:
-                command = input("\n🎯 Comando: ").strip().upper()
+                command = (await self._async_input("\n🎯 Comando: ")).strip().upper()
                 await self._process_command(command)
                 
             except KeyboardInterrupt:
@@ -676,8 +683,8 @@ class DemoSistemaCompleto:
     async def _manual_stepper(self):
         """Activación manual del stepper."""
         try:
-            duration = float(input("⏱️ Duración (segundos) [0.6]: ") or "0.6")
-            intensity = float(input("⚡ Intensidad (%) [80]: ") or "80")
+            duration = float((await self._async_input("⏱️ Duración (segundos) [0.6]: ") or "0.6"))
+            intensity = float((await self._async_input("⚡ Intensidad (%) [80]: ") or "80"))
             
             print(f"🔧 Activando stepper manualmente: {duration:.2f}s @ {intensity:.0f}%")
             await self._activate_stepper_async(duration, intensity)
@@ -702,17 +709,17 @@ class DemoSistemaCompleto:
             config = self.config.get("laser_stepper_settings", {}).get("activation_on_laser", {})
             
             print(f"Duración actual: {config.get('activation_duration_seconds', 0.6)}s")
-            new_duration = input("Nueva duración (Enter para mantener): ")
+            new_duration = await self._async_input("Nueva duración (Enter para mantener): ")
             if new_duration:
                 config['activation_duration_seconds'] = float(new_duration)
             
             print(f"Intensidad actual: {config.get('intensity_percent', 80)}%")
-            new_intensity = input("Nueva intensidad (Enter para mantener): ")
+            new_intensity = await self._async_input("Nueva intensidad (Enter para mantener): ")
             if new_intensity:
                 config['intensity_percent'] = float(new_intensity)
             
             print(f"Intervalo mínimo actual: {config.get('min_interval_seconds', 0.15)}s")
-            new_interval = input("Nuevo intervalo (Enter para mantener): ")
+            new_interval = await self._async_input("Nuevo intervalo (Enter para mantener): ")
             if new_interval:
                 config['min_interval_seconds'] = float(new_interval)
                 self.min_laser_interval = float(new_interval)
@@ -1016,7 +1023,11 @@ async def main():
         print("🔧 Motor DC + DRV8825 Stepper + Sensor MH Flying Fish")
         print("\n⚠️  IMPORTANTE: Verifica las conexiones antes de continuar")
         
-        input("\n📋 Presiona Enter para inicializar el sistema...")
+        # Input no bloqueante para continuar
+        try:
+            await asyncio.to_thread(lambda: input("\n📋 Presiona Enter para inicializar el sistema..."))
+        except Exception:
+            pass
         # Preflight: cerrar procesos que usan GPIO y pueden bloquear pines
         try:
             # Matar instancias de main_etiquetadora.py si están corriendo en este usuario

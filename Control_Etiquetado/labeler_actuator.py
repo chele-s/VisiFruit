@@ -939,9 +939,7 @@ class LabelerActuator:
                         
                         logger.info(f"{self.name} activado: {duration:.2f}s @ {intensity:.1f}%")
                         
-                        # Esperar a que termine la activación
-                        await asyncio.sleep(duration + 0.1)  # Buffer pequeño
-                        
+                        # Driver ya bloqueó por la duración solicitada; no retener estado activo extra
                         return True
                     else:
                         self._record_error("Fallo en activación del driver")
