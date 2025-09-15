@@ -508,12 +508,7 @@ class SensorInterface:
                         self._poll_task = asyncio.create_task(self._poll_trigger_loop())
                     logger.warning("Backend GPIO sin soporte de eventos; usando loop de polling")
                 logger.info(f"Monitoreo de trigger habilitado en GPIO {pin}")
-                # Iniciar auto-calibración de borde/pull si no hay eventos
-                try:
-                    if not self._auto_calibrating:
-                        asyncio.create_task(self._auto_calibrate_trigger())
-                except Exception:
-                    pass
+                # Omitir auto-calibración por solicitud: solo disparar en FALLING (LOW)
             
             return True
             
@@ -675,70 +670,8 @@ class SensorInterface:
             logger.error(f"Error en polling de trigger: {e}")
 
     async def _auto_calibrate_trigger(self):
-        """Si no hay eventos en una ventana corta, invertir borde y/o pull-up/down."""
-        if self._auto_calibrating:
-            return
-        self._auto_calibrating = True
-        try:
-            # Esperar ventana inicial
-            await asyncio.sleep(float(camera_trigger_config.get('debounce_s', 0.05)) + 2.0)
-            if not self.trigger_enabled or not self.is_initialized:
-                return
-            if self._trigger_event_count > 0:
-                return
-            pin = camera_trigger_config.get('pin_bcm')
-            if pin is None:
-                return
-            logger.warning("Sin eventos del láser en ventana inicial: intentando invertir borde")
-            # Invertir trigger_on_state
-            current_state = camera_trigger_config.get('trigger_on_state', 'LOW')
-            new_state = 'HIGH' if current_state == 'LOW' else 'LOW'
-            camera_trigger_config['trigger_on_state'] = new_state
-            # Reconfigurar monitoreo
-            try:
-                if hasattr(GPIO, 'remove_event_detect') and getattr(self, '_event_detect_registered', False):
-                    try:
-                        GPIO.remove_event_detect(pin)
-                    except Exception:
-                        pass
-                    # Reagregar con nuevo borde
-                    trigger_edge = getattr(GPIO, 'FALLING', 'falling') if new_state == 'LOW' else getattr(GPIO, 'RISING', 'rising')
-                    debounce_ms = int(camera_trigger_config.get('debounce_s', 0.05) * 1000)
-
-                    def _trigger_event_handler2(channel):
-                        try:
-                            self._trigger_event_count += 1
-                            if self.trigger_enabled and self.trigger_callback:
-                                self.trigger_callback()
-                        except Exception as e:
-                            logger.error(f"Error en callback de trigger: {e}")
-
-                    GPIO.add_event_detect(pin, trigger_edge, callback=_trigger_event_handler2, bouncetime=debounce_ms)
-                    self._event_detect_registered = True
-                    self._event_detect_pin = pin
-                else:
-                    # Polling: nada extra que hacer; el bucle leerá el nuevo estado objetivo
-                    pass
-            except Exception as e:
-                logger.debug(f"Error reconfigurando borde del trigger: {e}")
-            # Esperar otra ventana
-            await asyncio.sleep(2.0)
-            if self._trigger_event_count > 0:
-                logger.info("Auto-calibración: eventos detectados tras invertir borde")
-                return
-            # Intentar cambiar pull-up/down si está definido
-            pull = camera_trigger_config.get('pull_up_down', None)
-            try:
-                if pull in ("PUD_UP", "PUD_DOWN"):
-                    new_pull = "PUD_DOWN" if pull == "PUD_UP" else "PUD_UP"
-                    camera_trigger_config['pull_up_down'] = new_pull
-                    pud = GPIO.PUD_UP if new_pull == "PUD_UP" else GPIO.PUD_DOWN
-                    GPIO.setup(pin, GPIO.IN, pull_up_down=pud)
-                    logger.warning(f"Auto-calibración: cambiando pull a {new_pull}")
-            except Exception as e:
-                logger.debug(f"Error cambiando pull: {e}")
-        finally:
-            self._auto_calibrating = False
+        """Auto-calibración deshabilitada: se mantiene disparo solo en LOW (FALLING)."""
+        return
 
 # --- Código de Prueba ---
 if __name__ == '__main__':
