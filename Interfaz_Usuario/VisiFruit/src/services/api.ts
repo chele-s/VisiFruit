@@ -168,6 +168,105 @@ class VisiFruitAPI {
     })
   }
 
+  // Endpoints de Banda Transportadora
+  async startBeltForward(): Promise<any> {
+    return this.request('/belt/start_forward', {
+      method: 'POST',
+    })
+  }
+
+  async startBeltBackward(): Promise<any> {
+    return this.request('/belt/start_backward', {
+      method: 'POST',
+    })
+  }
+
+  async stopBelt(): Promise<any> {
+    return this.request('/belt/stop', {
+      method: 'POST',
+    })
+  }
+
+  async emergencyStopBelt(): Promise<any> {
+    return this.request('/belt/emergency_stop', {
+      method: 'POST',
+    })
+  }
+
+  async setBeltSpeed(speed: number): Promise<any> {
+    return this.request('/belt/set_speed', {
+      method: 'POST',
+      body: JSON.stringify({ speed }),
+    })
+  }
+
+  async toggleBeltEnable(): Promise<any> {
+    return this.request('/belt/toggle_enable', {
+      method: 'POST',
+    })
+  }
+
+  async getBeltStatus(): Promise<any> {
+    return this.request('/belt/status', {
+      method: 'GET',
+    })
+  }
+
+  // Endpoints de Stepper Láser (DRV8825)
+  async toggleLaserStepper(enabled: boolean): Promise<any> {
+    return this.request('/laser_stepper/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    })
+  }
+
+  async testLaserStepper(duration: number = 0.5, intensity: number = 80): Promise<any> {
+    return this.request('/laser_stepper/test', {
+      method: 'POST',
+      body: JSON.stringify({ duration, intensity }),
+    })
+  }
+
+  // Endpoints de Control del Motor DC
+  async activateLabelerGroup(category: string): Promise<any> {
+    return this.request('/motor/activate_group', {
+      method: 'POST',
+      body: JSON.stringify({ category }),
+    })
+  }
+
+  async getMotorStatus(): Promise<any> {
+    return this.request('/motor/status', {
+      method: 'GET',
+    })
+  }
+
+  // Endpoints de Sistema de Desviadores
+  async getDiverstersStatus(): Promise<any> {
+    return this.request('/diverters/status', {
+      method: 'GET',
+    })
+  }
+
+  async classifyFruit(category: string, delay: number = 0): Promise<any> {
+    return this.request('/diverters/classify', {
+      method: 'POST',
+      body: JSON.stringify({ category, delay }),
+    })
+  }
+
+  async calibrateDiverters(): Promise<any> {
+    return this.request('/diverters/calibrate', {
+      method: 'POST',
+    })
+  }
+
+  async emergencyStopDiverters(): Promise<any> {
+    return this.request('/diverters/emergency_stop', {
+      method: 'POST',
+    })
+  }
+
   // Endpoints de Configuración
   async updateConfig(key: string, value: any): Promise<any> {
     return this.request('/api/config/update', {
@@ -338,5 +437,150 @@ export const usePerformanceData = () => {
 export const useSimulateProduction = () => {
   return useMutation({
     mutationFn: () => api.simulateProduction(),
+  })
+}
+
+// Hooks para Banda Transportadora
+export const useBeltStatus = () => {
+  return useQuery({
+    queryKey: ['belt', 'status'],
+    queryFn: () => api.getBeltStatus(),
+    refetchInterval: 2000, // Actualizar cada 2 segundos
+    retry: 2,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
+  })
+}
+
+export const useStartBeltForward = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.startBeltForward(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+export const useStartBeltBackward = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.startBeltBackward(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+export const useStopBelt = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.stopBelt(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+export const useEmergencyStopBelt = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.emergencyStopBelt(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+export const useSetBeltSpeed = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: (speed: number) => api.setBeltSpeed(speed),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+export const useToggleBeltEnable = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.toggleBeltEnable(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['belt', 'status'] })
+    },
+  })
+}
+
+// Hooks para Stepper Láser
+export const useToggleLaserStepper = () => {
+  return useMutation({
+    mutationFn: (enabled: boolean) => api.toggleLaserStepper(enabled),
+  })
+}
+
+export const useTestLaserStepper = () => {
+  return useMutation({
+    mutationFn: ({ duration, intensity }: { duration?: number; intensity?: number }) => 
+      api.testLaserStepper(duration, intensity),
+  })
+}
+
+// Hooks para Motor DC
+export const useMotorStatus = () => {
+  return useQuery({
+    queryKey: ['motor', 'status'],
+    queryFn: () => api.getMotorStatus(),
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+    retry: 2,
+  })
+}
+
+export const useActivateLabelerGroup = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: (category: string) => api.activateLabelerGroup(category),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['motor', 'status'] })
+    },
+  })
+}
+
+// Hooks para Desviadores
+export const useDiverstersStatus = () => {
+  return useQuery({
+    queryKey: ['diverters', 'status'],
+    queryFn: () => api.getDiverstersStatus(),
+    refetchInterval: 5000, // Actualizar cada 5 segundos
+    retry: 2,
+  })
+}
+
+export const useClassifyFruit = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: ({ category, delay }: { category: string; delay?: number }) => 
+      api.classifyFruit(category, delay),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diverters', 'status'] })
+    },
+  })
+}
+
+export const useCalibrateDeviverters = () => {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: () => api.calibrateDiverters(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['diverters', 'status'] })
+    },
   })
 }

@@ -26,6 +26,7 @@ import { toggleSidebar, setCurrentView } from '../../store/slices/uiSlice'
 import Sidebar from './Sidebar'
 import DashboardView from '../views/DashboardView'
 import ProductionView from '../views/ProductionView'
+import BeltControlView from '../views/BeltControlView'
 import AnalyticsView from '../views/AnalyticsView'
 import Dashboard3DView from '../views/Dashboard3DView'
 import AlertsList from '../alerts/AlertsList'
@@ -94,6 +95,8 @@ const MainLayout: React.FC = () => {
         return <DashboardView />
       case 'production':
         return <ProductionView />
+      case 'belt-control':
+        return <BeltControlView />
       case 'analytics':
         return <AnalyticsView />
       case 'metrics':

@@ -4,6 +4,7 @@ export type ThemeMode = 'light' | 'dark' | 'auto'
 export type ViewMode =
   | 'dashboard'
   | 'production'
+  | 'belt-control'
   | 'analytics'
   | 'metrics'
   | 'alerts'

@@ -9,6 +9,13 @@ export const APP_CONFIG = {
   api: {
     baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8001',
     websocketUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws/realtime',
+    
+    // Sistema principal (main_etiquetadora.py)
+    mainSystemUrl: import.meta.env.VITE_MAIN_API_URL || 'http://localhost:8000',
+    
+    // Demo system web server (demo_sistema_web_server.py)  
+    demoSystemUrl: import.meta.env.VITE_DEMO_API_URL || 'http://localhost:8002',
+    
     timeout: 10000, // 10 segundos
   },
   

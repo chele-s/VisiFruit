@@ -16,6 +16,7 @@ import {
 import {
   Dashboard as DashboardIcon,
   Factory as ProductionIcon,
+  DirectionsRun as BeltControlIcon,
   Analytics as AnalyticsIcon,
   Settings as SettingsIcon,
   ViewInAr as View3DIcon,
@@ -40,7 +41,8 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { id: 'production', label: 'Producción', icon: <ProductionIcon /> },
-  { id: '3d-view', label: 'Vista 3D', icon: <View3DIcon />, color: 'primary' },
+  { id: 'belt-control', label: 'Control de Banda', icon: <BeltControlIcon />, color: 'primary' },
+  { id: '3d-view', label: 'Vista 3D', icon: <View3DIcon /> },
   { id: 'analytics', label: 'Análisis', icon: <AnalyticsIcon /> },
 ]
 
