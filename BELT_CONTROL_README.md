@@ -225,3 +225,4 @@ curl -X POST http://localhost:8002/belt/stop
 **Desarrollado para VisiFruit v3.0 - Sistema Ultra-Industrial**  
 *Gabriel Calderón, Elias Bautista, Cristian Hernandez*
 
+

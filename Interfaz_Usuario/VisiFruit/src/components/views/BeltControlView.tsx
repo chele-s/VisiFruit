@@ -26,7 +26,6 @@ import {
   CloudSync,
   Cloud,
   SmartToy,
-  Timeline,
   Speed,
   Engineering,
   VerifiedUser,
@@ -99,7 +98,7 @@ const BeltControlView: React.FC = () => {
         opacity: [0, 1],
         translateY: [50, 0],
         duration: 800,
-        delay: (el, i) => i * 200,
+        delay: (_el, i) => (i as number) * 200,
         easing: 'easeOutCubic',
       });
     }
@@ -318,6 +317,23 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
           intensity: params?.intensity || 80.0
         });
         break;
+      case 'stepper_manual_activation':
+        endpoint = '/laser_stepper/test';
+        method = 'POST';
+        body = JSON.stringify({ 
+          duration: params?.duration || 0.6,
+          intensity: params?.intensity || 80.0
+        });
+        break;
+      case 'stepper_sensor_trigger':
+        endpoint = '/laser_stepper/test';
+        method = 'POST';
+        body = JSON.stringify({ 
+          duration: params?.duration || 0.6,
+          intensity: params?.intensity || 80.0,
+          triggered_by: 'sensor_simulation'
+        });
+        break;
       default:
         console.warn(`Demo API action not mapped: ${action}`);
         return { success: false, error: 'Action not supported', demo: true };
@@ -409,7 +425,7 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
 
           {/* Estado de Conexiones */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Paper sx={{ 
                 p: 2, 
                 background: 'rgba(255, 255, 255, 0.05)',
@@ -438,7 +454,7 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
               </Paper>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Paper sx={{ 
                 p: 2, 
                 background: 'rgba(255, 255, 255, 0.05)',
@@ -467,7 +483,7 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
               </Paper>
             </Grid>
 
-            <Grid item xs={12} sm={12} md={4}>
+            <Grid size={{ xs: 12, sm: 12, md: 4 }}>
               <Paper sx={{ p: 2, background: 'rgba(255, 255, 255, 0.05)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                   <Settings />
@@ -528,20 +544,23 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
         {/* Control Principal */}
         <Box className="belt-view-item">
           <BeltAdvancedControls
-            onBeltAction={handleBeltAction}
+            onBeltAction={(action, params) => handleBeltAction(action, params)}
             isConnected={systemStatus.mainSystem.connected || systemStatus.demoSystem.connected}
             disabled={false}
             connectionType={connectionConfig.type}
             onConfigChange={(config) => {
               console.log('Configuración de banda actualizada:', config);
-              // Aquí se podría enviar la configuración al backend para persistencia
+              // Guardar configuración del stepper en localStorage también
+              if (config.stepperConfig) {
+                localStorage.setItem('visifruit_stepper_config', JSON.stringify(config.stepperConfig));
+              }
             }}
           />
         </Box>
 
         {/* Información adicional */}
         <Grid container spacing={3} sx={{ mt: 4 }} className="belt-view-item">
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{
               background: theme.gradients.glass,
               backdropFilter: 'blur(20px)',
@@ -573,7 +592,7 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{
               background: theme.gradients.glass,
               backdropFilter: 'blur(20px)',
@@ -605,7 +624,7 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{
               background: theme.gradients.glass,
               backdropFilter: 'blur(20px)',

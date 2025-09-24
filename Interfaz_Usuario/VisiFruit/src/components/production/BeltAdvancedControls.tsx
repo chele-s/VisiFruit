@@ -42,8 +42,6 @@ import {
   Settings,
   Save,
   PlayArrow,
-  Pause,
-  SkipNext,
   Timeline,
   Memory,
   ThermostatAuto,
@@ -51,9 +49,13 @@ import {
   MoreVert,
   Sync,
   RestartAlt,
-  Build,
   Schedule,
   SmartToy,
+  SettingsInputComponent,
+  FlashOn,
+  Timer,
+  RotateRight,
+  Engineering,
 } from '@mui/icons-material';
 import { animate, stagger } from 'animejs';
 
@@ -69,6 +71,16 @@ interface BeltConfiguration {
   maxTemperature: number;
   name: string;
   description: string;
+  // Configuración del motor NEMA 17 (DRV8825)
+  stepperConfig: {
+    powerIntensity: number; // 0-100% potencia enviada al driver
+    manualActivationDuration: number; // segundos para activación manual
+    sensorActivationDuration: number; // segundos para activación por sensor MH Flying Fish
+    enableAutoActivation: boolean; // habilitar activación automática por sensor
+    minIntervalBetweenActivations: number; // intervalo mínimo entre activaciones (segundos)
+    currentStepSpeed: number; // velocidad actual en pasos por segundo
+    maxStepSpeed: number; // velocidad máxima en pasos por segundo
+  };
 }
 
 interface BeltStatus {
@@ -85,6 +97,19 @@ interface BeltStatus {
   totalRuntime: number;
   isConnected: boolean;
   firmwareVersion: string;
+  // Estado del motor NEMA 17 (DRV8825)
+  stepperStatus: {
+    isActive: boolean; // si el stepper está activamente funcionando
+    currentPower: number; // potencia actual aplicada (0-100%)
+    activationCount: number; // número de activaciones
+    lastActivation: Date | null; // timestamp de la última activación
+    activationDuration: number; // duración de la última activación
+    totalActiveTime: number; // tiempo total activo en segundos
+    sensorTriggers: number; // número de triggers por sensor
+    manualActivations: number; // número de activaciones manuales
+    driverTemperature: number; // temperatura del driver DRV8825
+    currentStepRate: number; // velocidad actual de pasos por segundo
+  };
 }
 
 interface BeltAdvancedControlsProps {
@@ -201,12 +226,23 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
     totalRuntime: 0,
     isConnected: true,
     firmwareVersion: 'v2.1.4',
+    stepperStatus: {
+      isActive: false,
+      currentPower: 0,
+      activationCount: 0,
+      lastActivation: null,
+      activationDuration: 0,
+      totalActiveTime: 0,
+      sensorTriggers: 0,
+      manualActivations: 0,
+      driverTemperature: 25,
+      currentStepRate: 0,
+    },
   });
 
   const [configuration, setConfiguration] = useState<BeltConfiguration>(() => {
-    // Cargar configuración guardada del localStorage
-    const savedConfig = localStorage.getItem('visifruit_belt_config');
-    return savedConfig ? JSON.parse(savedConfig) : {
+    // Configuración por defecto
+    const defaultConfig: BeltConfiguration = {
       defaultSpeed: 1.0,
       sensorActivationSpeed: 1.2,
       accelerationRate: 0.5,
@@ -217,7 +253,40 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
       maxTemperature: 65,
       name: 'Banda Principal',
       description: 'Banda transportadora sistema VisiFruit',
+      // Configuración del motor NEMA 17 (DRV8825)
+      stepperConfig: {
+        powerIntensity: 80, // 80% potencia por defecto
+        manualActivationDuration: 0.6, // 0.6 segundos para activación manual
+        sensorActivationDuration: 0.6, // 0.6 segundos para activación por sensor MH Flying Fish
+        enableAutoActivation: true, // habilitar activación automática por sensor
+        minIntervalBetweenActivations: 0.15, // 150ms intervalo mínimo entre activaciones
+        currentStepSpeed: 1500, // 1500 pasos por segundo (velocidad base)
+        maxStepSpeed: 3000, // 3000 pasos por segundo máximo
+      },
     };
+
+    // Cargar configuración guardada del localStorage con fallback robusto
+    try {
+      const savedConfig = localStorage.getItem('visifruit_belt_config');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        // Asegurar que stepperConfig existe y tiene todas las propiedades
+        return {
+          ...defaultConfig,
+          ...parsed,
+          stepperConfig: {
+            ...defaultConfig.stepperConfig,
+            ...(parsed.stepperConfig || {})
+          }
+        };
+      }
+    } catch (error) {
+      console.warn('Error loading saved belt configuration:', error);
+      // Limpiar localStorage corrupto
+      localStorage.removeItem('visifruit_belt_config');
+    }
+    
+    return defaultConfig;
   });
 
   const [alertOpen, setAlertOpen] = useState(false);
@@ -253,12 +322,21 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
         const newPower = prev.isRunning ? 150 + Math.random() * 50 : 0;
         const newVibration = prev.isRunning ? Math.random() * 2 : 0;
         
+        // Simular actualizaciones del driver DRV8825
+        const stepperDriverTemp = prev.stepperStatus?.isActive 
+          ? Math.min(55, prev.stepperStatus.driverTemperature + Math.random() * 1 - 0.5)
+          : Math.max(25, prev.stepperStatus?.driverTemperature || 25 - 0.3);
+        
         return {
           ...prev,
           motorTemperature: newTemp,
           powerConsumption: newPower,
           vibrationLevel: newVibration,
           totalRuntime: prev.isRunning ? prev.totalRuntime + 1 : prev.totalRuntime,
+          stepperStatus: prev.stepperStatus ? {
+            ...prev.stepperStatus,
+            driverTemperature: stepperDriverTemp,
+          } : prev.stepperStatus
         };
       });
     }, 2000);
@@ -350,11 +428,66 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
           if (configuration.autoStartOnSensor && !newStatus.isRunning) {
             newStatus.isRunning = true;
             newStatus.direction = 'forward';
-            newStatus.targetSpeed = configuration.sensorActivationSpeed;
-            newStatus.currentSpeed = configuration.sensorActivationSpeed;
-            actionDescription = `Activación por sensor: ${configuration.sensorActivationSpeed.toFixed(1)} m/s`;
-          } else {
-            actionDescription = 'Sensor activado (auto-inicio deshabilitado)';
+          }
+          break;
+        case 'stepper_manual_activation':
+          // Activación manual del motor NEMA 17
+          if (newStatus.stepperStatus && configuration.stepperConfig) {
+            newStatus.stepperStatus = {
+              ...newStatus.stepperStatus,
+              isActive: true,
+              currentPower: configuration.stepperConfig.powerIntensity,
+              manualActivations: newStatus.stepperStatus.manualActivations + 1,
+              activationCount: newStatus.stepperStatus.activationCount + 1,
+              lastActivation: new Date(),
+              activationDuration: configuration.stepperConfig.manualActivationDuration,
+              currentStepRate: configuration.stepperConfig.currentStepSpeed,
+            };
+            actionDescription = `Motor NEMA 17 activado manualmente: ${configuration.stepperConfig.powerIntensity}% por ${configuration.stepperConfig.manualActivationDuration}s`;
+            
+            // Simular desactivación después de la duración
+            setTimeout(() => {
+              setBeltStatus(prev => ({
+                ...prev,
+                stepperStatus: {
+                  ...prev.stepperStatus!,
+                  isActive: false,
+                  currentPower: 0,
+                  currentStepRate: 0,
+                  totalActiveTime: prev.stepperStatus!.totalActiveTime + configuration.stepperConfig.manualActivationDuration,
+                }
+              }));
+            }, configuration.stepperConfig.manualActivationDuration * 1000);
+          }
+          break;
+        case 'stepper_sensor_trigger':
+          // Activación automática por sensor MH Flying Fish
+          if (newStatus.stepperStatus && configuration.stepperConfig && configuration.stepperConfig.enableAutoActivation) {
+            newStatus.stepperStatus = {
+              ...newStatus.stepperStatus,
+              isActive: true,
+              currentPower: configuration.stepperConfig.powerIntensity,
+              sensorTriggers: newStatus.stepperStatus.sensorTriggers + 1,
+              activationCount: newStatus.stepperStatus.activationCount + 1,
+              lastActivation: new Date(),
+              activationDuration: configuration.stepperConfig.sensorActivationDuration,
+              currentStepRate: configuration.stepperConfig.currentStepSpeed,
+            };
+            actionDescription = `Motor NEMA 17 activado por sensor: ${configuration.stepperConfig.powerIntensity}% por ${configuration.stepperConfig.sensorActivationDuration}s`;
+            
+            // Simular desactivación después de la duración
+            setTimeout(() => {
+              setBeltStatus(prev => ({
+                ...prev,
+                stepperStatus: {
+                  ...prev.stepperStatus!,
+                  isActive: false,
+                  currentPower: 0,
+                  currentStepRate: 0,
+                  totalActiveTime: prev.stepperStatus!.totalActiveTime + configuration.stepperConfig.sensorActivationDuration,
+                }
+              }));
+            }, configuration.stepperConfig.sensorActivationDuration * 1000);
           }
           break;
       }
@@ -389,17 +522,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
     showAlert('Configuración guardada correctamente', 'success');
   };
 
-  const getDirectionIcon = () => {
-    const iconProps = { fontSize: 'large' as const };
-    switch (beltStatus.direction) {
-      case 'forward':
-        return <ArrowForward {...iconProps} sx={{ color: theme.palette.success.main }} />;
-      case 'backward':
-        return <ArrowBack {...iconProps} sx={{ color: theme.palette.warning.main }} />;
-      default:
-        return <Stop {...iconProps} sx={{ color: theme.palette.grey[500] }} />;
-    }
-  };
+  
 
   const getStatusChip = () => {
     if (!beltStatus.enabled) {
@@ -485,7 +608,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
 
           {/* Métricas principales en tiempo real */}
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{ p: 2, background: 'rgba(0, 229, 160, 0.1)', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Speed sx={{ color: theme.palette.primary.main }} />
@@ -499,7 +622,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{ p: 2, background: 'rgba(255, 107, 107, 0.1)', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <ThermostatAuto sx={{ color: getTemperatureColor(beltStatus.motorTemperature) }} />
@@ -522,7 +645,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                 />
               </Paper>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{ p: 2, background: 'rgba(78, 205, 196, 0.1)', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <ElectricBolt sx={{ color: theme.palette.tertiary.main }} />
@@ -536,7 +659,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{ p: 2, background: 'rgba(33, 150, 243, 0.1)', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Schedule sx={{ color: theme.palette.info.main }} />
@@ -699,6 +822,207 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
             </Box>
           </Box>
 
+          <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+
+          {/* Control Motor NEMA 17 (DRV8825) */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SettingsInputComponent sx={{ color: theme.palette.warning.main }} />
+              Motor NEMA 17 (DRV8825)
+            </Typography>
+            
+            {/* Estado del motor */}
+            {beltStatus.stepperStatus && (
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper sx={{ 
+                  p: 2, 
+                  background: beltStatus.stepperStatus.isActive 
+                    ? 'linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1))'
+                    : 'linear-gradient(135deg, rgba(158, 158, 158, 0.2), rgba(158, 158, 158, 0.1))',
+                  border: `1px solid ${beltStatus.stepperStatus.isActive ? theme.palette.success.main : theme.palette.grey[600]}`,
+                  borderRadius: 2,
+                }}>
+                  <Typography variant="body2" color="text.secondary">Estado</Typography>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FlashOn sx={{ 
+                      color: beltStatus.stepperStatus.isActive ? theme.palette.success.main : theme.palette.grey[500],
+                      animation: beltStatus.stepperStatus.isActive ? 'pulse 2s infinite' : 'none',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 },
+                      }
+                    }} />
+                    {beltStatus.stepperStatus.isActive ? 'ACTIVO' : 'INACTIVO'}
+                  </Typography>
+                </Paper>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper sx={{ 
+                  p: 2, 
+                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0.1))',
+                  border: `1px solid ${theme.palette.warning.main}`,
+                  borderRadius: 2,
+                }}>
+                  <Typography variant="body2" color="text.secondary">Potencia</Typography>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <ElectricBolt sx={{ color: theme.palette.warning.main }} />
+                    {beltStatus.stepperStatus.currentPower}%
+                  </Typography>
+                </Paper>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper sx={{ 
+                  p: 2, 
+                  background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.2), rgba(33, 150, 243, 0.1))',
+                  border: `1px solid ${theme.palette.info.main}`,
+                  borderRadius: 2,
+                }}>
+                  <Typography variant="body2" color="text.secondary">Activaciones</Typography>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <RotateRight sx={{ color: theme.palette.info.main }} />
+                    {beltStatus.stepperStatus.activationCount}
+                  </Typography>
+                </Paper>
+              </Grid>
+              
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Paper sx={{ 
+                  p: 2, 
+                  background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(156, 39, 176, 0.1))',
+                  border: `1px solid ${theme.palette.secondary.main}`,
+                  borderRadius: 2,
+                }}>
+                  <Typography variant="body2" color="text.secondary">Tiempo Total</Typography>
+                  <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Timer sx={{ color: theme.palette.secondary.main }} />
+                    {beltStatus.stepperStatus.totalActiveTime.toFixed(1)}s
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+            )}
+            
+            {/* Información detallada */}
+            {beltStatus.stepperStatus && (
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Configuración Actual
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Duración manual:</Typography>
+                  <Typography variant="body2">{configuration.stepperConfig.manualActivationDuration.toFixed(1)}s</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Duración por sensor:</Typography>
+                  <Typography variant="body2">{configuration.stepperConfig.sensorActivationDuration.toFixed(1)}s</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Velocidad pasos:</Typography>
+                  <Typography variant="body2">{configuration.stepperConfig.currentStepSpeed} sps</Typography>
+                </Box>
+              </Grid>
+              
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Estadísticas
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Activaciones manuales:</Typography>
+                  <Typography variant="body2">{beltStatus.stepperStatus.manualActivations}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Triggers por sensor:</Typography>
+                  <Typography variant="body2">{beltStatus.stepperStatus.sensorTriggers}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">Temp. driver:</Typography>
+                  <Typography variant="body2">{beltStatus.stepperStatus.driverTemperature.toFixed(1)}°C</Typography>
+                </Box>
+              </Grid>
+            </Grid>
+            )}
+            
+            {/* Controles del motor */}
+            {beltStatus.stepperStatus && (
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Tooltip title={`Activar motor manualmente por ${configuration.stepperConfig.manualActivationDuration}s al ${configuration.stepperConfig.powerIntensity}%`}>
+                <span>
+                  <Button
+                    variant="contained"
+                    startIcon={<Engineering />}
+                    onClick={() => handleBeltAction('stepper_manual_activation')}
+                    disabled={disabled || !isConnected || beltStatus.stepperStatus.isActive}
+                    sx={{
+                      background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.8), rgba(255, 87, 34, 0.6))',
+                      color: '#000',
+                      fontWeight: 600,
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.9), rgba(255, 87, 34, 0.7))',
+                        boxShadow: theme.shadows[8],
+                      },
+                      '&:disabled': { 
+                        opacity: 0.3,
+                        color: '#666',
+                      },
+                    }}
+                  >
+                    Activar Demo Manual
+                  </Button>
+                </span>
+              </Tooltip>
+              
+              <Tooltip title="Simular trigger del sensor MH Flying Fish">
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={<SmartToy />}
+                    onClick={() => handleBeltAction('stepper_sensor_trigger')}
+                    disabled={disabled || !isConnected || !configuration.stepperConfig.enableAutoActivation || beltStatus.stepperStatus.isActive}
+                    sx={{
+                      borderColor: theme.palette.info.main,
+                      color: theme.palette.info.main,
+                      fontWeight: 600,
+                      px: 3,
+                      py: 1,
+                      '&:hover': {
+                        backgroundColor: `${theme.palette.info.main}20`,
+                        boxShadow: theme.shadows[4],
+                      },
+                      '&:disabled': { 
+                        opacity: 0.3,
+                        borderColor: '#666',
+                        color: '#666',
+                      },
+                    }}
+                  >
+                    Simular Sensor
+                  </Button>
+                </span>
+              </Tooltip>
+              
+              {beltStatus.stepperStatus.lastActivation && (
+                <Chip
+                  icon={<Schedule />}
+                  label={`Última: ${new Date(beltStatus.stepperStatus.lastActivation).toLocaleTimeString()}`}
+                  variant="outlined"
+                  sx={{ 
+                    borderColor: theme.palette.tertiary.main,
+                    color: theme.palette.tertiary.main,
+                    fontWeight: 500,
+                  }}
+                />
+              )}
+            </Box>
+            )}
+          </Box>
+
           {/* Controles de Sistema */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -770,7 +1094,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
           </Typography>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3, background: 'rgba(255, 255, 255, 0.05)', borderRadius: 2 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                   Activación Automática
@@ -811,7 +1135,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                 </Typography>
               </Paper>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Paper sx={{ p: 3, background: 'rgba(255, 255, 255, 0.05)', borderRadius: 2 }}>
                 <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                   Prueba de Sensor
@@ -860,7 +1184,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
           </Box>
 
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                 <Typography variant="body2" color="text.secondary">Última Acción:</Typography>
                 <Typography variant="body2" fontWeight={500}>{beltStatus.lastAction}</Typography>
@@ -876,7 +1200,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                 <Typography variant="body2">{beltStatus.firmwareVersion}</Typography>
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                 <Typography variant="body2" color="text.secondary">Vibración:</Typography>
                 <Typography variant="body2">{beltStatus.vibrationLevel.toFixed(2)} mm/s</Typography>
@@ -921,6 +1245,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
           <Tabs value={currentTab} onChange={(_, newTab) => setCurrentTab(newTab)}>
             <Tab label="General" />
             <Tab label="Sensores" />
+            <Tab label="Motor NEMA 17" />
             <Tab label="Seguridad" />
           </Tabs>
 
@@ -983,6 +1308,144 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
           )}
 
           {currentTab === 2 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <SettingsInputComponent sx={{ color: theme.palette.warning.main }} />
+                Motor NEMA 17 (DRV8825)
+              </Typography>
+              
+              {/* Potencia del driver */}
+              {configuration.stepperConfig && (
+                <>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                  Potencia enviada al driver DRV8825: {configuration.stepperConfig.powerIntensity}%
+                </Typography>
+                <Slider
+                  value={configuration.stepperConfig.powerIntensity}
+                  onChange={(_, value) => setConfiguration(prev => ({ 
+                    ...prev, 
+                    stepperConfig: { ...prev.stepperConfig, powerIntensity: value as number }
+                  }))}
+                  min={10}
+                  max={100}
+                  step={5}
+                  sx={{ mb: 3 }}
+                  marks={[
+                    { value: 25, label: '25%' },
+                    { value: 50, label: '50%' },
+                    { value: 75, label: '75%' },
+                    { value: 100, label: '100%' }
+                  ]}
+                />
+              
+              {/* Duración activación manual */}
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                Tiempo activo en demo (activación manual): {configuration.stepperConfig.manualActivationDuration.toFixed(1)}s
+              </Typography>
+              <Slider
+                value={configuration.stepperConfig.manualActivationDuration}
+                onChange={(_, value) => setConfiguration(prev => ({ 
+                  ...prev, 
+                  stepperConfig: { ...prev.stepperConfig, manualActivationDuration: value as number }
+                }))}
+                min={0.1}
+                max={5.0}
+                step={0.1}
+                sx={{ mb: 3 }}
+                marks={[
+                  { value: 0.5, label: '0.5s' },
+                  { value: 1.0, label: '1s' },
+                  { value: 2.0, label: '2s' },
+                  { value: 5.0, label: '5s' }
+                ]}
+              />
+              
+              {/* Duración activación por sensor */}
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                Tiempo activo por sensor MH Flying Fish: {configuration.stepperConfig.sensorActivationDuration.toFixed(1)}s
+              </Typography>
+              <Slider
+                value={configuration.stepperConfig.sensorActivationDuration}
+                onChange={(_, value) => setConfiguration(prev => ({ 
+                  ...prev, 
+                  stepperConfig: { ...prev.stepperConfig, sensorActivationDuration: value as number }
+                }))}
+                min={0.1}
+                max={5.0}
+                step={0.1}
+                sx={{ mb: 3 }}
+                marks={[
+                  { value: 0.3, label: '0.3s' },
+                  { value: 0.6, label: '0.6s' },
+                  { value: 1.0, label: '1s' },
+                  { value: 2.0, label: '2s' }
+                ]}
+              />
+              
+              {/* Activación automática */}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={configuration.stepperConfig.enableAutoActivation}
+                    onChange={(e) => setConfiguration(prev => ({ 
+                      ...prev, 
+                      stepperConfig: { ...prev.stepperConfig, enableAutoActivation: e.target.checked }
+                    }))}
+                  />
+                }
+                label="Habilitar activación automática por sensor MH Flying Fish"
+                sx={{ mb: 2 }}
+              />
+              
+              {/* Velocidad de pasos */}
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                Velocidad de pasos: {configuration.stepperConfig.currentStepSpeed} pasos/seg
+              </Typography>
+              <Slider
+                value={configuration.stepperConfig.currentStepSpeed}
+                onChange={(_, value) => setConfiguration(prev => ({ 
+                  ...prev, 
+                  stepperConfig: { ...prev.stepperConfig, currentStepSpeed: value as number }
+                }))}
+                min={100}
+                max={configuration.stepperConfig.maxStepSpeed}
+                step={100}
+                sx={{ mb: 3 }}
+                marks={[
+                  { value: 500, label: '500' },
+                  { value: 1500, label: '1500' },
+                  { value: 2500, label: '2500' },
+                  { value: 3000, label: '3000' }
+                ]}
+              />
+              
+              {/* Intervalo mínimo */}
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
+                Intervalo mínimo entre activaciones: {(configuration.stepperConfig.minIntervalBetweenActivations * 1000).toFixed(0)}ms
+              </Typography>
+              <Slider
+                value={configuration.stepperConfig.minIntervalBetweenActivations}
+                onChange={(_, value) => setConfiguration(prev => ({ 
+                  ...prev, 
+                  stepperConfig: { ...prev.stepperConfig, minIntervalBetweenActivations: value as number }
+                }))}
+                min={0.05}
+                max={1.0}
+                step={0.05}
+                sx={{ mb: 2 }}
+                marks={[
+                  { value: 0.1, label: '100ms' },
+                  { value: 0.25, label: '250ms' },
+                  { value: 0.5, label: '500ms' },
+                  { value: 1.0, label: '1s' }
+                ]}
+              />
+              </>
+              )}
+            </Box>
+          )}
+
+          {currentTab === 3 && (
             <Box sx={{ mt: 3 }}>
               <FormControlLabel
                 control={
