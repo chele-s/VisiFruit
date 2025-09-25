@@ -1,0 +1,28 @@
+# requirements.txt
+
+# --- API y Servidor ---
+fastapi
+uvicorn[standard]
+
+# --- Configuración y Tipos ---
+pydantic
+
+# --- Máquina de Estados ---
+transitions
+
+# --- Logging Estructurado ---
+structlog
+
+# --- Hardware (Simulación y Control) ---
+# (Estas se instalan según el SO, pero las listamos por claridad)
+# RPi.GPIO
+# pigpio
+# lgpio
+
+# --- IA y Visión ---
+torch
+ultralytics
+opencv-python
+
+# --- Monitoreo ---
+psutil
