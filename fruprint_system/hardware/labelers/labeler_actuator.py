@@ -1,10 +1,13 @@
 # fruprint_system/hardware/labelers/labeler_actuator.py
 import asyncio
 import logging
+import time
 from typing import Dict, Any
 
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE
-from fruprint_system.core.exceptions import LabelerError
+from fruprint_system.core.exceptions import LabelerError, ConfigError
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +158,11 @@ class LabelerActuator:
             logger.error(f"❌ Fallo al inicializar '{self.name}': {e}")
             return False
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        reraise=True  # Vuelve a lanzar la excepción si todos los reintentos fallan
+    )
     async def activate_for_duration(self, duration: float, intensity: float = 100.0) -> bool:
         if not self.driver.is_initialized or self.driver._is_active:
             return False
@@ -164,7 +172,7 @@ class LabelerActuator:
             return await self.driver.activate(duration, intensity)
         except Exception as e:
             logger.error(f"Error durante activación de '{self.name}': {e}")
-            return False
+            raise  # Re-lanzamos para que Tenacity lo capture y reintente
 
     async def emergency_stop(self):
         logger.warning(f"🛑 Parada de emergencia para actuador '{self.name}'")

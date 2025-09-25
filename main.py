@@ -1,6 +1,7 @@
 # main.py (punto de entrada final)
 import asyncio
 import sys
+import signal
 from fruprint_system.core.controller import SystemController
 from fruprint_system.core.logging_config import setup_logging, get_logger
 from fruprint_system.core.exceptions import ConfigError
@@ -15,34 +16,34 @@ async def main():
     logger.info("=== Iniciando VisiFruit System v4.1 (State Machine) ===")
     logger.info("==========================================================")
     
-    controller = None
+    stop_event = asyncio.Event()
+
     try:
         config_file = "Config_Etiquetadora.json"
-        controller = SystemController(config_file)
         
-        log_level = controller.config.system_settings.log_level.upper()
-        setup_logging(log_level)
-
-        loop = asyncio.get_event_loop()
-        stop_event = asyncio.Event()
-
-        def handle_signal():
-            logger.warning("Señal de apagado recibida. Iniciando cierre ordenado...")
-            if controller:
-                # Disparamos el evento de shutdown en la máquina de estados
-                loop.create_task(controller.shutdown_system())
-            if not stop_event.is_set():
-                loop.call_soon_threadsafe(stop_event.set)
-        
-        # ... (signal handler setup)
-        
-        # Usamos el nuevo método para iniciar el sistema
-        if not await controller.initialize_system():
-            logger.critical("Fallo en la inicialización del sistema. Abortando.")
-            return 1
+        async with SystemController(config_file) as controller:
+            # La inicialización y el apagado ahora son manejados por el context manager
             
-        logger.info("🚀 Sistema corriendo. Presiona Ctrl+C para detener. 🚀")
-        await stop_event.wait()
+            log_level = controller.config.system_settings.log_level.upper()
+            setup_logging(log_level)
+            
+            loop = asyncio.get_event_loop()
+            
+            def handle_signal():
+                logger.warning("Señal de apagado recibida. Iniciando cierre ordenado...")
+                if not stop_event.is_set():
+                    # El shutdown ahora se llamará automáticamente por __aexit__
+                    loop.call_soon_threadsafe(stop_event.set)
+
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, handle_signal)
+
+            if controller.state != 'idle':
+                 logger.critical("Fallo en la inicialización del sistema. Abortando.")
+                 return 1
+
+            logger.info("🚀 Sistema corriendo. Presiona Ctrl+C para detener. 🚀")
+            await stop_event.wait()
 
     except ConfigError as e:
         logger.critical("Error de configuración. No se puede iniciar el sistema.", error=str(e))
@@ -51,19 +52,13 @@ async def main():
         logger.exception(f"Error no manejado en el nivel superior: {e}")
         return 1
     finally:
-        if controller and controller.state != 'offline':
-            logger.info("Asegurando apagado final del sistema...")
-            await controller.shutdown_system()
-        
         logger.info("==========================================================")
-        logger.info("===            Sistema FruPrint detenido             ===")
+        logger.info("===            Sistema VisiFruit detenido             ===")
         logger.info("==========================================================")
 
     return 0
 
 if __name__ == "__main__":
-    import signal
-
     try:
         exit_code = asyncio.run(main())
         sys.exit(exit_code)

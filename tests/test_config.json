@@ -1,0 +1,44 @@
+{
+  "system_settings": {
+    "system_name": "FruPrint Test System",
+    "installation_id": "test-001",
+    "log_level": "DEBUG"
+  },
+  "metrics_settings": {
+    "enabled": false,
+    "port": 9091
+  },
+  "api_settings": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 8001
+  },
+  "ai_model_settings": {
+    "model_path": "IA_Etiquetado/best.pt",
+    "confidence_threshold": 0.5
+  },
+  "camera_settings": {
+    "source": -1,
+    "resolution_width": 640,
+    "resolution_height": 480
+  },
+  "sensor_settings": {
+      "pin": 26,
+      "debounce_time_ms": 50
+  },
+  "conveyor_belt_settings": {
+      "pin_enable": 13,
+      "pin_pwm": 19,
+      "pin_dir": 6
+  },
+  "motor_controller_settings": {
+      "motor_pins": {
+          "pwm_pin": 12,
+          "dir_pin1": 20,
+          "dir_pin2": 21
+      }
+  },
+  "labeler_settings": {
+      "pin": 22
+  }
+}
