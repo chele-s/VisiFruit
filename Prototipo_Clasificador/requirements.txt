@@ -1,0 +1,25 @@
+# VisiFruit Prototipo - Dependencias Python
+# ==========================================
+
+# Visión por Computadora y IA
+numpy>=1.21.0
+opencv-python>=4.5.0
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0
+
+# Control de Hardware
+RPi.GPIO>=0.7.1
+pigpio>=1.78
+
+# Utilidades
+asyncio
+psutil>=5.8.0
+dataclasses; python_version < '3.7'
+
+# Logging y Monitoreo
+logging
+
+# Opcional para RT-DETR avanzado
+# transformers>=4.30.0
+# paddlepaddle-gpu  # Para RT-DETR de PaddlePaddle

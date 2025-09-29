@@ -11,13 +11,18 @@ motor DC de posicionamiento automático y optimización predictiva en tiempo rea
 NUEVAS CARACTERÍSTICAS v4.0 - MODULAR ARCHITECTURE:
  ✨ Arquitectura modular completamente refactorizada
  📦 Módulos especializados y mantenibles
- 🏭 6 Etiquetadoras Automáticas con Motor DC
+ 🏭 6 Etiquetadoras Automáticas con Motor DC (MODO PROFESIONAL)
  🤖 IA de Categorización Avanzada
  📊 Sistema de Métricas y Telemetría
  🔮 Motor de Predicción y Optimización
  🌐 API Ultra-Avanzada
  💾 Sistema de Base de Datos
  🚀 Auto-inicio de Servicios Auxiliares
+ 🎯 MODO PROTOTIPO: 1 Etiquetadora DRV8825 + Servos MG995
+
+MODOS DE OPERACIÓN:
+ - PROFESIONAL: 6 etiquetadoras + motor DC + clasificadores industriales
+ - PROTOTIPO: 1 etiquetadora DRV8825 + 3 servos MG995 para clasificación
 
 Autor(es): Gabriel Calderón, Elias Bautista, Cristian Hernandez
 Fecha: Septiembre 2025
@@ -34,6 +39,7 @@ import os
 from pathlib import Path
 from typing import Dict, Optional, List, Any, TYPE_CHECKING
 from collections import Counter
+from datetime import datetime
 
 # ==================== IMPORTACIONES DE MÓDULOS PROPIOS ====================
 
@@ -825,13 +831,123 @@ class UltraIndustrialFruitLabelingSystem:
 
 # ==================== PUNTO DE ENTRADA ====================
 
+async def run_prototype_mode():
+    """Ejecuta el sistema en modo PROTOTIPO."""
+    classifier = None
+    services = {}
+    
+    try:
+        logger.info("=" * 70)
+        logger.info("🎯 MODO PROTOTIPO - Sistema de Clasificación con IA")
+        logger.info("=" * 70)
+        logger.info("   Hardware:")
+        logger.info("   - 1 Etiquetadora Solenoide (Pin 26)")
+        logger.info("   - 3 Servomotores MG995 (Clasificación)")
+        logger.info("     • Manzanas: Pin 5")
+        logger.info("     • Peras: Pin 6")
+        logger.info("     • Limones: Pin 7")
+        logger.info("   - IA RT-DETR para detección")
+        logger.info("   - Sensor MH Flying Fish (Pin 4)")
+        logger.info("=" * 70)
+        
+        # Iniciar servicios auxiliares (backend y frontend)
+        logger.info("📡 Iniciando servicios auxiliares...")
+        services = await check_and_start_services()
+        
+        # Importar sistema de prototipo
+        from Prototipo_Clasificador.smart_classifier_system import SmartFruitClassifier
+        
+        # Crear y ejecutar sistema de prototipo
+        classifier = SmartFruitClassifier()
+        
+        # Configurar señales
+        def signal_handler(sig, frame):
+            logger.info("\n⚡ Señal de interrupción recibida")
+            asyncio.create_task(classifier.shutdown())
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Inicializar
+        if not await classifier.initialize():
+            logger.error("❌ Error en inicialización del prototipo")
+            return 1
+        
+        # Iniciar producción
+        await classifier.start_production()
+        
+        logger.info("")
+        logger.info("🌐 === URLS DEL SISTEMA PROTOTIPO ===")
+        if "backend" in services:
+            logger.info("   📊 Dashboard Backend: http://localhost:8001")
+        if "frontend" in services:
+            logger.info("   🎨 Interfaz Frontend: http://localhost:3000")
+        logger.info("🌐 ====================================")
+        logger.info("")
+        logger.info("✅ Sistema PROTOTIPO funcionando - Presiona Ctrl+C para detener")
+        logger.info("")
+        
+        # Mantener funcionando
+        while classifier.running:
+            await asyncio.sleep(1)
+            
+            # Mostrar estadísticas cada 30 segundos
+            if int(time.time()) % 30 == 0:
+                status = classifier.get_status()
+                logger.info(
+                    f"📊 Detectadas: {status['stats']['detections_total']} | "
+                    f"Etiquetadas: {status['stats']['labeled_total']} | "
+                    f"Clasificadas: {status['stats']['classified_total']}"
+                )
+        
+        await classifier.shutdown()
+        return 0
+        
+    except Exception as e:
+        logger.exception(f"❌ Error en modo prototipo: {e}")
+        return 1
+    finally:
+        if services:
+            logger.info("🧹 Limpiando servicios auxiliares...")
+            await cleanup_services(services)
+
 async def main():
-    """Punto de entrada principal con auto-inicio de servicios."""
+    """Punto de entrada principal con selección de modo y auto-inicio de servicios."""
+    
+    # Detectar modo de operación
+    mode = os.getenv("VISIFRUIT_MODE", "auto").lower()
+    
+    # Auto-detectar basándose en la existencia de configuración
+    if mode == "auto":
+        prototype_config = Path("Prototipo_Clasificador/Config_Prototipo.json")
+        professional_config = Path("Config_Etiquetadora.json")
+        
+        if prototype_config.exists() and not professional_config.exists():
+            mode = "prototype"
+            logger.info("🔍 Auto-detección: Modo PROTOTIPO")
+        else:
+            mode = "professional"
+            logger.info("🔍 Auto-detección: Modo PROFESIONAL")
+    
+    # Ejecutar modo correspondiente
+    if mode == "prototype" or mode == "prototipo":
+        return await run_prototype_mode()
+    
+    # MODO PROFESIONAL (código original)
     system = None
     services = {}
     
     try:
-        logger.info("=== 🚀 FruPrint Industrial v4.0 MODULAR ===")
+        logger.info("=" * 70)
+        logger.info("🏭 MODO PROFESIONAL - Sistema Industrial Completo")
+        logger.info("=" * 70)
+        logger.info("   Hardware:")
+        logger.info("   - 6 Etiquetadoras Automáticas (2 por categoría)")
+        logger.info("   - Motor DC Lineal para posicionamiento")
+        logger.info("   - Sistema de desviadores industriales")
+        logger.info("   - IA RT-DETR avanzada")
+        logger.info("=" * 70)
+        logger.info("")
         logger.info("Iniciando sistema completo con frontend y backend")
         
         # Instancia única y limpieza preventiva

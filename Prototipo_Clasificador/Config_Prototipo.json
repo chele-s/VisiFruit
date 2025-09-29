@@ -1,0 +1,161 @@
+{
+  "system_info": {
+    "name": "VisiFruit Prototipo - Sistema de Clasificación Inteligente",
+    "version": "1.0.0",
+    "mode": "prototype",
+    "description": "Sistema de clasificación automática con IA, DRV8825 y MG995"
+  },
+  
+  "camera_settings": {
+    "camera_id": 0,
+    "resolution": [640, 480],
+    "fps": 30,
+    "auto_exposure": true,
+    "auto_white_balance": true,
+    "brightness": 50,
+    "contrast": 50,
+    "saturation": 50
+  },
+  
+  "ai_settings": {
+    "model_path": "IA_Etiquetado/Dataset_Frutas/best.pt",
+    "model_type": "rtdetr",
+    "confidence_threshold": 0.6,
+    "nms_threshold": 0.4,
+    "max_detections": 5,
+    "enable_tracking": true,
+    "class_names": ["apple", "pear", "lemon"],
+    "device": "auto",
+    "half_precision": false
+  },
+  
+  "labeler_settings": {
+    "enabled": true,
+    "type": "solenoid",
+    "name": "Etiquetadora_Solenoide",
+    "pin_bcm": 26,
+    "activation_duration_seconds": 0.6,
+    "intensity_percent": 100.0,
+    "active_level": "HIGH"
+  },
+  
+  "laser_stepper_settings": {
+    "enabled": true,
+    "type": "stepper",
+    "name": "Stepper_Laser",
+    "step_pin_bcm": 19,
+    "dir_pin_bcm": 26,
+    "enable_pin_bcm": 21,
+    "enable_active_low": true,
+    "base_speed_sps": 1500,
+    "max_speed_sps": 2000,
+    "acceleration_sps2": 500,
+    "step_pulse_us": 4,
+    "activation_duration_seconds": 0.6,
+    "steps_per_revolution": 200,
+    "microsteps": 1
+  },
+  
+  "servo_settings": {
+    "apple": {
+      "pin_bcm": 5,
+      "name": "Servo_Manzanas",
+      "category": "apple",
+      "min_pulse_us": 500,
+      "max_pulse_us": 2500,
+      "default_angle": 0,
+      "activation_angle": 90,
+      "activation_duration_s": 1.0,
+      "invert": false
+    },
+    "pear": {
+      "pin_bcm": 6,
+      "name": "Servo_Peras",
+      "category": "pear",
+      "min_pulse_us": 500,
+      "max_pulse_us": 2500,
+      "default_angle": 0,
+      "activation_angle": 90,
+      "activation_duration_s": 1.0,
+      "invert": false
+    },
+    "lemon": {
+      "pin_bcm": 7,
+      "name": "Servo_Limones",
+      "category": "lemon",
+      "min_pulse_us": 500,
+      "max_pulse_us": 2500,
+      "default_angle": 0,
+      "activation_angle": 90,
+      "activation_duration_s": 1.0,
+      "invert": false
+    }
+  },
+  
+  "belt_settings": {
+    "relay1_pin": 22,
+    "relay2_pin": 23,
+    "motor_pin_bcm": 13,
+    "enable_pin_bcm": 12,
+    "direction_pin_bcm": 20,
+    "direction_pin2_bcm": 21,
+    "speed_control_pin": 13,
+    "default_direction": "forward",
+    "start_delay_s": 0.5
+  },
+  
+  "sensor_settings": {
+    "trigger_sensor": {
+      "enabled": true,
+      "type": "mh_flying_fish",
+      "name": "MH_FlyingFish",
+      "pin_bcm": 4,
+      "trigger_level": "falling",
+      "trigger_on_state": "LOW",
+      "debounce_time_ms": 50,
+      "pull_up_down": "PUD_UP"
+    }
+  },
+  
+  "timing": {
+    "belt_speed_mps": 0.2,
+    "sensor_to_camera_distance_m": 0.1,
+    "camera_to_labeler_distance_m": 0.05,
+    "camera_to_classifier_distance_m": 0.5,
+    "min_detection_interval_s": 0.5,
+    "min_servo_activation_interval_s": 0.1
+  },
+  
+  "safety": {
+    "emergency_stop_enabled": true,
+    "max_continuous_activations": 10,
+    "overheat_protection": true,
+    "max_temperature_c": 70,
+    "watchdog_timeout_s": 30
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "log_to_file": true,
+    "log_file": "logs/prototipo_clasificador.log",
+    "max_log_size_mb": 50,
+    "backup_count": 5,
+    "log_performance": true
+  },
+  
+  "advanced": {
+    "use_pigpio": true,
+    "test_on_init": false,
+    "enable_statistics": true,
+    "statistics_interval_s": 10,
+    "save_detections": false,
+    "detections_path": "logs/detections/"
+  },
+  
+  "calibration": {
+    "servo_calibration_angles": [0, 45, 90, 135, 180],
+    "labeler_test_duration_s": 1.0,
+    "camera_warmup_frames": 10,
+    "ai_warmup_iterations": 5
+  }
+}

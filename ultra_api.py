@@ -321,6 +321,56 @@ class UltraAPIFactory:
                 "timestamp": datetime.now().isoformat(),
                 "system_connected": True
             }
+        
+        @app.post("/belt/emergency_stop")
+        async def emergency_stop_belt():
+            """Parada de emergencia de la banda."""
+            if not self.system.belt_controller:
+                raise HTTPException(404, "Controlador de banda no disponible")
+            
+            try:
+                # Detener inmediatamente
+                success = await self.system.belt_controller.stop_belt()
+                
+                # Si el controlador tiene método específico de emergencia, usarlo
+                if hasattr(self.system.belt_controller, 'emergency_brake'):
+                    await self.system.belt_controller.emergency_brake()
+                
+                return {
+                    "success": True,
+                    "message": "PARADA DE EMERGENCIA EJECUTADA",
+                    "direction": "emergency_stopped",
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Error en parada de emergencia: {e}")
+        
+        @app.post("/belt/toggle_enable")
+        async def toggle_belt_enable():
+            """Habilita o deshabilita el sistema de banda."""
+            if not self.system.belt_controller:
+                raise HTTPException(404, "Controlador de banda no disponible")
+            
+            try:
+                # Obtener estado actual
+                current_status = await self.system.belt_controller.get_status()
+                is_enabled = current_status.get('enabled', True)
+                
+                # Alternar estado
+                new_state = not is_enabled
+                
+                # Si se deshabilita, detener banda
+                if not new_state:
+                    await self.system.belt_controller.stop_belt()
+                
+                return {
+                    "success": True,
+                    "enabled": new_state,
+                    "message": f"Sistema {'habilitado' if new_state else 'deshabilitado'}",
+                    "timestamp": datetime.now().isoformat()
+                }
+            except Exception as e:
+                raise HTTPException(500, f"Error al alternar estado: {e}")
     
     def _register_diverter_routes(self, app: FastAPI):
         """Registra rutas del sistema de desviadores."""
