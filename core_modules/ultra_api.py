@@ -22,7 +22,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from system_types import (
+from core_modules.system_types import (
     SystemState, FruitCategory, LabelerGroup,
     LABELERS_PER_GROUP
 )

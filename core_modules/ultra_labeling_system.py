@@ -26,7 +26,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 
-from system_types import (
+from core_modules.system_types import (
     FruitCategory, LabelerGroup, LABELERS_PER_GROUP,
     NUM_LABELER_GROUPS, DEFAULT_MOTOR_PINS
 )

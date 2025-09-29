@@ -44,13 +44,13 @@ from datetime import datetime
 # ==================== IMPORTACIONES DE MÓDULOS PROPIOS ====================
 
 # Tipos y constantes del sistema
-from system_types import (
+from core_modules.system_types import (
     SystemState, AlertLevel, FruitCategory, ProcessingPriority,
     OptimizationMode, TOTAL_LABELERS, get_category_by_name
 )
 
 # Sistema de métricas y telemetría
-from metrics_system import MetricsManager
+from core_modules.metrics_system import MetricsManager
 
 # Motor de optimización y predicción
 from optimization_engine import (
@@ -58,26 +58,26 @@ from optimization_engine import (
 )
 
 # Sistema de etiquetado ultra
-from ultra_labeling_system import (
+from core_modules.ultra_labeling_system import (
     UltraLinearMotorController, UltraLabelerManager
 )
 
 # Sistema de base de datos
-from database_manager import DatabaseManager
+from core_modules.database_manager import DatabaseManager
 
 # Gestión de servicios auxiliares
-from service_manager import (
+from core_modules.service_manager import (
     ensure_single_instance, preflight_cleanup, check_and_start_services,
     cleanup_services
 )
 
 # Utilidades del sistema
-from system_utils import (
+from core_modules.system_utils import (
     setup_ultra_logging, measure_performance, retry_on_failure
 )
 
 # API Ultra-Avanzada
-from ultra_api import UltraAPIFactory, start_api_server
+from core_modules.ultra_api import UltraAPIFactory, start_api_server
 
 # ==================== IMPORTACIONES DE HARDWARE Y CONTROL ====================
 
@@ -400,7 +400,7 @@ class UltraIndustrialFruitLabelingSystem:
         """Inicializa el sistema de desviadores para clasificación."""
         logger.info("🔀 Inicializando sistema de desviadores...")
         try:
-            from system_types import DEFAULT_DIVERTER_CONFIG
+            from core_modules.system_types import DEFAULT_DIVERTER_CONFIG
             diverter_config = self.config.get("diverter_settings", DEFAULT_DIVERTER_CONFIG)
             
             if not diverter_config.get("enabled", True):

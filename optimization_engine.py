@@ -26,8 +26,8 @@ from collections import deque, defaultdict, Counter
 from typing import Dict, List, Optional, Any, Tuple
 import logging
 
-from system_types import FruitCategory, FruitDetectionResult, OptimizationMode
-from metrics_system import OptimizationResult
+from core_modules.system_types import FruitCategory, FruitDetectionResult, OptimizationMode
+from core_modules.metrics_system import OptimizationResult
 
 logger = logging.getLogger(__name__)
 

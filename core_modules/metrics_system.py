@@ -29,7 +29,7 @@ from collections import deque
 import threading
 import json
 
-from system_types import (
+from core_modules.system_types import (
     FruitCategory, AlertLevel, TOTAL_LABELERS,
     LABELERS_PER_GROUP, MAX_THROUGHPUT_PER_MINUTE
 )
