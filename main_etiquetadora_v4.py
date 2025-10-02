@@ -561,27 +561,111 @@ class UltraIndustrialFruitLabelingSystem:
             logger.exception(f"❌ Error procesando detección: {e}")
             self.metrics_manager.metrics.error_count += 1
     
+    def _map_class_name_to_category(self, class_name: str) -> FruitCategory:
+        """Mapea el nombre de clase del modelo YOLOv8 a FruitCategory."""
+        class_name_lower = class_name.lower().strip()
+        
+        # Mapeo directo y variantes comunes
+        category_map = {
+            'apple': FruitCategory.APPLE,
+            'manzana': FruitCategory.APPLE,
+            'pear': FruitCategory.PEAR,
+            'pera': FruitCategory.PEAR,
+            'lemon': FruitCategory.LEMON,
+            'limon': FruitCategory.LEMON,
+            'limón': FruitCategory.LEMON,
+        }
+        
+        # Buscar coincidencia exacta
+        if class_name_lower in category_map:
+            return category_map[class_name_lower]
+        
+        # Buscar coincidencia parcial
+        for key, category in category_map.items():
+            if key in class_name_lower or class_name_lower in key:
+                return category
+        
+        # Si no hay coincidencia, retornar UNKNOWN
+        logger.warning(f"⚠️ Clase desconocida detectada por IA: '{class_name}' - marcada como UNKNOWN")
+        return FruitCategory.UNKNOWN
+    
     async def _analyze_fruit_categories(self, result) -> List[FruitCategory]:
-        """Analiza y categoriza las frutas detectadas."""
+        """Analiza y categoriza las frutas detectadas usando las clases reales de la IA."""
+        if not result or not result.detections:
+            logger.warning("⚠️ No hay detecciones en el resultado de la IA")
+            return []
+        
         categories = []
-        available = [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]
+        detections_by_class = {}
         
-        for i in range(min(result.fruit_count, TOTAL_LABELERS)):
-            category = available[i % len(available)]
-            categories.append(category)
+        # Procesar cada detección real de la IA
+        for detection in result.detections:
+            # Mapear el class_name de YOLOv8 a nuestra FruitCategory
+            category = self._map_class_name_to_category(detection.class_name)
+            
+            if category != FruitCategory.UNKNOWN:
+                categories.append(category)
+                
+                # Agrupar por clase para logging detallado
+                if category not in detections_by_class:
+                    detections_by_class[category] = []
+                detections_by_class[category].append({
+                    'confidence': detection.confidence,
+                    'bbox': detection.bbox,
+                    'class_name': detection.class_name
+                })
         
-        logger.info(f"🎯 Categorías detectadas: {[c.emoji for c in categories]}")
+        # Log detallado de lo que se detectó
+        if categories:
+            summary = {cat: len([c for c in categories if c == cat]) for cat in set(categories)}
+            logger.info(f"🎯 IA detectó: {', '.join([f'{count} {cat.emoji} {cat.fruit_name}(s)' for cat, count in summary.items()])}")
+            
+            # Log de confianza promedio por categoría
+            for category, detections in detections_by_class.items():
+                avg_conf = sum(d['confidence'] for d in detections) / len(detections)
+                logger.debug(f"   {category.emoji} Confianza promedio: {avg_conf:.2%}")
+        else:
+            logger.warning("⚠️ No se detectaron frutas válidas (todas UNKNOWN)")
+        
         return categories
     
     def _select_optimal_category(self, categories: List[FruitCategory]) -> FruitCategory:
-        """Selecciona la categoría óptima para etiquetado."""
+        """
+        Selecciona la categoría óptima para etiquetado.
+        
+        Estrategia: Selecciona la categoría más frecuente en las detecciones.
+        Si hay empate, prioriza en orden: APPLE > PEAR > LEMON
+        """
         if not categories:
+            logger.warning("⚠️ No hay categorías para seleccionar")
             return FruitCategory.UNKNOWN
         
+        # Contar frecuencias
         category_counts = Counter(categories)
-        most_common = category_counts.most_common(1)[0][0]
         
-        logger.info(f"✨ Categoría seleccionada: {most_common.emoji}")
+        # Obtener la categoría más común
+        most_common_count = category_counts.most_common(1)[0][1]
+        
+        # Si hay empate, aplicar prioridad
+        tied_categories = [cat for cat, count in category_counts.items() if count == most_common_count]
+        
+        if len(tied_categories) > 1:
+            # Orden de prioridad para desempate
+            priority_order = [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]
+            for priority_cat in priority_order:
+                if priority_cat in tied_categories:
+                    logger.info(f"✨ Categoría seleccionada: {priority_cat.emoji} {priority_cat.fruit_name} "
+                              f"(empate resuelto por prioridad, {most_common_count} detección/es)")
+                    return priority_cat
+        
+        # Sin empate, retornar la más común
+        most_common = category_counts.most_common(1)[0][0]
+        total = len(categories)
+        percentage = (most_common_count / total) * 100
+        
+        logger.info(f"✨ Categoría seleccionada: {most_common.emoji} {most_common.fruit_name} "
+                   f"({most_common_count}/{total} detecciones, {percentage:.1f}%)")
+        
         return most_common
     
     async def _execute_labeling(self, category: FruitCategory, result):
