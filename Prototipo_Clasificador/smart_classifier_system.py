@@ -5,7 +5,7 @@
 ====================================================================
 
 Sistema completo de clasificación automática de frutas que integra:
-- Detección por IA (RT-DETR / YOLO)
+- Detección por IA (YOLOv8 optimizado para Raspberry Pi 5)
 - Control de etiquetadora con DRV8825
 - Clasificación con servomotores MG995
 - Banda transportadora
@@ -54,16 +54,16 @@ except ImportError:
         SensorInterface = None
         CameraController = None
 
-# IA de detección
+# IA de detección - YOLOv8 optimizado para Raspberry Pi 5
 try:
-    from IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector
+    from IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
     AI_AVAILABLE = True
 except ImportError:
     try:
-        from ..IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector
+        from ..IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
         AI_AVAILABLE = True
     except ImportError:
-        print("⚠️ Detector de IA no disponible")
+        print("⚠️ Detector YOLOv8 de IA no disponible")
         AI_AVAILABLE = False
 
 # GPIO wrapper para banda

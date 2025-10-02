@@ -277,21 +277,27 @@ class UltraIndustrialFruitLabelingSystem:
             self.camera = None
     
     async def _initialize_ai_detector(self):
-        """Inicializa el detector de IA."""
-        logger.info("🤖 Inicializando detector de IA...")
+        """Inicializa el detector de IA YOLOv8."""
+        logger.info("🤖 Inicializando detector de IA YOLOv8...")
         try:
-            from IA_Etiquetado.Fruit_detector import EnterpriseFruitDetector
+            # Importar detector YOLOv8 optimizado para Raspberry Pi 5
+            from IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
             
-            model_path = self.config.get("ai_model_settings", {}).get("model_path")
+            model_path = self.config.get("ai_model_settings", {}).get("model_path", "weights/best.pt")
             if not model_path or not Path(model_path).exists():
-                raise FileNotFoundError(f"Modelo de IA no encontrado: {model_path}")
+                raise FileNotFoundError(
+                    f"Modelo YOLOv8 no encontrado: {model_path}\n"
+                    f"   Por favor, descarga tu modelo desde Roboflow y colócalo en weights/best.pt"
+                )
 
             self.ai_detector = EnterpriseFruitDetector(self.config)
             
             if not await self.ai_detector.initialize():
-                raise RuntimeError("Fallo al inicializar la IA")
+                raise RuntimeError("Fallo al inicializar el detector YOLOv8")
             
-            logger.info("✅ Detector de IA inicializado correctamente")
+            logger.info("✅ Detector YOLOv8 inicializado correctamente")
+            logger.info(f"   📦 Modelo: {model_path}")
+            logger.info(f"   🖥️ Dispositivo: CPU (Raspberry Pi 5 optimizado)")
             
         except (FileNotFoundError, RuntimeError) as e:
             logger.warning(f"⚠️ ADVERTENCIA: {e}")

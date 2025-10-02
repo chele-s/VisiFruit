@@ -65,44 +65,59 @@
     }
   },
   "ai_model_settings": {
-    "model_path": "IA_Etiquetado/Models/best_fruit_model.pt",
-    "model_name": "RTDetr-FruitDetector-v3",
-    "model_type": "rtdetr",
-    "confidence_threshold": 0.65,
+    "model_path": "weights/best.pt",
+    "model_name": "YOLOv8-FruitDetector-Roboflow",
+    "model_type": "yolov8",
+    "model_source": "Roboflow 3.0 Object Detection (Fast)",
+    "confidence_threshold": 0.5,
     "iou_threshold": 0.45,
-    "max_detections": 50,
-    "input_size": [640, 640],
+    "max_detections": 100,
+    "input_size": 640,
+    "device": "cpu",
+    "num_threads": 4,
+    "half_precision": false,
     "enable_auto_optimization": true,
     "optimization_interval_seconds": 300,
     "enable_quality_analysis": true,
     "enable_analytics": true,
-    "num_workers": 4,
-    "worker_queue_size": 20,
-    "enable_auto_scaling": true,
-    "min_workers": 2,
-    "max_workers": 8,
-    "scaling_threshold_up": 0.8,
-    "scaling_threshold_down": 0.3,
-    "request_timeout_seconds": 15.0,
+    "num_workers": 2,
+    "worker_queue_size": 500,
+    "request_timeout_seconds": 30.0,
     "enable_caching": true,
-    "cache_size": 100,
-    "enable_batch_processing": true,
-    "batch_size": 4,
-    "warmup_iterations": 10,
-    "device_preference": "auto",
-    "half_precision": true,
-    "target_fps": 30.0,
-    "classes": {
-      "apple": 0,
-      "orange": 1,
-      "banana": 2,
-      "grape": 3,
-      "strawberry": 4,
-      "pineapple": 5,
-      "mango": 6,
-      "watermelon": 7,
-      "lemon": 8,
-      "peach": 9
+    "cache_size": 50,
+    "warmup_iterations": 3,
+    "target_fps": 15.0,
+    "class_names": ["apple", "pear", "lemon"],
+    "raspberry_pi_optimizations": {
+      "enabled": true,
+      "description": "Optimizaciones específicas para Raspberry Pi 5 (8GB RAM, CPU only)",
+      "memory_efficient_mode": true,
+      "aggressive_gc": true,
+      "reduce_batch_size": true,
+      "prioritize_speed_over_accuracy": false
+    },
+    "performance_profiles": {
+      "current_profile": "balanced",
+      "profiles": {
+        "speed": {
+          "input_size": 480,
+          "num_workers": 1,
+          "confidence_threshold": 0.4,
+          "target_fps": 20.0
+        },
+        "balanced": {
+          "input_size": 640,
+          "num_workers": 2,
+          "confidence_threshold": 0.5,
+          "target_fps": 15.0
+        },
+        "accuracy": {
+          "input_size": 800,
+          "num_workers": 2,
+          "confidence_threshold": 0.6,
+          "target_fps": 10.0
+        }
+      }
     }
   },
   "conveyor_belt_settings": {
