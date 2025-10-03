@@ -33,6 +33,8 @@
     "@types/node": "^24.2.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@types/stats.js": "^0.17.4",
+    "@types/webxr": "^0.5.24",
     "@vitejs/plugin-react": "^5.0.1",
     "eslint": "^9.30.1",
     "eslint-plugin-react-hooks": "^5.2.0",

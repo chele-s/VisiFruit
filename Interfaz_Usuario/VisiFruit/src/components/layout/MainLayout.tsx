@@ -131,7 +131,7 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh', width: '100%', overflowX: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', position: 'relative' }}>
       {/* AppBar */}
       <AppBar
         ref={appBarRef}
@@ -316,9 +316,10 @@ const MainLayout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
+          height: '100vh',
           mt: 8,
           p: { xs: 2, md: 3 },
-          transition: theme.transitions.create(['margin'], {
+          transition: theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
           }),
@@ -327,7 +328,9 @@ const MainLayout: React.FC = () => {
             width: `calc(100% - 280px)`,
           }),
           overflow: 'auto',
+          overflowX: 'hidden',
           position: 'relative',
+          boxSizing: 'border-box',
         }}
       >
         {renderCurrentView()}

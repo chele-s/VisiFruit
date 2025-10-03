@@ -31,10 +31,15 @@ function App() {
       ref={appRef}
       sx={{
         height: '100vh',
-        width: '100vw',
+        width: '100%',
+        maxWidth: '100vw',
         overflow: 'hidden',
         background: theme => theme.gradients.dark,
-        position: 'relative',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         '&::before': {
           content: '""',
           position: 'absolute',
