@@ -42,19 +42,24 @@ from enum import Enum, auto
 import numpy as np
 import torch
 import psutil
-# RT-DETR imports - manteniendo compatibilidad
+# Importaciones de IA - YOLOv8 prioritario, RT-DETR como fallback
+RTDETR_AVAILABLE = False
+YOLO_FALLBACK = False
+
 try:
-    from .RTDetr_detector import EnterpriseRTDetrDetector, RTDetrInferenceWorker
-    RTDETR_AVAILABLE = True
+    from ultralytics import YOLO
+    YOLO_FALLBACK = True
+    logger.info("✅ YOLOv8 disponible - usando como detector principal")
 except ImportError:
-    # Fallback para compatibilidad con YOLO
+    pass
+
+if not YOLO_FALLBACK:
     try:
-        from ultralytics import YOLO
-        RTDETR_AVAILABLE = False
-        YOLO_FALLBACK = True
+        from .RTDetr_detector import EnterpriseRTDetrDetector, RTDetrInferenceWorker
+        RTDETR_AVAILABLE = True
+        logger.info("✅ RT-DETR disponible - usando como detector fallback")
     except ImportError:
-        RTDETR_AVAILABLE = False
-        YOLO_FALLBACK = False
+        pass
 import cv2
 
 # Configuración del logger para este módulo
@@ -1036,8 +1041,8 @@ class EnterpriseFruitDetector:
         # Configuración del sistema
         self._config = config.get("ai_model_settings", {})
         
-        # Selección de modelo (RT-DETR por defecto)
-        self._model_type = self._config.get("model_type", "rtdetr")  # "rtdetr" o "yolo"
+        # Selección de modelo (YOLOv8 por defecto)
+        self._model_type = self._config.get("model_type", "yolov8")  # "yolov8" o "rtdetr"
         self._use_rtdetr = self._model_type.lower() == "rtdetr" and RTDETR_AVAILABLE
         self._request_timeout_s = self._config.get("request_timeout_s", 10.0)
         self._num_workers = self._config.get("num_workers", min(4, psutil.cpu_count()))

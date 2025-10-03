@@ -7,7 +7,9 @@
   },
   
   "camera_settings": {
+    "type": "csi_camera",
     "camera_id": 0,
+    "name": "PrototypeCamera",
     "resolution": [640, 480],
     "fps": 30,
     "auto_exposure": true,
@@ -109,7 +111,7 @@
   
   "sensor_settings": {
     "trigger_sensor": {
-      "enabled": true,
+      "enabled": false,
       "type": "mh_flying_fish",
       "name": "MH_FlyingFish",
       "pin_bcm": 4,
@@ -117,7 +119,8 @@
       "trigger_on_state": "LOW",
       "debounce_time_ms": 50,
       "pull_up_down": "PUD_UP"
-    }
+    },
+    "bin_level_sensors": {}
   },
   
   "timing": {

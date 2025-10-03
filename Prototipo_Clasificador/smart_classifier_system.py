@@ -353,9 +353,11 @@ class SmartFruitClassifier:
         logger.info("🤖 Inicializando detector de IA...")
         try:
             if AI_AVAILABLE and EnterpriseFruitDetector:
-                # Configurar IA
+                # Configurar IA - forzar YOLOv8
                 ai_config = self.config.copy()
-                ai_config["ai_model_settings"] = self.config.get("ai_settings", {})
+                ai_settings = self.config.get("ai_model_settings", {})
+                ai_settings["model_type"] = "yolov8"  # Forzar YOLOv8
+                ai_config["ai_model_settings"] = ai_settings
                 
                 self.ai_detector = EnterpriseFruitDetector(ai_config)
                 if await self.ai_detector.initialize():
