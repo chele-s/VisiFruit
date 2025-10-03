@@ -89,8 +89,9 @@ class SimulatedGPIO:
     def input(self, pin):
         """Lee el estado de un pin."""
         if pin not in self.pins_setup:
-            logger.warning(f"Pin {pin} no configurado para lectura")
-            return GPIOState.LOW
+            # Auto-configurar como entrada para evitar spam de warnings en simulación
+            self.setup(pin, GPIOState.IN)
+            logger.debug(f"GPIO: auto-setup(pin={pin}, mode=IN) para lectura")
         
         state = self.pin_states.get(pin, GPIOState.LOW)
         logger.debug(f"GPIO: input(pin={pin}) -> {'HIGH' if state else 'LOW'}")

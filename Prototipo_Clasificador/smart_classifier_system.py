@@ -426,6 +426,11 @@ class SmartFruitClassifier:
         try:
             if SensorInterface:
                 sensor_config = self.config.get("sensor_settings", {})
+                # Respetar bandera 'enabled' del trigger del prototipo
+                trigger_cfg = sensor_config.get("trigger_sensor", {})
+                if trigger_cfg and not trigger_cfg.get("enabled", True):
+                    logger.info("ℹ️ Sensor de trigger deshabilitado por configuración")
+                    return
                 if sensor_config:
                     self.sensor = SensorInterface(
                         trigger_callback=self._sensor_callback
