@@ -28,7 +28,7 @@ from datetime import datetime
 
 from core_modules.system_types import (
     FruitCategory, LabelerGroup, LABELERS_PER_GROUP,
-    NUM_LABELER_GROUPS, DEFAULT_MOTOR_PINS
+    NUM_LABELER_GROUPS, TOTAL_LABELERS, DEFAULT_MOTOR_PINS
 )
 
 try:

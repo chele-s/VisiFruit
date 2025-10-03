@@ -1001,14 +1001,59 @@ async def run_prototype_mode():
             logger.info("🧹 Limpiando servicios auxiliares...")
             await cleanup_services(services)
 
+def select_operation_mode() -> str:
+    """Selector interactivo de modo de operación."""
+    print("\n" + "=" * 70)
+    print("🏭 VISIFRUIT - SISTEMA DE ETIQUETADO INDUSTRIAL")
+    print("=" * 70)
+    print("\nSelecciona el modo de operación:\n")
+    print("  [1] 🏭 MODO PROFESIONAL")
+    print("      - 6 etiquetadoras automáticas (2 por categoría)")
+    print("      - Motor DC L298N para posicionamiento")
+    print("      - 2 desviadores industriales (Servos MG995)")
+    print("      - IA YOLOv8 optimizada (dual-worker)")
+    print("")
+    print("  [2] 🎯 MODO PROTOTIPO")
+    print("      - 1 etiquetadora DRV8825 + Motor NEMA 17")
+    print("      - 3 servomotores MG995 para clasificación")
+    print("      - IA YOLOv8 optimizada (dual-worker)")
+    print("")
+    print("  [3] 🚪 SALIR")
+    print("=" * 70)
+    
+    while True:
+        try:
+            choice = input("\n👉 Ingresa tu opción (1, 2 o 3): ").strip()
+            
+            if choice == "1":
+                print("\n✅ Modo PROFESIONAL seleccionado")
+                return "professional"
+            elif choice == "2":
+                print("\n✅ Modo PROTOTIPO seleccionado")
+                return "prototype"
+            elif choice == "3":
+                print("\n👋 Saliendo del sistema...")
+                return "exit"
+            else:
+                print("❌ Opción inválida. Por favor, ingresa 1, 2 o 3.")
+        except (EOFError, KeyboardInterrupt):
+            print("\n\n⚡ Interrupción detectada. Saliendo...")
+            return "exit"
+
 async def main():
     """Punto de entrada principal con selección de modo y auto-inicio de servicios."""
     
     # Detectar modo de operación
-    mode = os.getenv("VISIFRUIT_MODE", "auto").lower()
+    mode = os.getenv("VISIFRUIT_MODE", "interactive").lower()
+    
+    # Selector interactivo (por defecto)
+    if mode == "interactive":
+        mode = select_operation_mode()
+        if mode == "exit":
+            return 0
     
     # Auto-detectar basándose en la existencia de configuración
-    if mode == "auto":
+    elif mode == "auto":
         prototype_config = Path("Prototipo_Clasificador/Config_Prototipo.json")
         professional_config = Path("Config_Etiquetadora.json")
         
