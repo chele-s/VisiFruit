@@ -936,13 +936,13 @@ async def run_prototype_mode():
         logger.info("     • Manzanas: Pin 5")
         logger.info("     • Peras: Pin 6")
         logger.info("     • Limones: Pin 7")
-        logger.info("   - IA RT-DETR para detección")
+        logger.info("   - IA YOLOv8 para detección")
         logger.info("   - Sensor MH Flying Fish (Pin 4)")
         logger.info("=" * 70)
         
-        # Iniciar servicios auxiliares (backend y frontend)
+        # Iniciar servicios auxiliares (backend solamente - frontend opcional)
         logger.info("📡 Iniciando servicios auxiliares...")
-        services = await check_and_start_services()
+        services = await check_and_start_services(start_frontend=False)
         
         # Importar sistema de prototipo
         from Prototipo_Clasificador.smart_classifier_system import SmartFruitClassifier

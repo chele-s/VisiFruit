@@ -271,14 +271,14 @@ async def start_backend_process():
         logger.error(f"❌ Error iniciando backend dashboard: {e}")
         return None
 
-async def check_and_start_services():
+async def check_and_start_services(start_frontend: bool = True, start_backend: bool = True):
     """Verifica y inicia los servicios frontend y backend si está habilitado."""
     services = {}
     
     load_env_variables()
     
-    auto_start_frontend = os.getenv("AUTO_START_FRONTEND", "true").lower() == "true"
-    auto_start_backend = os.getenv("AUTO_START_BACKEND", "true").lower() == "true"
+    auto_start_frontend = os.getenv("AUTO_START_FRONTEND", "true").lower() == "true" and start_frontend
+    auto_start_backend = os.getenv("AUTO_START_BACKEND", "true").lower() == "true" and start_backend
     
     if auto_start_backend:
         logger.info("🔄 Iniciando backend dashboard automáticamente...")

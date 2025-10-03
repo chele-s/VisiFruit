@@ -35,46 +35,58 @@ import signal
 import sys
 
 # Importaciones propias
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 try:
-    from .mg995_servo_controller import MG995ServoController, FruitCategory
-    from ..Control_Etiquetado.labeler_actuator import LabelerActuator
-    from ..Control_Etiquetado.sensor_interface import SensorInterface
-    from ..utils.camera_controller import CameraController
+    from Prototipo_Clasificador.mg995_servo_controller import MG995ServoController, FruitCategory
 except ImportError:
     try:
         from mg995_servo_controller import MG995ServoController, FruitCategory
-        sys.path.append(str(Path(__file__).parent.parent))
-        from Control_Etiquetado.labeler_actuator import LabelerActuator
-        from Control_Etiquetado.sensor_interface import SensorInterface
-        from utils.camera_controller import CameraController
     except ImportError as e:
-        print(f"⚠️ Error importando módulos: {e}")
+        print(f"⚠️ MG995ServoController no disponible: {e}")
         MG995ServoController = None
-        LabelerActuator = None
-        SensorInterface = None
-        CameraController = None
+        # Definir FruitCategory fallback
+        class FruitCategory(Enum):
+            APPLE = "apple"
+            PEAR = "pear"
+            LEMON = "lemon"
+            UNKNOWN = "unknown"
+
+try:
+    from Control_Etiquetado.labeler_actuator import LabelerActuator
+except ImportError as e:
+    print(f"⚠️ LabelerActuator no disponible: {e}")
+    LabelerActuator = None
+
+try:
+    from Control_Etiquetado.sensor_interface import SensorInterface
+except ImportError as e:
+    print(f"⚠️ SensorInterface no disponible: {e}")
+    SensorInterface = None
+
+try:
+    from utils.camera_controller import CameraController
+except ImportError as e:
+    print(f"⚠️ CameraController no disponible: {e}")
+    CameraController = None
 
 # IA de detección - YOLOv8 optimizado para Raspberry Pi 5
 try:
     from IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
     AI_AVAILABLE = True
-except ImportError:
-    try:
-        from ..IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
-        AI_AVAILABLE = True
-    except ImportError:
-        print("⚠️ Detector YOLOv8 de IA no disponible")
-        AI_AVAILABLE = False
+except ImportError as e:
+    print(f"⚠️ Detector YOLOv8 de IA no disponible: {e}")
+    EnterpriseFruitDetector = None
+    AI_AVAILABLE = False
 
 # GPIO wrapper para banda
 try:
     from utils.gpio_wrapper import GPIO, is_simulation_mode
-except ImportError:
-    try:
-        from ..utils.gpio_wrapper import GPIO, is_simulation_mode
-    except ImportError:
-        print("⚠️ GPIO wrapper no disponible")
-        GPIO = None
+except ImportError as e:
+    print(f"⚠️ GPIO wrapper no disponible: {e}")
+    GPIO = None
+    def is_simulation_mode():
+        return True
 
 logger = logging.getLogger(__name__)
 
