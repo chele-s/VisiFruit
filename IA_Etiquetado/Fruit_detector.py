@@ -42,6 +42,11 @@ from enum import Enum, auto
 import numpy as np
 import torch
 import psutil
+import cv2
+
+# Configuración del logger para este módulo
+logger = logging.getLogger(__name__)
+
 # Importaciones de IA - YOLOv8 prioritario, RT-DETR como fallback
 RTDETR_AVAILABLE = False
 YOLO_FALLBACK = False
@@ -60,10 +65,6 @@ if not YOLO_FALLBACK:
         logger.info("✅ RT-DETR disponible - usando como detector fallback")
     except ImportError:
         pass
-import cv2
-
-# Configuración del logger para este módulo
-logger = logging.getLogger(__name__)
 
 # --- Enumeraciones para Control de Estado ---
 
