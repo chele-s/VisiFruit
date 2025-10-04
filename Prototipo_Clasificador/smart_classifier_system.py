@@ -336,17 +336,24 @@ class SmartFruitClassifier:
         """Inicializa la cámara."""
         logger.info("📷 Inicializando cámara...")
         try:
-            if CameraController:
-                camera_config = self.config.get("camera_settings", {})
-                self.camera = CameraController(camera_config)
-                if self.camera.initialize():
-                    logger.info("✅ Cámara inicializada")
-                else:
-                    logger.warning("⚠️ Cámara en modo simulación")
+            if not CameraController:
+                logger.warning("⚠️ Módulo CameraController no disponible.")
+                self.camera = None
+                return
+
+            camera_config = self.config.get("camera_settings", {})
+            self.camera = CameraController(camera_config)
+            
+            # ✨ NUEVO: Si la inicialización falla, desactiva la cámara por completo.
+            if not self.camera.initialize():
+                logger.error("❌ Fallo al inicializar la cámara. El sistema continuará sin ella.")
+                self.camera = None # Desactivar la cámara
             else:
-                logger.warning("⚠️ CameraController no disponible")
+                logger.info("✅ Cámara inicializada correctamente.")
+
         except Exception as e:
-            logger.warning(f"⚠️ Error con cámara: {e}")
+            logger.error(f"❌ Error crítico inicializando cámara: {e}")
+            self.camera = None
     
     async def _initialize_ai(self):
         """Inicializa el detector de IA."""

@@ -34,25 +34,17 @@ from typing import Dict, Optional, Tuple, List
 from enum import Enum
 from dataclasses import dataclass
 
-# Importar GPIO wrapper
 try:
+    # Usaremos el wrapper centralizado que ya funciona con lgpio en tu Pi 5
     from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
-    GPIO_WRAPPER_AVAILABLE = True
+    print("✅ Controlador de servos usando GPIO Wrapper centralizado.")
 except ImportError:
-    try:
-        from ..utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
-        GPIO_WRAPPER_AVAILABLE = True
-    except ImportError:
-        print("⚠️ GPIO wrapper no disponible - usando modo simulación")
-        GPIO_WRAPPER_AVAILABLE = False
-
-# Intentar usar pigpio para mejor control PWM
-try:
-    import pigpio
-    PIGPIO_AVAILABLE = True
-except ImportError:
-    PIGPIO_AVAILABLE = False
-    print("ℹ️ pigpio no disponible - usando RPi.GPIO")
+    print("❌ Error crítico: No se encontró el GPIO Wrapper centralizado.")
+    # Forzar simulación si el wrapper no se encuentra
+    from unittest.mock import Mock
+    GPIO = Mock()
+    GPIO_AVAILABLE = False
+    def is_simulation_mode(): return True
 
 logger = logging.getLogger(__name__)
 
