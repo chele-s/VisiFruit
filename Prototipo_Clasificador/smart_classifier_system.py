@@ -33,6 +33,9 @@ from enum import Enum
 from dataclasses import dataclass, field
 from collections import deque
 import signal
+import threading
+import http.server
+import socketserver
 import sys
 from datetime import datetime
 try:
@@ -274,6 +277,12 @@ class SmartFruitClassifier:
             except Exception:
                 pass
         self._drm_preview_started: bool = False
+        # Vista previa web MJPEG
+        self.http_preview_enabled: bool = bool(self.debug.get("http_preview", True))
+        self.http_preview_port: int = int(self.debug.get("http_preview_port", 8081))
+        self._http_server: Optional[http.server.HTTPServer] = None
+        self._http_thread: Optional[threading.Thread] = None
+        self._latest_jpeg: Optional[bytes] = None
 
         # Estadísticas
         self.stats = {
@@ -298,6 +307,8 @@ class SmartFruitClassifier:
             logger.info(f"🖼️ Guardado de frames anotados en: {self._detections_dir}")
         if self.use_drm_preview and not _CV2_AVAILABLE:
             logger.info("🖼️ Vista previa DRM planificada (Picamera2)")
+        if self.http_preview_enabled:
+            logger.info(f"🌐 Vista previa web MJPEG planificada en puerto {self.http_preview_port}")
     
     def _load_config(self) -> Dict[str, Any]:
         """Carga la configuración desde archivo JSON."""
@@ -407,6 +418,12 @@ class SmartFruitClassifier:
                         self._start_drm_preview()
                 except Exception as e:
                     logger.warning(f"⚠️ No se pudo iniciar vista previa DRM: {e}")
+                # Iniciar vista previa web MJPEG
+                try:
+                    if self.http_preview_enabled:
+                        self._start_http_preview_server()
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo iniciar vista previa web: {e}")
 
         except Exception as e:
             logger.error(f"❌ Error crítico inicializando cámara: {e}")
@@ -651,6 +668,7 @@ class SmartFruitClassifier:
                     self._maybe_show_preview(frame)
                 if self._drm_preview_started:
                     self._update_drm_overlay(frame)
+                self._update_http_preview(frame)
                 return
             
             # 3. Procesar detecciones
@@ -736,6 +754,7 @@ class SmartFruitClassifier:
                 self._maybe_show_preview(annotated)
             if self._drm_preview_started:
                 self._update_drm_overlay(annotated)
+            self._update_http_preview(annotated)
             if self.save_annotated_frames:
                 ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 filename = self._detections_dir / f"det_{ts}.jpg"
@@ -777,6 +796,63 @@ class SmartFruitClassifier:
                     pass
             # picamera2 acepta BGRA/RGBA como overlay
             picam2.set_overlay(overlay)
+        except Exception:
+            pass
+
+    # ==================== VISTA PREVIA WEB MJPEG ====================
+    def _start_http_preview_server(self):
+        """Inicia servidor HTTP MJPEG simple para vista previa."""
+        try:
+            class MJPEGHandler(http.server.BaseHTTPRequestHandler):
+                def do_GET(self_inner):  # type: ignore
+                    if self_inner.path not in ('/', '/mjpeg'):
+                        self_inner.send_response(404)
+                        self_inner.end_headers()
+                        return
+                    self_inner.send_response(200)
+                    self_inner.send_header('Age', 0)
+                    self_inner.send_header('Cache-Control', 'no-cache, private')
+                    self_inner.send_header('Pragma', 'no-cache')
+                    self_inner.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=FRAME')
+                    self_inner.end_headers()
+                    try:
+                        while True:
+                            frame_bytes = self._latest_jpeg
+                            if frame_bytes is not None:
+                                self_inner.wfile.write(b"--FRAME\r\n")
+                                self_inner.send_header('Content-Type', 'image/jpeg')
+                                self_inner.send_header('Content-Length', str(len(frame_bytes)))
+                                self_inner.end_headers()
+                                self_inner.wfile.write(frame_bytes)
+                                self_inner.wfile.write(b"\r\n")
+                            # 100 ms entre frames
+                            time.sleep(0.1)
+                    except Exception:
+                        pass
+                def log_message(self_inner, format, *args):  # type: ignore
+                    return  # Silenciar logs HTTP
+
+            class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+                daemon_threads = True
+
+            server = ThreadingHTTPServer(("0.0.0.0", self.http_preview_port), MJPEGHandler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            self._http_server = server
+            self._http_thread = thread
+            logger.info(f"🌐 Vista previa web MJPEG activa en http://localhost:{self.http_preview_port}/mjpeg")
+        except Exception as e:
+            logger.warning(f"⚠️ Error iniciando vista previa web MJPEG: {e}")
+            self.http_preview_enabled = False
+
+    def _update_http_preview(self, frame):
+        """Codifica y guarda JPEG actual para server MJPEG."""
+        try:
+            if not self.http_preview_enabled or frame is None or not _CV2_AVAILABLE:
+                return
+            ok, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            if ok:
+                self._latest_jpeg = buf.tobytes()
         except Exception:
             pass
     

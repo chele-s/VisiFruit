@@ -163,7 +163,9 @@
     "save_annotated_frames": false,
     "preview_window": "VisiFruit - Preview",
     "no_detection_log_interval_s": 5.0,
-    "drm_preview": true
+    "drm_preview": true,
+    "http_preview": true,
+    "http_preview_port": 8081
   },
   
   "calibration": {
