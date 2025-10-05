@@ -35,6 +35,10 @@ from collections import deque
 import signal
 import sys
 from datetime import datetime
+try:
+    import numpy as np  # type: ignore
+except Exception:  # numpy no es estrictamente requerido para la vista previa
+    np = None  # type: ignore
 
 # Visualización opcional
 try:
@@ -42,6 +46,13 @@ try:
     _CV2_AVAILABLE = True
 except Exception:
     _CV2_AVAILABLE = False
+
+# Picamera2 DRM/Qt preview availability
+try:
+    from picamera2 import Preview as _P2Preview  # type: ignore
+    _P2_PREVIEW_AVAILABLE = True
+except Exception:
+    _P2_PREVIEW_AVAILABLE = False
 
 # Importaciones propias
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -252,6 +263,7 @@ class SmartFruitClassifier:
         self.debug: Dict[str, Any] = self.config.get("debug", {})
         self.show_preview: bool = bool(self.debug.get("show_preview", False)) and _CV2_AVAILABLE
         self.save_annotated_frames: bool = bool(self.debug.get("save_annotated_frames", False) or self.config.get("advanced", {}).get("save_detections", False))
+        self.use_drm_preview: bool = bool(self.debug.get("drm_preview", False)) and _P2_PREVIEW_AVAILABLE
         self.preview_window_name: str = str(self.debug.get("preview_window", "VisiFruit - Preview"))
         self.no_detection_log_interval_s: float = float(self.debug.get("no_detection_log_interval_s", 5.0))
         self._last_no_detection_log: float = 0.0
@@ -261,6 +273,7 @@ class SmartFruitClassifier:
                 self._detections_dir.mkdir(parents=True, exist_ok=True)
             except Exception:
                 pass
+        self._drm_preview_started: bool = False
 
         # Estadísticas
         self.stats = {
@@ -283,6 +296,8 @@ class SmartFruitClassifier:
             logger.warning("⚠️ OpenCV GUI no disponible; vista previa deshabilitada")
         if self.save_annotated_frames:
             logger.info(f"🖼️ Guardado de frames anotados en: {self._detections_dir}")
+        if self.use_drm_preview and not _CV2_AVAILABLE:
+            logger.info("🖼️ Vista previa DRM planificada (Picamera2)")
     
     def _load_config(self) -> Dict[str, Any]:
         """Carga la configuración desde archivo JSON."""
@@ -386,6 +401,12 @@ class SmartFruitClassifier:
                 self.camera = None # Desactivar la cámara
             else:
                 logger.info("✅ Cámara inicializada correctamente.")
+                # Intentar iniciar preview DRM si está habilitada y disponible
+                try:
+                    if self.use_drm_preview and hasattr(self.camera, 'driver') and getattr(self.camera.driver, 'picam2', None) is not None:
+                        self._start_drm_preview()
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo iniciar vista previa DRM: {e}")
 
         except Exception as e:
             logger.error(f"❌ Error crítico inicializando cámara: {e}")
@@ -625,9 +646,11 @@ class SmartFruitClassifier:
             
             if not result or result.fruit_count == 0:
                 self._log_no_detection_if_needed()
-                # Mostrar preview sin anotaciones si está habilitado
+                # Mostrar/actualizar preview sin anotaciones si está habilitado
                 if self.show_preview and _CV2_AVAILABLE:
                     self._maybe_show_preview(frame)
+                if self._drm_preview_started:
+                    self._update_drm_overlay(frame)
                 return
             
             # 3. Procesar detecciones
@@ -711,6 +734,8 @@ class SmartFruitClassifier:
             annotated = self._annotate_frame(frame, detections) if (self.show_preview or self.save_annotated_frames) else frame
             if self.show_preview and _CV2_AVAILABLE:
                 self._maybe_show_preview(annotated)
+            if self._drm_preview_started:
+                self._update_drm_overlay(annotated)
             if self.save_annotated_frames:
                 ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 filename = self._detections_dir / f"det_{ts}.jpg"
@@ -719,6 +744,39 @@ class SmartFruitClassifier:
                         cv2.imwrite(str(filename), annotated)
                 except Exception:
                     pass
+        except Exception:
+            pass
+
+    def _start_drm_preview(self):
+        """Inicia la vista previa DRM de Picamera2 si es posible."""
+        try:
+            if not _P2_PREVIEW_AVAILABLE:
+                return
+            picam2 = getattr(self.camera.driver, 'picam2', None)
+            if picam2 and not self._drm_preview_started:
+                picam2.start_preview(_P2Preview.DRM)
+                self._drm_preview_started = True
+                logger.info("🖼️ Vista previa DRM activada (Picamera2)")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo iniciar vista previa DRM: {e}")
+            self._drm_preview_started = False
+
+    def _update_drm_overlay(self, frame):
+        """Actualiza overlay de la vista DRM con el frame anotado."""
+        try:
+            picam2 = getattr(self.camera.driver, 'picam2', None)
+            if not picam2 or not self._drm_preview_started:
+                return
+            overlay = frame
+            if _CV2_AVAILABLE and frame is not None:
+                try:
+                    if frame.ndim == 3 and frame.shape[2] == 3:
+                        overlay = cv2.cvtColor(frame, cv2.COLOR_BGR2BGRA)
+                        overlay[:, :, 3] = 160  # semitransparente
+                except Exception:
+                    pass
+            # picamera2 acepta BGRA/RGBA como overlay
+            picam2.set_overlay(overlay)
         except Exception:
             pass
     
