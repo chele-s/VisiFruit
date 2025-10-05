@@ -217,7 +217,7 @@ class SmartFruitClassifier:
         self.ai_detector: Optional[EnterpriseFruitDetector] = None
         self.labeler: Optional[LabelerActuator] = None
         self.servo_controller: Optional[MG995ServoController] = None
-        self.belt: Optional[SimpleBeltController] = None
+        self.belt: Optional[Any] = None  # Puede ser SimpleBeltController o ConveyorBeltController
         self.sensor: Optional[SensorInterface] = None
         
         # Cola de eventos de detección
@@ -413,17 +413,43 @@ class SmartFruitClassifier:
             logger.warning(f"⚠️ Error con servomotores: {e}")
     
     async def _initialize_belt(self):
-        """Inicializa la banda transportadora."""
+        """Inicializa la banda transportadora usando controlador avanzado si es posible."""
         logger.info("🎚️ Inicializando banda transportadora...")
         try:
             belt_config = self.config.get("belt_settings", {})
+            # Preferir controlador avanzado si hay configuración completa
+            use_advanced = bool(belt_config.get("use_advanced_controller", True))
+            advanced_cfg = {
+                "control_type": belt_config.get("control_type", "relay_motor"),
+                "relay1_pin_bcm": belt_config.get("relay1_pin", 22),
+                "relay2_pin_bcm": belt_config.get("relay2_pin", 23),
+                "enable_pin_bcm": belt_config.get("enable_pin", 27),
+                "active_state_on": belt_config.get("active_state_on", "LOW"),
+                "default_speed_percent": belt_config.get("default_speed_percent", 100),
+                "safety_timeout_s": belt_config.get("safety_timeout_s", 10.0),
+            }
+            tried_advanced = False
+            if use_advanced:
+                try:
+                    from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
+                    self.belt = ConveyorBeltController(advanced_cfg)
+                    if await self.belt.initialize():
+                        logger.info("✅ Banda transportadora (controlador avanzado) inicializada")
+                        return
+                    else:
+                        tried_advanced = True
+                        logger.warning("⚠️ Controlador avanzado no inicializó, probando controlador simple")
+                except Exception as e:
+                    tried_advanced = True
+                    logger.warning(f"⚠️ Fallo importando/inicializando controlador avanzado: {e}")
+            # Fallback a controlador simple
             self.belt = SimpleBeltController(
                 relay1_pin=belt_config.get("relay1_pin", 22),
                 relay2_pin=belt_config.get("relay2_pin", 23),
                 enable_pin=belt_config.get("enable_pin", 27)
             )
             if await self.belt.initialize():
-                logger.info("✅ Banda transportadora inicializada")
+                logger.info("✅ Banda transportadora (controlador simple) inicializada")
         except Exception as e:
             logger.warning(f"⚠️ Error con banda: {e}")
     
@@ -469,9 +495,17 @@ class SmartFruitClassifier:
         try:
             logger.info("▶️ Iniciando producción...")
             
-            # Iniciar banda
+            # Iniciar banda (detectar API del controlador)
             if self.belt:
-                await self.belt.start()
+                try:
+                    if hasattr(self.belt, 'start_belt'):
+                        await self.belt.start_belt()  # Controlador avanzado
+                    elif hasattr(self.belt, 'start'):
+                        await self.belt.start()       # Controlador simple
+                    else:
+                        logger.warning("Controlador de banda sin método start/start_belt")
+                except Exception as e:
+                    logger.error(f"❌ Error iniciando banda: {e}")
             
             self.running = True
             self.state = SystemState.RUNNING
@@ -496,9 +530,15 @@ class SmartFruitClassifier:
             self.running = False
             self.state = SystemState.IDLE
             
-            # Detener banda
+            # Detener banda con API segura
             if self.belt:
-                await self.belt.stop()
+                try:
+                    if hasattr(self.belt, 'stop_belt'):
+                        await self.belt.stop_belt()
+                    elif hasattr(self.belt, 'stop'):
+                        await self.belt.stop()
+                except Exception as e:
+                    logger.error(f"❌ Error deteniendo banda: {e}")
             
             logger.info("✅ Producción detenida")
             

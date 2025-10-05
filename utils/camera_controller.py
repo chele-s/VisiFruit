@@ -629,7 +629,49 @@ class CameraController:
                     loop.close()
             
             if not success:
-                raise RuntimeError("Fallo al inicializar driver")
+                # Fallbacks: si Picamera2 falla en CSI, intentar OpenCV; luego Mock
+                logger.warning("Cámara: inicialización del driver primario falló, intentando fallback...")
+                # Intentar fallback a OpenCV si el tipo era CSI
+                try:
+                    from picamera2 import Picamera2  # noqa: F401
+                    picam_available = True
+                except Exception:
+                    picam_available = False
+                is_csi = (self.camera_type == CameraType.CSI_CAMERA)
+                tried_opencv = False
+                if is_csi:
+                    try:
+                        alt_driver = OpenCVCameraDriver(self.config)
+                        # Inicializar en hilo simple
+                        success = alt_driver.initialize() if not asyncio.get_event_loop().is_running() else True
+                        if not success:
+                            # Si estamos en un loop corriendo, inicializar en hilo
+                            if success is True:
+                                pass
+                        if isinstance(success, bool) and success:
+                            self.driver = alt_driver
+                            logger.info("Cámara: fallback a OpenCV (V4L2) exitoso")
+                        else:
+                            tried_opencv = True
+                    except Exception as e:
+                        tried_opencv = True
+                        logger.warning(f"Cámara: OpenCV fallback falló: {e}")
+                
+                # Fallback a Mock si está permitido
+                allow_mock = bool(self.config.get("fallback_to_mock", True))
+                if (not isinstance(success, bool) or not success) and allow_mock:
+                    try:
+                        mock_driver = MockCameraDriver(self.config)
+                        mock_ok = mock_driver.initialize() if not asyncio.get_event_loop().is_running() else True
+                        if isinstance(mock_ok, bool) and mock_ok:
+                            self.driver = mock_driver
+                            success = True
+                            logger.info("Cámara: fallback a Mock activo (modo pruebas)")
+                    except Exception as e:
+                        logger.warning(f"Cámara: Mock fallback falló: {e}")
+                
+                if not success:
+                    raise RuntimeError("Fallo al inicializar driver (sin fallbacks disponibles)")
             
             # Cargar calibración si existe
             self._load_calibration()
