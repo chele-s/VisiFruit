@@ -26,6 +26,7 @@ import asyncio
 import logging
 import time
 import json
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from enum import Enum
@@ -33,6 +34,14 @@ from dataclasses import dataclass, field
 from collections import deque
 import signal
 import sys
+from datetime import datetime
+
+# Visualización opcional
+try:
+    import cv2  # type: ignore
+    _CV2_AVAILABLE = True
+except Exception:
+    _CV2_AVAILABLE = False
 
 # Importaciones propias
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -89,6 +98,13 @@ except ImportError as e:
         return True
 
 logger = logging.getLogger(__name__)
+# Asegurar salida de logs en consola si el entorno no configuró logging
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+        datefmt='%H:%M:%S'
+    )
 
 class SystemState(Enum):
     """Estados del sistema de clasificación."""
@@ -232,6 +248,20 @@ class SmartFruitClassifier:
         self.labeling_delay_s = sensor_to_camera_m / belt_speed
         self.classification_delay_s = camera_to_classifier_m / belt_speed
         
+        # Debug y visualización
+        self.debug: Dict[str, Any] = self.config.get("debug", {})
+        self.show_preview: bool = bool(self.debug.get("show_preview", False)) and _CV2_AVAILABLE
+        self.save_annotated_frames: bool = bool(self.debug.get("save_annotated_frames", False) or self.config.get("advanced", {}).get("save_detections", False))
+        self.preview_window_name: str = str(self.debug.get("preview_window", "VisiFruit - Preview"))
+        self.no_detection_log_interval_s: float = float(self.debug.get("no_detection_log_interval_s", 5.0))
+        self._last_no_detection_log: float = 0.0
+        self._detections_dir: Path = Path(self.config.get("advanced", {}).get("detections_path", "logs/detections/"))
+        if self.save_annotated_frames:
+            try:
+                self._detections_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+
         # Estadísticas
         self.stats = {
             "detections_total": 0,
@@ -247,6 +277,12 @@ class SmartFruitClassifier:
         logger.info("🧠 SmartFruitClassifier creado")
         logger.info(f"   ⏱️ Delay etiquetado: {self.labeling_delay_s:.2f}s")
         logger.info(f"   ⏱️ Delay clasificación: {self.classification_delay_s:.2f}s")
+        if self.show_preview and _CV2_AVAILABLE:
+            logger.info("🖼️ Vista previa activada (cv2.imshow)")
+        elif self.debug.get("show_preview", False) and not _CV2_AVAILABLE:
+            logger.warning("⚠️ OpenCV GUI no disponible; vista previa deshabilitada")
+        if self.save_annotated_frames:
+            logger.info(f"🖼️ Guardado de frames anotados en: {self._detections_dir}")
     
     def _load_config(self) -> Dict[str, Any]:
         """Carga la configuración desde archivo JSON."""
@@ -588,6 +624,10 @@ class SmartFruitClassifier:
             result = await self.ai_detector.detect_fruits(frame)
             
             if not result or result.fruit_count == 0:
+                self._log_no_detection_if_needed()
+                # Mostrar preview sin anotaciones si está habilitado
+                if self.show_preview and _CV2_AVAILABLE:
+                    self._maybe_show_preview(frame)
                 return
             
             # 3. Procesar detecciones
@@ -621,10 +661,66 @@ class SmartFruitClassifier:
                 
                 # 4. Activar etiquetadora inmediatamente
                 await self._activate_labeler(event)
+            
+            # 5. Visualización/guardado (anotar todas las detecciones)
+            self._maybe_preview_or_save(frame, result.detections)
                 
         except Exception as e:
             logger.error(f"❌ Error en captura y detección: {e}")
             self.stats["errors"] += 1
+
+    def _log_no_detection_if_needed(self):
+        """Registra un log de no detecciones con rate limiting."""
+        now = time.time()
+        if (now - self._last_no_detection_log) >= self.no_detection_log_interval_s:
+            logger.info("🔎 No se detectaron frutas en el frame")
+            self._last_no_detection_log = now
+
+    def _annotate_frame(self, frame, detections: List[Any]):
+        """Devuelve una copia del frame con bounding boxes y etiquetas."""
+        try:
+            if not _CV2_AVAILABLE:
+                return frame
+            annotated = frame.copy()
+            for det in detections:
+                try:
+                    x1, y1, x2, y2 = det.bbox
+                    color = (0, 255, 0)
+                    cv2.rectangle(annotated, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                    label = f"{det.class_name} {det.confidence:.2f}"
+                    cv2.putText(annotated, label, (int(x1), max(0, int(y1) - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                except Exception:
+                    continue
+            return annotated
+        except Exception:
+            return frame
+
+    def _maybe_show_preview(self, frame):
+        """Muestra frame en ventana si está habilitado y posible."""
+        try:
+            if self.show_preview and _CV2_AVAILABLE:
+                cv2.imshow(self.preview_window_name, frame)
+                cv2.waitKey(1)
+        except Exception as e:
+            logger.warning(f"⚠️ Vista previa deshabilitada: {e}")
+            self.show_preview = False
+
+    def _maybe_preview_or_save(self, frame, detections: List[Any]):
+        """Maneja visualización y guardado de frames anotados según configuración."""
+        try:
+            annotated = self._annotate_frame(frame, detections) if (self.show_preview or self.save_annotated_frames) else frame
+            if self.show_preview and _CV2_AVAILABLE:
+                self._maybe_show_preview(annotated)
+            if self.save_annotated_frames:
+                ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                filename = self._detections_dir / f"det_{ts}.jpg"
+                try:
+                    if _CV2_AVAILABLE:
+                        cv2.imwrite(str(filename), annotated)
+                except Exception:
+                    pass
+        except Exception:
+            pass
     
     def _map_class_to_category(self, fruit_class: str) -> FruitCategory:
         """Mapea clase detectada a categoría de servo."""

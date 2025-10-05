@@ -158,6 +158,13 @@
     "detections_path": "logs/detections/"
   },
   
+  "debug": {
+    "show_preview": false,
+    "save_annotated_frames": false,
+    "preview_window": "VisiFruit - Preview",
+    "no_detection_log_interval_s": 5.0
+  },
+  
   "calibration": {
     "servo_calibration_angles": [0, 45, 90, 135, 180],
     "labeler_test_duration_s": 1.0,
