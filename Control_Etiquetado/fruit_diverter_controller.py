@@ -36,8 +36,6 @@ try:
         sys.path.insert(0, str(parent_dir))
     
     from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
-    import pigpio
-    PIGPIO_AVAILABLE = True
     
     if is_simulation_mode():
         print("🔧 Desviadores: Modo simulación activo (ideal para desarrollo)")
@@ -45,9 +43,8 @@ try:
         print("✅ Desviadores: GPIO hardware activo")
         
 except ImportError:
-    print("⚠️ GPIO/Pigpio no disponible - Modo simulación para desviadores")
+    print("⚠️ GPIO wrapper no disponible - Modo simulación para desviadores")
     GPIO_AVAILABLE = False
-    PIGPIO_AVAILABLE = False
 
 logger = logging.getLogger("FruitDiverterController")
 

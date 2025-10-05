@@ -42,8 +42,6 @@ try:
         sys.path.insert(0, str(parent_dir))
     
     from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE, is_simulation_mode
-    import pigpio
-    PIGPIO_AVAILABLE = True
     
     if is_simulation_mode():
         print("🏷️ Etiquetadoras: Modo simulación activo (ideal para desarrollo)")
@@ -51,9 +49,8 @@ try:
         print("✅ Etiquetadoras: GPIO hardware activo")
         
 except ImportError:
-    print("⚠️ GPIO/Pigpio no disponible - Modo simulación para etiquetadoras")
+    print("⚠️ GPIO wrapper no disponible - Modo simulación para etiquetadoras")
     GPIO_AVAILABLE = False
-    PIGPIO_AVAILABLE = False
 
 # Configuración del logger
 logger = logging.getLogger(__name__)

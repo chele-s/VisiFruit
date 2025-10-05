@@ -98,9 +98,7 @@ class MG995ServoController:
         self.current_angles: Dict[FruitCategory, float] = {}
         
         # Control de hardware
-        self.pi = None  # Instancia de pigpio
-        self.pwm_objects: Dict[int, any] = {}  # Objetos PWM de RPi.GPIO
-        self.use_pigpio = False
+        self.pwm_objects: Dict[int, any] = {}  # Objetos PWM provistos por wrapper GPIO
         self.initialized = False
         
         # Estado y estadísticas
@@ -160,45 +158,21 @@ class MG995ServoController:
                 logger.error("❌ No se configuraron servos válidos")
                 return False
             
-            # Inicializar hardware
-            if not GPIO_WRAPPER_AVAILABLE or is_simulation_mode():
+            # Inicializar hardware con el wrapper GPIO (lgpio en Pi 5)
+            if not GPIO_AVAILABLE or is_simulation_mode():
                 logger.info("🎭 Modo simulación - Sin hardware GPIO")
                 self.initialized = True
                 return True
-            
-            # Intentar pigpio primero (mejor precisión PWM)
-            if PIGPIO_AVAILABLE and self.config.get("use_pigpio", True):
-                try:
-                    import pigpio
-                    self.pi = pigpio.pi()
-                    if self.pi.connected:
-                        self.use_pigpio = True
-                        logger.info("✅ Usando pigpio para control PWM de alta precisión")
-                        
-                        # Configurar pines con pigpio
-                        for category, servo in self.servos.items():
-                            self.pi.set_mode(servo.pin_bcm, pigpio.OUTPUT)
-                            self.pi.set_PWM_frequency(servo.pin_bcm, self.PWM_FREQUENCY_HZ)
-                            # Posición inicial
-                            await self._set_servo_angle_pigpio(servo, servo.default_angle)
-                    else:
-                        logger.warning("⚠️ pigpio no conectado, usando RPi.GPIO")
-                        self.use_pigpio = False
-                except Exception as e:
-                    logger.warning(f"⚠️ Error con pigpio: {e}, usando RPi.GPIO")
-                    self.use_pigpio = False
-            
-            # Fallback a RPi.GPIO
-            if not self.use_pigpio:
-                GPIO.setmode(GPIO.BCM)
-                for category, servo in self.servos.items():
-                    GPIO.setup(servo.pin_bcm, GPIO.OUT)
-                    pwm = GPIO.PWM(servo.pin_bcm, self.PWM_FREQUENCY_HZ)
-                    pwm.start(0)
-                    self.pwm_objects[servo.pin_bcm] = pwm
-                    # Posición inicial
-                    await self._set_servo_angle_gpio(servo, servo.default_angle)
-                logger.info("✅ Usando RPi.GPIO para control PWM")
+
+            GPIO.setmode(GPIO.BCM)
+            for category, servo in self.servos.items():
+                GPIO.setup(servo.pin_bcm, GPIO.OUT)
+                pwm = GPIO.PWM(servo.pin_bcm, self.PWM_FREQUENCY_HZ)
+                pwm.start(0)
+                self.pwm_objects[servo.pin_bcm] = pwm
+                # Posición inicial
+                await self._set_servo_angle_gpio(servo, servo.default_angle)
+            logger.info("✅ PWM inicializado vía GPIO wrapper")
             
             self.initialized = True
             logger.info(f"✅ Controlador de servos inicializado ({len(self.servos)} servos)")
@@ -213,23 +187,7 @@ class MG995ServoController:
             logger.error(f"❌ Error inicializando servos: {e}", exc_info=True)
             return False
     
-    async def _set_servo_angle_pigpio(self, servo: ServoConfig, angle: float):
-        """Establece el ángulo del servo usando pigpio."""
-        if not self.pi or not self.pi.connected:
-            return
-        
-        # Limitar ángulo
-        angle = max(0.0, min(180.0, angle))
-        if servo.invert:
-            angle = 180.0 - angle
-        
-        # Convertir ángulo a pulso en microsegundos
-        pulse_width = servo.min_pulse_us + (angle / 180.0) * (servo.max_pulse_us - servo.min_pulse_us)
-        pulse_width = int(pulse_width)
-        
-        # Enviar comando
-        self.pi.set_servo_pulsewidth(servo.pin_bcm, pulse_width)
-        await asyncio.sleep(0.02)  # Pequeño delay para estabilidad
+    # Eliminado soporte pigpio: el control se realiza con GPIO.PWM del wrapper
     
     async def _set_servo_angle_gpio(self, servo: ServoConfig, angle: float):
         """Establece el ángulo del servo usando RPi.GPIO."""
@@ -274,10 +232,7 @@ class MG995ServoController:
                 return True
             
             # Mover servo
-            if self.use_pigpio:
-                await self._set_servo_angle_pigpio(servo, angle)
-            else:
-                await self._set_servo_angle_gpio(servo, angle)
+            await self._set_servo_angle_gpio(servo, angle)
             
             self.current_angles[category] = angle
             logger.debug(f"✅ Servo {category.value} movido a {angle}°")
@@ -396,12 +351,8 @@ class MG995ServoController:
         try:
             logger.warning("🚨 Parada de emergencia de servos")
             
-            if self.use_pigpio and self.pi:
-                for servo in self.servos.values():
-                    self.pi.set_servo_pulsewidth(servo.pin_bcm, 0)  # Desactivar señal PWM
-            else:
-                for pin, pwm in self.pwm_objects.items():
-                    pwm.ChangeDutyCycle(0)  # Desactivar señal PWM
+            for pin, pwm in self.pwm_objects.items():
+                pwm.ChangeDutyCycle(0)  # Desactivar señal PWM
             
             return True
         except Exception as e:
@@ -412,7 +363,7 @@ class MG995ServoController:
         """Obtiene el estado actual del controlador."""
         return {
             "initialized": self.initialized,
-            "use_pigpio": self.use_pigpio,
+            "use_pigpio": False,
             "simulation_mode": is_simulation_mode(),
             "servo_count": len(self.servos),
             "servos": {
@@ -438,12 +389,6 @@ class MG995ServoController:
             await asyncio.sleep(0.5)
             
             # Limpiar hardware
-            if self.use_pigpio and self.pi:
-                for servo in self.servos.values():
-                    self.pi.set_servo_pulsewidth(servo.pin_bcm, 0)
-                self.pi.stop()
-                logger.info("✅ pigpio detenido")
-            
             if self.pwm_objects:
                 for pin, pwm in self.pwm_objects.items():
                     try:
@@ -452,7 +397,7 @@ class MG995ServoController:
                         pass
                 logger.info("✅ PWM objects limpiados")
             
-            if GPIO_WRAPPER_AVAILABLE:
+            if GPIO_AVAILABLE:
                 GPIO.cleanup()
             
             self.initialized = False

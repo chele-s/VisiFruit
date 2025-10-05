@@ -481,6 +481,10 @@ class LGPIOPWMWrapper:
         self.duty_cycle = 0
         self.running = False
         self.pwm_handle = None
+        self.use_tx_pwm = False
+        self._thread = None
+        self._stop_flag = False
+        self._lock = None
         
         # Configurar pin para PWM
         try:
@@ -495,13 +499,22 @@ class LGPIOPWMWrapper:
             # Calcular parámetros PWM
             self.duty_cycle = duty_cycle
             
-            # lgpio usa tx_pwm para PWM por software
-            # Para PWM hardware necesitaríamos configurar específicamente
-            # Por ahora usamos PWM por software
-            self._software_pwm_start(duty_cycle)
+            # Intentar usar tx_pwm si está disponible
+            try:
+                if hasattr(self.lgpio, 'tx_pwm'):
+                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), float(self.duty_cycle))
+                    self.use_tx_pwm = True
+                    self.running = True
+                    logger.debug(f"LGPIO PWM (tx_pwm): start(pin={self.pin}, freq={self.frequency}Hz, duty={duty_cycle}%)")
+                    return
+            except Exception as e:
+                logger.debug(f"LGPIO tx_pwm no disponible/usable, usando PWM por software: {e}")
+                self.use_tx_pwm = False
             
+            # Fallback: PWM por software con hilo dedicado
+            self._software_pwm_start(duty_cycle)
             self.running = True
-            logger.debug(f"LGPIO PWM: start(pin={self.pin}, duty={duty_cycle}%)")
+            logger.debug(f"LGPIO PWM (soft): start(pin={self.pin}, freq={self.frequency}Hz, duty={duty_cycle}%)")
             
         except Exception as e:
             logger.error(f"Error iniciando PWM: {e}")
@@ -509,9 +522,15 @@ class LGPIOPWMWrapper:
     def ChangeDutyCycle(self, duty_cycle):
         """Cambia duty cycle."""
         self.duty_cycle = duty_cycle
-        if self.running:
-            self._software_pwm_update(duty_cycle)
-        logger.debug(f"LGPIO PWM: ChangeDutyCycle(pin={self.pin}, duty={duty_cycle}%)")
+        try:
+            if self.running:
+                if self.use_tx_pwm and hasattr(self.lgpio, 'tx_pwm'):
+                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), float(self.duty_cycle))
+                else:
+                    self._software_pwm_update(duty_cycle)
+            logger.debug(f"LGPIO PWM: ChangeDutyCycle(pin={self.pin}, duty={duty_cycle}%)")
+        except Exception as e:
+            logger.error(f"Error cambiando duty cycle: {e}")
     
     def ChangeFrequency(self, frequency):
         """Cambia frecuencia."""
@@ -521,25 +540,78 @@ class LGPIOPWMWrapper:
     def stop(self):
         """Detiene PWM."""
         try:
-            if self.running:
+            if not self.running:
+                return
+            if self.use_tx_pwm and hasattr(self.lgpio, 'tx_pwm'):
+                try:
+                    # duty 0 para detener salida
+                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), 0.0)
+                except Exception:
+                    pass
+            else:
+                # Detener hilo de PWM por software
+                try:
+                    self._stop_flag = True
+                    if self._thread and self._thread.is_alive():
+                        # Dar tiempo a que finalice el ciclo
+                        import time as _t
+                        for _ in range(50):
+                            if not self._thread.is_alive():
+                                break
+                            _t.sleep(0.005)
+                except Exception:
+                    pass
+            # Asegurar salida en bajo
+            try:
                 self.lgpio.gpio_write(self.chip_handle, self.pin, 0)
-                self.running = False
+            except Exception:
+                pass
+            self.running = False
             logger.debug(f"LGPIO PWM: stop(pin={self.pin})")
         except Exception as e:
             logger.error(f"Error deteniendo PWM: {e}")
     
+    def _soft_pwm_loop(self):
+        """Bucle de PWM por software (precisión limitada)."""
+        try:
+            import time as _time
+            while not self._stop_flag:
+                # Evitar división por cero
+                freq = max(1.0, float(self.frequency))
+                period = 1.0 / freq
+                duty = max(0.0, min(100.0, float(self.duty_cycle)))
+                high_time = (duty / 100.0) * period
+                low_time = period - high_time
+                # Alto
+                try:
+                    self.lgpio.gpio_write(self.chip_handle, self.pin, 1 if duty > 0 else 0)
+                except Exception:
+                    pass
+                if high_time > 0:
+                    _time.sleep(high_time)
+                # Bajo
+                try:
+                    self.lgpio.gpio_write(self.chip_handle, self.pin, 0)
+                except Exception:
+                    pass
+                if low_time > 0:
+                    _time.sleep(low_time)
+        except Exception as e:
+            logger.debug(f"LGPIO PWM soft loop terminado: {e}")
+
     def _software_pwm_start(self, duty_cycle):
-        """Inicia PWM por software (simplificado)."""
-        # Para implementación completa, se necesitaría un hilo para manejar PWM
-        # Por ahora, simulamos con salida digital simple
-        if duty_cycle > 50:
-            self.lgpio.gpio_write(self.chip_handle, self.pin, 1)
-        else:
-            self.lgpio.gpio_write(self.chip_handle, self.pin, 0)
+        """Inicia PWM por software con hilo dedicado."""
+        try:
+            self._stop_flag = False
+            import threading as _threading
+            self._thread = _threading.Thread(target=self._soft_pwm_loop, daemon=True)
+            self._thread.start()
+        except Exception as e:
+            logger.error(f"Error iniciando PWM por software: {e}")
     
     def _software_pwm_update(self, duty_cycle):
-        """Actualiza PWM por software."""
-        self._software_pwm_start(duty_cycle)
+        """Actualiza parámetros del PWM por software (se aplican en siguiente ciclo)."""
+        # No se requiere acción inmediata; el hilo lee self.duty_cycle y self.frequency continuamente
 
 # Detección automática del entorno y carga del wrapper apropiado
 def _detect_and_load_gpio():
