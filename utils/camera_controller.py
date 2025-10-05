@@ -631,45 +631,48 @@ class CameraController:
             if not success:
                 # Fallbacks: si Picamera2 falla en CSI, intentar OpenCV; luego Mock
                 logger.warning("Cámara: inicialización del driver primario falló, intentando fallback...")
+
+                def _init_async_driver_sync(driver_obj) -> bool:
+                    try:
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        try:
+                            return new_loop.run_until_complete(driver_obj.initialize())
+                        finally:
+                            new_loop.close()
+                    except Exception as e:
+                        logger.debug(f"Cámara: error inicializando driver en fallback: {e}")
+                        return False
+
                 # Intentar fallback a OpenCV si el tipo era CSI
-                try:
-                    from picamera2 import Picamera2  # noqa: F401
-                    picam_available = True
-                except Exception:
-                    picam_available = False
                 is_csi = (self.camera_type == CameraType.CSI_CAMERA)
-                tried_opencv = False
                 if is_csi:
                     try:
                         alt_driver = OpenCVCameraDriver(self.config)
-                        # Inicializar en hilo simple
-                        success = alt_driver.initialize() if not asyncio.get_event_loop().is_running() else True
-                        if not success:
-                            # Si estamos en un loop corriendo, inicializar en hilo
-                            if success is True:
-                                pass
-                        if isinstance(success, bool) and success:
+                        success = _init_async_driver_sync(alt_driver)
+                        if success:
                             self.driver = alt_driver
                             logger.info("Cámara: fallback a OpenCV (V4L2) exitoso")
                         else:
-                            tried_opencv = True
+                            logger.warning("Cámara: OpenCV fallback no pudo inicializar")
                     except Exception as e:
-                        tried_opencv = True
                         logger.warning(f"Cámara: OpenCV fallback falló: {e}")
-                
-                # Fallback a Mock si está permitido
+
+                # Fallback a Mock si está permitido y aún no hay success
                 allow_mock = bool(self.config.get("fallback_to_mock", True))
-                if (not isinstance(success, bool) or not success) and allow_mock:
+                if (not success) and allow_mock:
                     try:
                         mock_driver = MockCameraDriver(self.config)
-                        mock_ok = mock_driver.initialize() if not asyncio.get_event_loop().is_running() else True
-                        if isinstance(mock_ok, bool) and mock_ok:
+                        mock_ok = _init_async_driver_sync(mock_driver)
+                        if mock_ok:
                             self.driver = mock_driver
                             success = True
                             logger.info("Cámara: fallback a Mock activo (modo pruebas)")
+                        else:
+                            logger.warning("Cámara: Mock fallback no pudo inicializarse")
                     except Exception as e:
                         logger.warning(f"Cámara: Mock fallback falló: {e}")
-                
+
                 if not success:
                     raise RuntimeError("Fallo al inicializar driver (sin fallbacks disponibles)")
             
@@ -716,6 +719,7 @@ class CameraController:
         frame_count = 0
         
         try:
+            none_count = 0
             while not self.stop_capture.is_set():
                 try:
                     # Capturar frame
@@ -738,6 +742,7 @@ class CameraController:
                         # Actualizar métricas
                         self.metrics.frames_captured += 1
                         frame_count += 1
+                        none_count = 0
                         
                         # Calcular FPS
                         current_time = time.time()
@@ -757,7 +762,24 @@ class CameraController:
                     
                     else:
                         self.metrics.frames_dropped += 1
-                        logger.warning("Frame capturado es None")
+                        none_count += 1
+                        if none_count % 20 == 0:
+                            logger.warning("Frame capturado es None (acumulado: %d)", none_count)
+                        # Si demasiados None consecutivos, intentar cambiar a Mock si está permitido
+                        if none_count >= 60 and bool(self.config.get("fallback_to_mock", True)):
+                            try:
+                                logger.warning("Cámara: demasiados frames None; intentando fallback dinámico a Mock...")
+                                mock_driver = MockCameraDriver(self.config)
+                                init_ok = loop.run_until_complete(mock_driver.initialize())
+                                if init_ok:
+                                    self.driver = mock_driver
+                                    none_count = 0
+                                    self.metrics.error_count = 0
+                                    logger.info("Cámara: cambio dinámico a Mock exitoso")
+                                else:
+                                    logger.warning("Cámara: no se pudo activar Mock dinámicamente")
+                            except Exception as e:
+                                logger.warning(f"Cámara: error activando Mock dinámico: {e}")
                     
                 except Exception as e:
                     self.metrics.error_count += 1
