@@ -386,7 +386,10 @@ class YOLOv8InferenceWorker(Thread):
             confidence_avg = statistics.mean(confidences) if confidences else 0.0
             confidence_std = statistics.stdev(confidences) if len(confidences) > 1 else 0.0
             
-            # Crear resultado
+            # Evaluar calidad (no mutar dataclass congelado)
+            quality_enum = self._assess_detection_quality(detections, lighting_score, blur_score)
+            
+            # Crear resultado (establecer quality en el constructor)
             result = FrameAnalysisResult(
                 detections=detections,
                 fruit_count=len(detections),
@@ -401,11 +404,9 @@ class YOLOv8InferenceWorker(Thread):
                 confidence_avg=confidence_avg,
                 confidence_std=confidence_std,
                 lighting_score=lighting_score,
-                blur_score=blur_score
+                blur_score=blur_score,
+                quality=quality_enum
             )
-            
-            # Evaluar calidad
-            result.quality = self._assess_detection_quality(detections, lighting_score, blur_score)
             
             # Actualizar caché
             self._update_frame_cache(frame_hash, result)
