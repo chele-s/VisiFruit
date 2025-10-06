@@ -277,7 +277,7 @@ class SmartFruitClassifier:
         self.save_annotated_frames: bool = bool(self.debug.get("save_annotated_frames", False) or self.config.get("advanced", {}).get("save_detections", False))
         self.use_drm_preview: bool = bool(self.debug.get("drm_preview", False)) and _P2_PREVIEW_AVAILABLE
         self.preview_window_name: str = str(self.debug.get("preview_window", "VisiFruit - Preview"))
-        self.no_detection_log_interval_s: float = float(self.debug.get("no_detection_log_interval_s", 5.0))
+        self.no_detection_log_interval_s: float = float(self.debug.get("no_detection_log_interval_s", 30.0))
         self._last_no_detection_log: float = 0.0
         self._detections_dir: Path = Path(self.config.get("advanced", {}).get("detections_path", "logs/detections/"))
         if self.save_annotated_frames:
@@ -695,19 +695,19 @@ class SmartFruitClassifier:
     async def _processing_loop(self):
         """Bucle principal de procesamiento con IA."""
         logger.info("🔄 Bucle de procesamiento iniciado")
+        logger.info("🔍 Buscando frutas activamente (analizando frames cada 0.5s)...")
         
         while self.running:
             try:
-                # Si hay sensor, esperar a que active
-                # Si no hay sensor, capturar continuamente
-                if not self.sensor:
-                    await self._capture_and_detect()
-                    
-                    # Esperar intervalo mínimo
-                    min_interval = self.config.get("timing", {}).get("min_detection_interval_s", 0.5)
-                    await asyncio.sleep(min_interval)
-                else:
-                    await asyncio.sleep(0.1)
+                # MODO HÍBRIDO: Captura continua con intervalo mínimo
+                # independientemente de si hay sensor o no
+                # El sensor puede disparar capturas adicionales más rápidas
+                
+                await self._capture_and_detect()
+                
+                # Esperar intervalo mínimo entre detecciones
+                min_interval = self.config.get("timing", {}).get("min_detection_interval_s", 0.5)
+                await asyncio.sleep(min_interval)
                     
             except asyncio.CancelledError:
                 break
@@ -733,6 +733,7 @@ class SmartFruitClassifier:
                 logger.debug("⚠️ No hay detector de IA disponible")
                 return
             
+            logger.debug("🔍 Analizando frame con IA...")
             result = await self.ai_detector.detect_fruits(frame)
             
             if not result or result.fruit_count == 0:
@@ -746,7 +747,7 @@ class SmartFruitClassifier:
                 return
             
             # 3. Procesar detecciones
-            logger.info(f"🍎 Detectadas {result.fruit_count} frutas")
+            logger.info(f"✨ ¡DETECCIÓN! {result.fruit_count} fruta(s) encontrada(s)")
             
             # Procesar múltiples detecciones con deduplicación
             processed_in_frame = 0
@@ -797,12 +798,16 @@ class SmartFruitClassifier:
                 self.stats["detections_by_class"][fruit_class] = \
                     self.stats["detections_by_class"].get(fruit_class, 0) + 1
 
-                logger.info(f"   📊 {fruit_class} (conf: {confidence:.2f}) → {category.value}")
+                logger.info(f"   🎯 {fruit_class.upper()} detectada | Confianza: {confidence:.2%} | Categoría: {category.value}")
 
                 # 4. Activar etiquetadora solo si está habilitado en configuración (por defecto deshabilitado)
                 labeler_cfg = self.config.get("labeler_settings", {})
                 if bool(labeler_cfg.get("activate_on_detection", False)):
                     await self._activate_labeler(event)
+                    logger.info(f"   🏷️ Etiquetadora activada para {fruit_class}")
+                
+                # Log de clasificación pendiente
+                logger.info(f"   ⏳ Clasificación programada en {self.classification_delay_s:.1f}s")
             
             # 5. Visualización/guardado (anotar todas las detecciones)
             self._maybe_preview_or_save(frame, result.detections)
@@ -868,7 +873,11 @@ class SmartFruitClassifier:
         """Registra un log de no detecciones con rate limiting."""
         now = time.time()
         if (now - self._last_no_detection_log) >= self.no_detection_log_interval_s:
-            logger.info("🔎 No se detectaron frutas en el frame")
+            elapsed_since_last = now - self.stats.get("last_detection_ts", 0.0) if self.stats.get("last_detection_ts", 0.0) > 0 else 0
+            if elapsed_since_last > 0:
+                logger.info(f"🔎 Sistema activo - Sin detecciones por {elapsed_since_last:.1f}s (procesando frames continuamente)")
+            else:
+                logger.info("🔎 Sistema activo - Esperando frutas (procesando frames continuamente)")
             self._last_no_detection_log = now
 
     async def _control_loop(self):
@@ -1182,7 +1191,7 @@ class SmartFruitClassifier:
                 event.classified = True
                 return
             
-            logger.info(f"🎯 Clasificando {event.fruit_class} → {event.category.value}")
+            logger.info(f"📦 ¡CLASIFICANDO! {event.fruit_class.upper()} → Servo {event.category.value}")
             
             # Activar servo correspondiente para cada categoría
             if event.category in [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]:
@@ -1194,17 +1203,23 @@ class SmartFruitClassifier:
                     # Actualizar contador específico del servo
                     if event.category == FruitCategory.APPLE:
                         self.stats["classified_by_servo"]["apple"] += 1
+                        emoji = "🍎"
                     elif event.category == FruitCategory.PEAR:
                         self.stats["classified_by_servo"]["pear"] += 1
+                        emoji = "🍐"
                     elif event.category == FruitCategory.LEMON:
                         self.stats["classified_by_servo"]["lemon"] += 1
-                    logger.info(f"✅ {event.fruit_class} clasificado correctamente")
+                        emoji = "🍋"
+                    else:
+                        emoji = "🍓"
+                    logger.info(f"   ✅ {emoji} {event.fruit_class.upper()} clasificada exitosamente en caja {event.category.value}")
                 else:
-                    logger.error(f"❌ Error clasificando {event.fruit_class}")
+                    logger.error(f"   ❌ Error al activar servo para {event.fruit_class}")
             else:
                 # Para otras categorías desconocidas, marcar como clasificado sin acción
                 event.classified = True
                 self.stats["classified_total"] += 1
+                logger.info(f"   ⚠️ Categoría desconocida - sin clasificación")
                 
         except Exception as e:
             logger.error(f"❌ Error en clasificación: {e}")
