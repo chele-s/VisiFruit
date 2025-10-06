@@ -20,7 +20,7 @@
   "inference_settings": {
     "confidence_threshold": 0.5,
     "iou_threshold": 0.45,
-    "input_size": 640,
+    "input_size": 800,
     "device": "cpu",
     "num_threads": 4,
     "max_detections": 100
