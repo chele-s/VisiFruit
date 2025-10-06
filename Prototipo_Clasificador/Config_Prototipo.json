@@ -23,10 +23,10 @@
     "model_path": "weights/best.pt",
     "model_type": "yolov8",
     "model_source": "Roboflow 3.0 Object Detection (Fast)",
-    "confidence_threshold": 0.18,
+    "confidence_threshold": 0.30,
     "iou_threshold": 0.45,
     "max_detections": 100,
-    "input_size": 640,
+    "input_size": 800,
     "device": "cpu",
     "num_threads": 4,
     "half_precision": false,
@@ -114,7 +114,13 @@
     "direction_pin2_bcm": 21,
     "speed_control_pin": 13,
     "default_direction": "forward",
-    "start_delay_s": 0.5
+    "start_delay_s": 0.5,
+    "use_advanced_controller": true,
+    "control_type": "relay_motor",
+    "enable_pin": 27,
+    "active_state_on": "LOW",
+    "default_speed_percent": 100,
+    "safety_timeout_s": 0
   },
   
   "sensor_settings": {
@@ -148,20 +154,20 @@
 
   "dedup_settings": {
     "enabled": true,
-    "iou_threshold": 0.5,
-    "time_window_s": 0.5,
-    "center_distance_px": 60,
-    "per_class_cooldown_s": 0.5,
-    "max_events_per_frame": 3
+    "iou_threshold": 0.3,
+    "time_window_s": 3.0,
+    "center_distance_px": 100,
+    "per_class_cooldown_s": 2.5,
+    "max_events_per_frame": 1
   },
   
   "timing": {
     "belt_speed_mps": 0.2,
     "sensor_to_camera_distance_m": 0.1,
-    "camera_to_labeler_distance_m": 0.05,
+    "camera_to_labeler_distance_m": 0.12,
     "camera_to_classifier_distance_m": 0.5,
-    "min_detection_interval_s": 0.5,
-    "min_servo_activation_interval_s": 0.1
+    "min_detection_interval_s": 1.0,
+    "min_servo_activation_interval_s": 1.5
   },
   
   "safety": {
@@ -194,7 +200,7 @@
     "show_preview": false,
     "save_annotated_frames": false,
     "preview_window": "VisiFruit - Preview",
-    "no_detection_log_interval_s": 5.0,
+    "no_detection_log_interval_s": 60.0,
     "drm_preview": true,
     "http_preview": true,
     "http_preview_port": 8081

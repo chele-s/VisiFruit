@@ -262,6 +262,8 @@ class SmartFruitClassifier:
             "center_distance_px": 60,
             "max_events_per_frame": 3,
         })
+        # Cooldown por clase para evitar re-detecciones
+        self._class_last_detection: Dict[str, float] = {}
         
         # Parámetros de temporización
         belt_speed = self.config.get("timing", {}).get("belt_speed_mps", 0.2)
@@ -694,8 +696,9 @@ class SmartFruitClassifier:
     
     async def _processing_loop(self):
         """Bucle principal de procesamiento con IA."""
+        min_interval = self.config.get("timing", {}).get("min_detection_interval_s", 0.5)
         logger.info("🔄 Bucle de procesamiento iniciado")
-        logger.info("🔍 Buscando frutas activamente (analizando frames cada 0.5s)...")
+        logger.info(f"🔍 Buscando frutas activamente (analizando frames cada {min_interval:.1f}s)...")
         
         while self.running:
             try:
@@ -706,7 +709,6 @@ class SmartFruitClassifier:
                 await self._capture_and_detect()
                 
                 # Esperar intervalo mínimo entre detecciones
-                min_interval = self.config.get("timing", {}).get("min_detection_interval_s", 0.5)
                 await asyncio.sleep(min_interval)
                     
             except asyncio.CancelledError:
@@ -763,6 +765,13 @@ class SmartFruitClassifier:
                 # Mapear a categoría
                 category = self._map_class_to_category(fruit_class)
 
+                # Cooldown por clase
+                per_class_cooldown = float(self._dedup_settings.get("per_class_cooldown_s", 2.0))
+                last_detection_time = self._class_last_detection.get(fruit_class, 0)
+                if (now - last_detection_time) < per_class_cooldown:
+                    logger.debug(f"   ⏭️ {fruit_class} en cooldown ({now - last_detection_time:.1f}s < {per_class_cooldown}s)")
+                    continue
+
                 # Deduplicación temporal/espacial
                 if self._dedup_settings.get("enabled", True):
                     if self._is_duplicate_detection(fruit_class, bbox, now):
@@ -780,6 +789,7 @@ class SmartFruitClassifier:
                 self.detection_queue.append(event)
                 self.pending_classifications.append(event)
                 self.stats["last_detection_ts"] = now
+                self._class_last_detection[fruit_class] = now  # Actualizar último tiempo de detección
                 processed_in_frame += 1
 
                 # Memorizar para dedup futura
@@ -799,6 +809,15 @@ class SmartFruitClassifier:
                     self.stats["detections_by_class"].get(fruit_class, 0) + 1
 
                 logger.info(f"   🎯 {fruit_class.upper()} detectada | Confianza: {confidence:.2%} | Categoría: {category.value}")
+
+                # Reanimar banda si está detenida
+                try:
+                    if self.belt and hasattr(self.belt, 'start_belt'):
+                        await self.belt.start_belt()
+                    elif self.belt and hasattr(self.belt, 'start'):
+                        await self.belt.start()
+                except Exception as e:
+                    logger.debug(f"   ⚠️ Error reanimando banda: {e}")
 
                 # 4. Activar etiquetadora solo si está habilitado en configuración (por defecto deshabilitado)
                 labeler_cfg = self.config.get("labeler_settings", {})
