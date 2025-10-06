@@ -283,6 +283,9 @@ class SmartFruitClassifier:
         self._http_server: Optional[http.server.HTTPServer] = None
         self._http_thread: Optional[threading.Thread] = None
         self._latest_jpeg: Optional[bytes] = None
+        # Anotación de preview con bounding boxes (desactivada por defecto para evitar coste)
+        self.annotate_preview: bool = bool(self.debug.get("annotate_preview", False))
+        self.annotate_preview_only_on_detection: bool = bool(self.debug.get("annotate_preview_only_on_detection", True))
 
         # Estadísticas
         self.stats = {
@@ -309,6 +312,8 @@ class SmartFruitClassifier:
             logger.info("🖼️ Vista previa DRM planificada (Picamera2)")
         if self.http_preview_enabled:
             logger.info(f"🌐 Vista previa web MJPEG planificada en puerto {self.http_preview_port}")
+        if self.annotate_preview:
+            logger.info("🧩 Anotación de preview con bounding boxes activada (HTTP/DRM)")
     
     def _load_config(self) -> Dict[str, Any]:
         """Carga la configuración desde archivo JSON."""
@@ -749,18 +754,33 @@ class SmartFruitClassifier:
     def _maybe_preview_or_save(self, frame, detections: List[Any]):
         """Maneja visualización y guardado de frames anotados según configuración."""
         try:
-            annotated = self._annotate_frame(frame, detections) if (self.show_preview or self.save_annotated_frames) else frame
+            # Decidir si anotar para las vistas de preview (HTTP/DRM) sin depender de show_preview
+            annotate_for_preview = (
+                self.annotate_preview and _CV2_AVAILABLE and (
+                    (not self.annotate_preview_only_on_detection) or (detections and len(detections) > 0)
+                )
+            )
+
+            # Calcular una sola versión anotada si cualquiera lo requiere
+            need_annotated = (self.show_preview or self.save_annotated_frames or annotate_for_preview) and _CV2_AVAILABLE
+            annotated = self._annotate_frame(frame, detections) if need_annotated else frame
+
+            # Ventana local (cv2.imshow) según configuración
             if self.show_preview and _CV2_AVAILABLE:
                 self._maybe_show_preview(annotated)
+
+            # Preview DRM y HTTP
+            preview_frame = annotated if annotate_for_preview else frame
             if self._drm_preview_started:
-                self._update_drm_overlay(annotated)
-            self._update_http_preview(annotated)
-            if self.save_annotated_frames:
+                self._update_drm_overlay(preview_frame)
+            self._update_http_preview(preview_frame)
+
+            # Guardado en disco si está habilitado
+            if self.save_annotated_frames and _CV2_AVAILABLE:
                 ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
                 filename = self._detections_dir / f"det_{ts}.jpg"
                 try:
-                    if _CV2_AVAILABLE:
-                        cv2.imwrite(str(filename), annotated)
+                    cv2.imwrite(str(filename), annotated)
                 except Exception:
                     pass
         except Exception:

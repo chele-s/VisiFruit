@@ -717,6 +717,7 @@ class CameraController:
         
         last_fps_update = time.time()
         frame_count = 0
+        last_fps_log = time.time()
         
         try:
             none_count = 0
@@ -755,6 +756,15 @@ class CameraController:
                             
                             frame_count = 0
                             last_fps_update = current_time
+                            # Loguear FPS cada ~2s para visibilidad sin saturar logs
+                            if (current_time - last_fps_log) >= 2.0:
+                                logger.info(
+                                    "📷 Cámara '%s' FPS: actual=%.1f, promedio=%.1f",
+                                    self.name,
+                                    self.metrics.current_fps,
+                                    self.metrics.average_fps,
+                                )
+                                last_fps_log = current_time
                         
                         # Auto-optimización periódica
                         if self.auto_optimize:
