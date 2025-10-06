@@ -237,6 +237,13 @@ class SmartFruitClassifier:
         self.config_path = Path(config_path)
         self.config = self._load_config()
         
+        # Configuración de imagen
+        camera_cfg = self.config.get("camera_settings", {})
+        self.rotation_degrees = int(camera_cfg.get("rotation_degrees", 0))
+        self.flip_horizontal = bool(camera_cfg.get("flip_horizontal", False))
+        self.flip_vertical = bool(camera_cfg.get("flip_vertical", False))
+        self.image_enhancement = camera_cfg.get("image_enhancement", {})
+        
         # Estado del sistema
         self.state = SystemState.OFFLINE
         self.running = False
@@ -322,6 +329,28 @@ class SmartFruitClassifier:
         logger.info("🧠 SmartFruitClassifier creado")
         logger.info(f"   ⏱️ Delay etiquetado: {self.labeling_delay_s:.2f}s")
         logger.info(f"   ⏱️ Delay clasificación: {self.classification_delay_s:.2f}s")
+        
+        # Log de configuración de imagen
+        if self.rotation_degrees != 0:
+            logger.info(f"🔄 Rotación de cámara: {self.rotation_degrees}°")
+        if self.flip_horizontal or self.flip_vertical:
+            flips = []
+            if self.flip_horizontal:
+                flips.append("horizontal")
+            if self.flip_vertical:
+                flips.append("vertical")
+            logger.info(f"🔀 Flip de imagen: {', '.join(flips)}")
+        if self.image_enhancement.get("enabled", False):
+            enhancements = []
+            if self.image_enhancement.get("clahe_enabled", True):
+                enhancements.append("CLAHE")
+            if self.image_enhancement.get("gamma_correction", 1.0) != 1.0:
+                enhancements.append(f"Gamma={self.image_enhancement.get('gamma_correction')}")
+            if self.image_enhancement.get("auto_contrast", False):
+                enhancements.append("Auto-Contraste")
+            if enhancements:
+                logger.info(f"✨ Mejoras de imagen activadas: {', '.join(enhancements)}")
+        
         if self.show_preview and _CV2_AVAILABLE:
             logger.info("🖼️ Vista previa activada (cv2.imshow)")
         elif self.debug.get("show_preview", False) and not _CV2_AVAILABLE:
@@ -741,6 +770,130 @@ class SmartFruitClassifier:
                 logger.error(f"❌ Error en bucle de procesamiento: {e}")
                 await asyncio.sleep(1)
     
+    def _preprocess_frame(self, frame):
+        """
+        Preprocesa el frame aplicando rotación, flips y mejoras de imagen.
+        
+        Args:
+            frame: Frame capturado de la cámara
+            
+        Returns:
+            Frame preprocesado
+        """
+        try:
+            if frame is None or not _CV2_AVAILABLE:
+                return frame
+            
+            processed = frame.copy()
+            
+            # 1. Aplicar rotación si es necesario
+            if self.rotation_degrees != 0:
+                if self.rotation_degrees == 90:
+                    processed = cv2.rotate(processed, cv2.ROTATE_90_CLOCKWISE)
+                elif self.rotation_degrees == -90 or self.rotation_degrees == 270:
+                    processed = cv2.rotate(processed, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif self.rotation_degrees == 180 or self.rotation_degrees == -180:
+                    processed = cv2.rotate(processed, cv2.ROTATE_180)
+                else:
+                    # Rotación personalizada
+                    h, w = processed.shape[:2]
+                    center = (w // 2, h // 2)
+                    matrix = cv2.getRotationMatrix2D(center, self.rotation_degrees, 1.0)
+                    processed = cv2.warpAffine(processed, matrix, (w, h))
+            
+            # 2. Aplicar flips
+            if self.flip_horizontal:
+                processed = cv2.flip(processed, 1)
+            if self.flip_vertical:
+                processed = cv2.flip(processed, 0)
+            
+            # 3. Aplicar mejoras de imagen si están habilitadas
+            if self.image_enhancement.get("enabled", False):
+                processed = self._enhance_image(processed)
+            
+            return processed
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Error en preprocesamiento de frame: {e}")
+            return frame
+    
+    def _enhance_image(self, frame):
+        """
+        Mejora la calidad de imagen para mejor detección en condiciones de poca luz.
+        
+        Args:
+            frame: Frame a mejorar
+            
+        Returns:
+            Frame mejorado
+        """
+        try:
+            if frame is None or not _CV2_AVAILABLE:
+                return frame
+            
+            enhanced = frame.copy()
+            
+            # 1. CLAHE (Contrast Limited Adaptive Histogram Equalization)
+            # Mejora el contraste localmente - EXCELENTE para poca luz
+            if self.image_enhancement.get("clahe_enabled", True):
+                try:
+                    clip_limit = float(self.image_enhancement.get("clahe_clip_limit", 2.0))
+                    tile_size = int(self.image_enhancement.get("clahe_tile_size", 8))
+                    
+                    # Convertir a LAB para trabajar solo con luminancia
+                    lab = cv2.cvtColor(enhanced, cv2.COLOR_BGR2LAB)
+                    l, a, b = cv2.split(lab)
+                    
+                    # Aplicar CLAHE al canal L (luminancia)
+                    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(tile_size, tile_size))
+                    l_clahe = clahe.apply(l)
+                    
+                    # Recombinar
+                    enhanced = cv2.merge([l_clahe, a, b])
+                    enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
+                except Exception as e:
+                    logger.debug(f"⚠️ Error aplicando CLAHE: {e}")
+            
+            # 2. Corrección gamma (para aclarar/oscurecer)
+            gamma = float(self.image_enhancement.get("gamma_correction", 1.0))
+            if gamma != 1.0:
+                try:
+                    inv_gamma = 1.0 / gamma
+                    table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in range(256)]).astype("uint8")
+                    enhanced = cv2.LUT(enhanced, table)
+                except Exception as e:
+                    logger.debug(f"⚠️ Error aplicando gamma: {e}")
+            
+            # 3. Auto contraste y brillo si está habilitado
+            if self.image_enhancement.get("auto_contrast", False) or self.image_enhancement.get("auto_brightness", False):
+                try:
+                    # Convertir a YUV para ajustar brillo/contraste
+                    yuv = cv2.cvtColor(enhanced, cv2.COLOR_BGR2YUV)
+                    y = yuv[:, :, 0]
+                    
+                    # Auto contraste
+                    if self.image_enhancement.get("auto_contrast", False):
+                        # Normalizar histograma
+                        y = cv2.equalizeHist(y)
+                    
+                    yuv[:, :, 0] = y
+                    enhanced = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
+                except Exception as e:
+                    logger.debug(f"⚠️ Error aplicando auto contraste/brillo: {e}")
+            
+            # 4. Reducción de ruido (opcional, puede ralentizar)
+            if self.image_enhancement.get("denoise", False):
+                try:
+                    enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
+                except Exception as e:
+                    logger.debug(f"⚠️ Error aplicando denoise: {e}")
+            
+            return enhanced
+            
+        except Exception as e:
+            logger.warning(f"⚠️ Error en mejora de imagen: {e}")
+            return frame
+    
     async def _capture_and_detect(self):
         """Captura imagen y detecta frutas con IA."""
         try:
@@ -753,6 +906,9 @@ class SmartFruitClassifier:
             if frame is None:
                 logger.warning("⚠️ Cámara no entregó frame (None)")
                 return
+            
+            # 1.5. Preprocesar frame (rotación y mejoras de imagen)
+            frame = self._preprocess_frame(frame)
             
             # 2. Detectar con IA
             if not self.ai_detector:

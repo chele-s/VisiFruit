@@ -16,7 +16,21 @@
   "auto_white_balance": true,
     "brightness": 50,
     "contrast": 50,
-    "saturation": 50
+    "saturation": 50,
+    "rotation_degrees": -90,
+    "flip_horizontal": false,
+    "flip_vertical": false,
+    "image_enhancement": {
+      "enabled": true,
+      "auto_brightness": true,
+      "auto_contrast": true,
+      "equalize_histogram": true,
+      "clahe_enabled": true,
+      "clahe_clip_limit": 2.0,
+      "clahe_tile_size": 8,
+      "gamma_correction": 1.2,
+      "denoise": false
+    }
   },
   
   "ai_model_settings": {
