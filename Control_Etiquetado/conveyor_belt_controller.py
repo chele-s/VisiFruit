@@ -1076,6 +1076,39 @@ class ConveyorBeltController:
             self.logger.error(f"Error estableciendo velocidad: {e}")
             return False
     
+    async def set_safety_timeout(self, seconds: float, cancel_running_timer: bool = True) -> bool:
+        """Actualiza el timeout de seguridad en caliente y cancela el timer activo si aplica.
+
+        Args:
+            seconds: Nuevo valor de timeout en segundos (<= 0 deshabilita el auto-stop).
+            cancel_running_timer: Si True, cancela el timer de seguridad activo del driver.
+        """
+        try:
+            self.config.safety_timeout_s = float(seconds)
+            # Propagar valor al driver si existe
+            if self.driver and hasattr(self.driver, 'config'):
+                # Ambos (controller y driver) comparten la misma dataclass, pero aseguramos consistencia
+                self.driver.config.safety_timeout_s = float(seconds)
+
+            # Cancelar timer activo en el driver si se solicita
+            if cancel_running_timer and self.driver and hasattr(self.driver, 'safety_timer'):
+                safety_timer = getattr(self.driver, 'safety_timer', None)
+                if safety_timer:
+                    try:
+                        safety_timer.cancel()
+                    except Exception:
+                        pass
+                    try:
+                        setattr(self.driver, 'safety_timer', None)
+                    except Exception:
+                        pass
+
+            self.logger.info(f"Timeout de seguridad actualizado a {self.config.safety_timeout_s}s")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error actualizando timeout de seguridad: {e}")
+            return False
+
     async def emergency_stop(self) -> bool:
         """Parada de emergencia."""
         try:

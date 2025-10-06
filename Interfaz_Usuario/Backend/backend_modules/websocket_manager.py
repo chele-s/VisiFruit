@@ -331,6 +331,31 @@ class UltraWebSocketManager:
         else:
             # Notificar callbacks específicos del tipo de mensaje
             await self._notify_message_callbacks(message_type, connection, data)
+            # Manejo de mensajes de control simplificados (sin registrar callback)
+            try:
+                if message_type in ("control", "update_config", "belt_command"):
+                    await self._handle_control_message(connection, data)
+            except Exception as e:
+                logger.error(f"Error en control WS: {e}")
+
+    async def _handle_control_message(self, connection: WebSocketConnection, data: Dict[str, Any]):
+        """Guarda control en runtime file para que el clasificador lo consuma."""
+        try:
+            payload = data.get("data", {})
+            payload["updated_at"] = time.time()
+            # Guardar en archivo compartido
+            runtime_dir = os.path.join(os.getcwd(), "runtime")
+            os.makedirs(runtime_dir, exist_ok=True)
+            runtime_path = os.path.join(runtime_dir, "runtime_control.json")
+            with open(runtime_path, 'w', encoding='utf-8') as f:
+                json.dump(payload, f, indent=2)
+            await self._send_to_connection(connection, {
+                "type": MessageType.STATUS.value,
+                "data": {"ok": True, "applied": True, "timestamp": datetime.now().isoformat()}
+            })
+            logger.info("[WS] Control guardado en runtime_control.json")
+        except Exception as e:
+            await self._send_error(connection, "control_failed", str(e))
 
     async def _handle_ping(self, connection: WebSocketConnection, data: Dict[str, Any]):
         """Maneja mensaje PING."""

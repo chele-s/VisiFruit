@@ -253,6 +253,15 @@ class SmartFruitClassifier:
         # Cola de eventos de detección
         self.detection_queue: deque = deque(maxlen=100)
         self.pending_classifications: List[DetectionEvent] = []
+        # Deduplicación de detecciones recientes (evitar activar por la misma fruta en frames consecutivos)
+        self._recent_detections: deque = deque(maxlen=200)
+        self._dedup_settings: Dict[str, Any] = self.config.get("dedup_settings", {
+            "enabled": True,
+            "iou_threshold": 0.5,
+            "time_window_s": 0.5,
+            "center_distance_px": 60,
+            "max_events_per_frame": 3,
+        })
         
         # Parámetros de temporización
         belt_speed = self.config.get("timing", {}).get("belt_speed_mps", 0.2)
@@ -296,8 +305,16 @@ class SmartFruitClassifier:
             "classified_by_servo": {"apple": 0, "pear": 0, "lemon": 0},
             "errors": 0,
             "start_time": time.time(),
-            "uptime_s": 0
+            "uptime_s": 0,
+            "last_detection_ts": 0.0
         }
+        
+        # Control en caliente vía archivo runtime
+        self._control_file_path: Path = Path("runtime/runtime_control.json")
+        try:
+            self._control_file_path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
         
         logger.info("🧠 SmartFruitClassifier creado")
         logger.info(f"   ⏱️ Delay etiquetado: {self.labeling_delay_s:.2f}s")
@@ -558,8 +575,58 @@ class SmartFruitClassifier:
     def _sensor_callback(self):
         """Callback cuando el sensor detecta una fruta."""
         try:
-            logger.info("🔴 Sensor trigger - Programando captura...")
-            # Programar captura después del delay
+            logger.info("🔴 Sensor trigger - Programando captura y acciones asociadas...")
+            # 1) Reanudar banda si está detenida y, opcionalmente, desactivar timeout de seguridad
+            try:
+                behavior = self.config.get("sensor_behavior", {})
+                resume_belt = bool(behavior.get("resume_belt_on_trigger", True))
+                disable_timeout = bool(behavior.get("disable_belt_safety_timeout_on_trigger", True))
+                if resume_belt and self.belt:
+                    async def _resume_belt_task():
+                        try:
+                            # Desactivar/parchear timeout de seguridad si aplica
+                            if disable_timeout and hasattr(self.belt, 'set_safety_timeout'):
+                                await self.belt.set_safety_timeout(0.0)
+                            # Iniciar o mantener corriendo
+                            if hasattr(self.belt, 'start_belt'):
+                                await self.belt.start_belt()
+                            elif hasattr(self.belt, 'start'):
+                                await self.belt.start()
+                        except Exception as e:
+                            logger.warning(f"⚠️ Error reanudando banda en trigger: {e}")
+                    asyncio.create_task(_resume_belt_task())
+            except Exception as e:
+                logger.warning(f"⚠️ Error gestionando reanudación de banda: {e}")
+
+            # 2) Activar etiquetadora (DRV8825/NEMA17) inmediatamente en trigger, configurable
+            try:
+                behavior = self.config.get("sensor_behavior", {})
+                labeler_cfg = behavior.get("labeler_activation_on_trigger", {})
+                if labeler_cfg.get("enabled", True) and self.labeler:
+                    duration = float(labeler_cfg.get("duration_s", 0.6))
+                    intensity = float(labeler_cfg.get("intensity_percent", 100.0))
+                    asyncio.create_task(self.labeler.activate_for_duration(duration, intensity))
+            except Exception as e:
+                logger.warning(f"⚠️ Error activando etiquetadora en trigger: {e}")
+
+            # 3) Programar activación de secciones por categoría detectada, no todas
+            try:
+                behavior = self.config.get("sensor_behavior", {})
+                # Si hay eventos pendientes, usar el más reciente para decidir la sección
+                if self.servo_controller and self.pending_classifications:
+                    latest_event = self.pending_classifications[-1]
+                    # Activar correspondiente tras el delay de clasificación normal
+                    async def _activate_section_for_latest():
+                        try:
+                            await asyncio.sleep(self.classification_delay_s)
+                            await self.servo_controller.activate_servo(latest_event.category)
+                        except Exception as e:
+                            logger.warning(f"⚠️ Error activando sección por categoría: {e}")
+                    asyncio.create_task(_activate_section_for_latest())
+            except Exception as e:
+                logger.warning(f"⚠️ Error programando activación de secciones: {e}")
+
+            # 4) Programar captura después del delay para detección IA
             asyncio.create_task(self._delayed_capture())
         except Exception as e:
             logger.error(f"❌ Error en sensor callback: {e}")
@@ -594,6 +661,7 @@ class SmartFruitClassifier:
             asyncio.create_task(self._processing_loop())
             asyncio.create_task(self._classification_loop())
             asyncio.create_task(self._stats_loop())
+            asyncio.create_task(self._control_loop())
             
             logger.info("✅ Producción iniciada")
             
@@ -680,34 +748,61 @@ class SmartFruitClassifier:
             # 3. Procesar detecciones
             logger.info(f"🍎 Detectadas {result.fruit_count} frutas")
             
-            for detection in result.detections[:1]:  # Solo la primera (más importante)
-                fruit_class = detection.class_name.lower()
-                confidence = detection.confidence
-                
+            # Procesar múltiples detecciones con deduplicación
+            processed_in_frame = 0
+            max_per_frame = int(self._dedup_settings.get("max_events_per_frame", 3))
+            now = time.time()
+            for det in result.detections:
+                if processed_in_frame >= max_per_frame:
+                    break
+                fruit_class = det.class_name.lower()
+                confidence = det.confidence
+                bbox = det.bbox
+
                 # Mapear a categoría
                 category = self._map_class_to_category(fruit_class)
-                
-                # Crear evento
+
+                # Deduplicación temporal/espacial
+                if self._dedup_settings.get("enabled", True):
+                    if self._is_duplicate_detection(fruit_class, bbox, now):
+                        continue
+
+                # Crear evento aceptado
                 event = DetectionEvent(
-                    timestamp=time.time(),
+                    timestamp=now,
                     fruit_class=fruit_class,
                     confidence=confidence,
                     category=category,
-                    bbox=detection.bbox
+                    bbox=bbox
                 )
-                
+
                 self.detection_queue.append(event)
                 self.pending_classifications.append(event)
-                
+                self.stats["last_detection_ts"] = now
+                processed_in_frame += 1
+
+                # Memorizar para dedup futura
+                try:
+                    self._recent_detections.append({
+                        't': now,
+                        'cls': fruit_class,
+                        'bbox': bbox,
+                        'center': ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0),
+                    })
+                except Exception:
+                    pass
+
                 # Actualizar estadísticas
                 self.stats["detections_total"] += 1
                 self.stats["detections_by_class"][fruit_class] = \
                     self.stats["detections_by_class"].get(fruit_class, 0) + 1
-                
+
                 logger.info(f"   📊 {fruit_class} (conf: {confidence:.2f}) → {category.value}")
-                
-                # 4. Activar etiquetadora inmediatamente
-                await self._activate_labeler(event)
+
+                # 4. Activar etiquetadora solo si está habilitado en configuración (por defecto deshabilitado)
+                labeler_cfg = self.config.get("labeler_settings", {})
+                if bool(labeler_cfg.get("activate_on_detection", False)):
+                    await self._activate_labeler(event)
             
             # 5. Visualización/guardado (anotar todas las detecciones)
             self._maybe_preview_or_save(frame, result.detections)
@@ -716,12 +811,146 @@ class SmartFruitClassifier:
             logger.error(f"❌ Error en captura y detección: {e}")
             self.stats["errors"] += 1
 
+    # --- DEDUPLICACIÓN ---
+    def _bbox_iou(self, a, b) -> float:
+        try:
+            ax1, ay1, ax2, ay2 = a
+            bx1, by1, bx2, by2 = b
+            inter_x1 = max(ax1, bx1)
+            inter_y1 = max(ay1, by1)
+            inter_x2 = min(ax2, bx2)
+            inter_y2 = min(ay2, by2)
+            inter_w = max(0, inter_x2 - inter_x1)
+            inter_h = max(0, inter_y2 - inter_y1)
+            inter_area = inter_w * inter_h
+            a_area = max(0, (ax2 - ax1)) * max(0, (ay2 - ay1))
+            b_area = max(0, (bx2 - bx1)) * max(0, (by2 - by1))
+            union = a_area + b_area - inter_area
+            if union <= 0:
+                return 0.0
+            return inter_area / union
+        except Exception:
+            return 0.0
+
+    def _center_distance(self, a, b) -> float:
+        try:
+            ax = (a[0] + a[2]) / 2.0
+            ay = (a[1] + a[3]) / 2.0
+            bx = (b[0] + b[2]) / 2.0
+            by = (b[1] + b[3]) / 2.0
+            dx = ax - bx
+            dy = ay - by
+            return (dx * dx + dy * dy) ** 0.5
+        except Exception:
+            return 1e9
+
+    def _is_duplicate_detection(self, fruit_class: str, bbox: Any, now_ts: float) -> bool:
+        try:
+            time_window = float(self._dedup_settings.get("time_window_s", 0.5))
+            iou_thr = float(self._dedup_settings.get("iou_threshold", 0.5))
+            center_thr = float(self._dedup_settings.get("center_distance_px", 60))
+            # Buscar en ventana temporal reciente
+            for entry in reversed(self._recent_detections):
+                if (now_ts - entry['t']) > time_window:
+                    break
+                if entry['cls'] != fruit_class:
+                    continue
+                prev_bbox = entry['bbox']
+                if self._bbox_iou(bbox, prev_bbox) >= iou_thr:
+                    return True
+                if self._center_distance(bbox, prev_bbox) <= center_thr:
+                    return True
+            return False
+        except Exception:
+            return False
+
     def _log_no_detection_if_needed(self):
         """Registra un log de no detecciones con rate limiting."""
         now = time.time()
         if (now - self._last_no_detection_log) >= self.no_detection_log_interval_s:
             logger.info("🔎 No se detectaron frutas en el frame")
             self._last_no_detection_log = now
+
+    async def _control_loop(self):
+        """Bucle que aplica comandos y ajustes enviados por backend (runtime_control.json)."""
+        last_applied_ts = 0.0
+        while self.running:
+            try:
+                if self._control_file_path.exists():
+                    with open(self._control_file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    updated_at = float(data.get('updated_at', 0.0))
+                    if updated_at > last_applied_ts:
+                        await self._apply_runtime_control(data)
+                        last_applied_ts = updated_at
+                await asyncio.sleep(0.5)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                await asyncio.sleep(1.0)
+
+    async def _apply_runtime_control(self, data: Dict[str, Any]):
+        """Aplica cambios recibidos desde el backend al vuelo."""
+        try:
+            # 1) Ajustes de activación del stepper por sensor
+            sensor_labeler = data.get('sensor_labeler')
+            if sensor_labeler:
+                sb = self.config.setdefault('sensor_behavior', {})
+                lac = sb.setdefault('labeler_activation_on_trigger', {})
+                if 'duration_s' in sensor_labeler:
+                    lac['duration_s'] = float(sensor_labeler['duration_s'])
+                if 'intensity_percent' in sensor_labeler:
+                    lac['intensity_percent'] = float(sensor_labeler['intensity_percent'])
+                logger.info(f"⚙️ Actualizado labeler on trigger: {lac}")
+
+            # 2) Deduplicación
+            dedup = data.get('dedup_settings')
+            if dedup:
+                for k, v in dedup.items():
+                    self._dedup_settings[k] = v
+                logger.info(f"⚙️ Actualizado dedup_settings: {self._dedup_settings}")
+
+            # 3) Timeout de seguridad
+            if 'safety_timeout_seconds' in data and self.belt and hasattr(self.belt, 'set_safety_timeout'):
+                try:
+                    await self.belt.set_safety_timeout(float(data['safety_timeout_seconds']))
+                    logger.info(f"🛡️ Timeout de seguridad actualizado a {data['safety_timeout_seconds']}s")
+                except Exception as e:
+                    logger.warning(f"⚠️ Error aplicando safety timeout: {e}")
+
+            # 4) Comandos de banda
+            belt = data.get('belt')
+            if belt and self.belt:
+                cmd = str(belt.get('command', '')).lower()
+                if cmd == 'start':
+                    if hasattr(self.belt, 'start_belt'):
+                        await self.belt.start_belt()
+                    elif hasattr(self.belt, 'start'):
+                        await self.belt.start()
+                    logger.info("▶️ Banda iniciada por control remoto")
+                elif cmd == 'stop':
+                    if hasattr(self.belt, 'stop_belt'):
+                        await self.belt.stop_belt()
+                    elif hasattr(self.belt, 'stop'):
+                        await self.belt.stop()
+                    logger.info("⏹️ Banda detenida por control remoto")
+                elif cmd == 'emergency':
+                    if hasattr(self.belt, 'emergency_stop'):
+                        await self.belt.emergency_stop()
+                    else:
+                        if hasattr(self.belt, 'stop_belt'):
+                            await self.belt.stop_belt()
+                    logger.warning("🚨 Parada de emergencia de banda (control remoto)")
+                # set_speed
+                if 'speed_percent' in belt and hasattr(self.belt, 'set_speed'):
+                    try:
+                        await self.belt.set_speed(float(belt['speed_percent']))
+                        logger.info(f"⚙️ Velocidad de banda seteada a {belt['speed_percent']}% por control remoto")
+                    except Exception:
+                        pass
+
+        except Exception as e:
+            logger.error(f"❌ Error aplicando runtime control: {e}")
 
     def _annotate_frame(self, frame, detections: List[Any]):
         """Devuelve una copia del frame con bounding boxes y etiquetas."""
@@ -985,6 +1214,15 @@ class SmartFruitClassifier:
         while self.running:
             try:
                 self.stats["uptime_s"] = time.time() - self.stats["start_time"]
+                # Rearmar timeout de seguridad de la banda si no hay detecciones por 60s
+                try:
+                    last_det = float(self.stats.get("last_detection_ts", 0.0))
+                    if last_det > 0 and (time.time() - last_det) >= 60.0 and self.belt:
+                        # Reaplicar timeout estándar (10s) si el driver lo soporta
+                        if hasattr(self.belt, 'set_safety_timeout'):
+                            await self.belt.set_safety_timeout(10.0)
+                except Exception:
+                    pass
                 # Loguear FPS de cámara periódicamente si está disponible
                 if self.camera:
                     try:
