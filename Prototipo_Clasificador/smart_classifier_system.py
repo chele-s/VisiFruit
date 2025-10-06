@@ -241,6 +241,7 @@ class SmartFruitClassifier:
         self.state = SystemState.OFFLINE
         self.running = False
         self.paused = False
+        self._loop: Optional[asyncio.AbstractEventLoop] = None  # Event loop para callbacks thread-safe
         
         # Componentes hardware
         self.camera: Optional[CameraController] = None
@@ -390,6 +391,12 @@ class SmartFruitClassifier:
         try:
             self.state = SystemState.INITIALIZING
             logger.info("=== 🚀 Inicializando Sistema Inteligente de Clasificación ===")
+            
+            # Guardar event loop para callbacks thread-safe
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                self._loop = asyncio.get_event_loop()
             
             # 1. Cámara
             await self._initialize_camera()
@@ -578,6 +585,11 @@ class SmartFruitClassifier:
         """Callback cuando el sensor detecta una fruta."""
         try:
             logger.info("🔴 Sensor trigger - Programando captura y acciones asociadas...")
+            
+            if not self._loop:
+                logger.error("❌ Event loop no disponible en sensor callback")
+                return
+            
             # 1) Reanudar banda si está detenida y, opcionalmente, desactivar timeout de seguridad
             try:
                 behavior = self.config.get("sensor_behavior", {})
@@ -596,7 +608,10 @@ class SmartFruitClassifier:
                                 await self.belt.start()
                         except Exception as e:
                             logger.warning(f"⚠️ Error reanudando banda en trigger: {e}")
-                    asyncio.create_task(_resume_belt_task())
+                    # Thread-safe: programar desde el event loop principal
+                    self._loop.call_soon_threadsafe(
+                        lambda: asyncio.create_task(_resume_belt_task())
+                    )
             except Exception as e:
                 logger.warning(f"⚠️ Error gestionando reanudación de banda: {e}")
 
@@ -607,7 +622,10 @@ class SmartFruitClassifier:
                 if labeler_cfg.get("enabled", True) and self.labeler:
                     duration = float(labeler_cfg.get("duration_s", 0.6))
                     intensity = float(labeler_cfg.get("intensity_percent", 100.0))
-                    asyncio.create_task(self.labeler.activate_for_duration(duration, intensity))
+                    # Thread-safe: programar desde el event loop principal
+                    self._loop.call_soon_threadsafe(
+                        lambda: asyncio.create_task(self.labeler.activate_for_duration(duration, intensity))
+                    )
             except Exception as e:
                 logger.warning(f"⚠️ Error activando etiquetadora en trigger: {e}")
 
@@ -624,12 +642,18 @@ class SmartFruitClassifier:
                             await self.servo_controller.activate_servo(latest_event.category)
                         except Exception as e:
                             logger.warning(f"⚠️ Error activando sección por categoría: {e}")
-                    asyncio.create_task(_activate_section_for_latest())
+                    # Thread-safe: programar desde el event loop principal
+                    self._loop.call_soon_threadsafe(
+                        lambda: asyncio.create_task(_activate_section_for_latest())
+                    )
             except Exception as e:
                 logger.warning(f"⚠️ Error programando activación de secciones: {e}")
 
             # 4) Programar captura después del delay para detección IA
-            asyncio.create_task(self._delayed_capture())
+            # Thread-safe: programar desde el event loop principal
+            self._loop.call_soon_threadsafe(
+                lambda: asyncio.create_task(self._delayed_capture())
+            )
         except Exception as e:
             logger.error(f"❌ Error en sensor callback: {e}")
     
