@@ -652,11 +652,12 @@ class SmartFruitClassifier:
         try:
             # 1. Capturar frame
             if not self.camera:
-                logger.debug("⚠️ No hay cámara disponible")
+                logger.warning("⚠️ No hay cámara disponible - la IA no puede capturar frames")
                 return
             
             frame = self.camera.capture_frame()
             if frame is None:
+                logger.warning("⚠️ Cámara no entregó frame (None)")
                 return
             
             # 2. Detectar con IA
@@ -984,6 +985,15 @@ class SmartFruitClassifier:
         while self.running:
             try:
                 self.stats["uptime_s"] = time.time() - self.stats["start_time"]
+                # Loguear FPS de cámara periódicamente si está disponible
+                if self.camera:
+                    try:
+                        status = self.camera.get_status()
+                        fps = status.get("metrics", {}).get("current_fps", 0.0)
+                        if fps:
+                            logger.info(f"📷 FPS cámara: {fps:.1f}")
+                    except Exception:
+                        pass
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
                 break

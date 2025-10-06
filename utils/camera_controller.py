@@ -632,16 +632,23 @@ class CameraController:
                 # Fallbacks: si Picamera2 falla en CSI, intentar OpenCV; luego Mock
                 logger.warning("Cámara: inicialización del driver primario falló, intentando fallback...")
 
-                def _init_async_driver_sync(driver_obj) -> bool:
+                # Ejecutar inicialización de drivers de fallback en un hilo separado
+                # para evitar conflictos con un event loop ya activo en este hilo.
+                def _init_driver_in_thread(driver_obj) -> bool:
                     try:
-                        new_loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(new_loop)
-                        try:
-                            return new_loop.run_until_complete(driver_obj.initialize())
-                        finally:
-                            new_loop.close()
+                        import concurrent.futures
+                        def _runner():
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                return new_loop.run_until_complete(driver_obj.initialize())
+                            finally:
+                                new_loop.close()
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            future = executor.submit(_runner)
+                            return bool(future.result(timeout=10.0))
                     except Exception as e:
-                        logger.debug(f"Cámara: error inicializando driver en fallback: {e}")
+                        logger.debug(f"Cámara: error inicializando driver en fallback (thread): {e}")
                         return False
 
                 # Intentar fallback a OpenCV si el tipo era CSI
@@ -649,7 +656,7 @@ class CameraController:
                 if is_csi:
                     try:
                         alt_driver = OpenCVCameraDriver(self.config)
-                        success = _init_async_driver_sync(alt_driver)
+                        success = _init_driver_in_thread(alt_driver)
                         if success:
                             self.driver = alt_driver
                             logger.info("Cámara: fallback a OpenCV (V4L2) exitoso")
@@ -663,7 +670,7 @@ class CameraController:
                 if (not success) and allow_mock:
                     try:
                         mock_driver = MockCameraDriver(self.config)
-                        mock_ok = _init_async_driver_sync(mock_driver)
+                        mock_ok = _init_driver_in_thread(mock_driver)
                         if mock_ok:
                             self.driver = mock_driver
                             success = True

@@ -2,7 +2,7 @@
   "system_metadata": {
     "config_version": "2.0.0",
     "last_updated": "2024-12-20T00:00:00Z",
-    "created_by": "FruPrint Industrial Setup",
+    "created_by": "VisiFruit Industrial Setup",
     "description": "Configuración industrial avanzada para sistema de etiquetado de frutas",
     "hardware_profile": "raspberry_pi_5_industrial",
     "deployment_environment": "production"
@@ -19,7 +19,7 @@
     "health_check_interval_seconds": 10,
     "enable_auto_recovery": true,
     "max_recovery_attempts": 3,
-    "system_name": "FruPrint-Industrial-v2",
+    "system_name": "VisiFruit-Industrial-v2",
     "installation_id": "FRUPRINT-001",
     "timezone": "America/Mexico_City"
   },
@@ -316,7 +316,7 @@
       "username": "",
       "password": "",
       "from_address": "fruprint@company.com",
-      "to_addresses": ["admin@company.com"]
+      "to_addresses": ["alvanezg1@gmail.com"]
     },
     "enable_webhook_alerts": true,
     "webhook_settings": {
@@ -341,7 +341,7 @@
     "enable_auto_tuning": true,
     "auto_tuning_interval_minutes": 15,
     "target_metrics": {
-      "fps": 25,
+      "fps": 30,
       "cpu_usage_percent": 70,
       "memory_usage_percent": 80,
       "detection_latency_ms": 100,
