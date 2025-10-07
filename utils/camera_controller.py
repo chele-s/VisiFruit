@@ -316,7 +316,7 @@ class OpenCVCameraDriver(BaseCameraDriver):
 
 
 class Picamera2CameraDriver(BaseCameraDriver):
-    """Driver para cámaras CSI usando Picamera2 (libcamera)."""
+    """Driver optimizado para cámaras CSI usando Picamera2 (libcamera) con OV5647."""
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
@@ -326,36 +326,109 @@ class Picamera2CameraDriver(BaseCameraDriver):
         self.picam2: Optional[Picamera2] = None  # type: ignore
         self.is_streaming = False
         self._convert_to_bgr = True
+        
+        # Parámetros de optimización para IA
+        self.auto_exposure = config.get("auto_exposure", True)
+        self.auto_white_balance = config.get("auto_white_balance", True)
+        self.brightness = config.get("brightness", 0.0)  # -1.0 a 1.0
+        self.contrast = config.get("contrast", 1.0)     # 0.0 a 2.0
+        self.saturation = config.get("saturation", 1.0)  # 0.0 a 2.0
+        self.sharpness = config.get("sharpness", 1.0)    # 0.0 a 16.0
     
     async def initialize(self) -> bool:
         try:
             if not _PICAMERA2_AVAILABLE:
                 raise RuntimeError("Picamera2 no disponible")
             
-            # Crear y configurar cámara
+            # Crear cámara
             self.picam2 = Picamera2()  # type: ignore
-            # Configuración de captura RGB para fácil conversión a OpenCV (BGR)
-            video_config = self.picam2.create_video_configuration(
-                main={"size": (self.width, self.height), "format": "RGB888"}
-            )
-            self.picam2.configure(video_config)
             
-            # Intentar ajustar FPS objetivo (puede ser aproximado)
+            # Detectar modelo de cámara
+            camera_model = "Unknown"
             try:
-                self.picam2.set_controls({"FrameRate": int(self.fps)})
+                camera_info = self.picam2.camera_properties  # type: ignore
+                camera_model = camera_info.get('Model', 'Unknown')
+                logger.info(f"📷 Cámara detectada: {camera_model}")
             except Exception:
                 pass
             
-            self.picam2.start()
-            # Captura de prueba
+            # Configuración optimizada para OV5647 y detección de IA
+            # Usar RGB888 para mejor calidad de color (importante para IA)
+            video_config = self.picam2.create_video_configuration(  # type: ignore
+                main={
+                    "size": (self.width, self.height), 
+                    "format": "RGB888"
+                },
+                controls={
+                    "FrameRate": self.fps,
+                    # Optimizaciones para OV5647
+                    "NoiseReductionMode": 2,  # High quality (reduce ruido)
+                }
+            )
+            
+            self.picam2.configure(video_config)  # type: ignore
+            
+            # Configurar controles para optimizar detección de IA
+            controls = {}
+            
+            # Auto-exposición optimizada para objetos en movimiento
+            if self.auto_exposure:
+                controls["AeEnable"] = True
+                # Modo de exposición: 0=Normal, 1=Short (mejor para movimiento)
+                controls["AeExposureMode"] = 1
+                # Constrains: evitar sobreexposición
+                controls["AeConstraintMode"] = 1
+            else:
+                controls["AeEnable"] = False
+                
+            # Balance de blancos automático
+            if self.auto_white_balance:
+                controls["AwbEnable"] = True
+                controls["AwbMode"] = 0  # Auto
+            else:
+                controls["AwbEnable"] = False
+            
+            # Ajustes de imagen para mejor detección
+            if self.brightness != 0.0:
+                controls["Brightness"] = self.brightness
+            if self.contrast != 1.0:
+                controls["Contrast"] = self.contrast
+            if self.saturation != 1.0:
+                controls["Saturation"] = self.saturation
+            if self.sharpness != 1.0:
+                controls["Sharpness"] = self.sharpness
+            
+            # Aplicar controles
+            if controls:
+                self.picam2.set_controls(controls)  # type: ignore
+            
+            # Iniciar captura
+            self.picam2.start()  # type: ignore
+            
+            # Warmup: esperar unos frames para estabilizar AE/AWB
+            logger.info("🔥 Calentando cámara (AE/AWB estabilización)...")
+            for i in range(10):
+                _ = await asyncio.to_thread(self.picam2.capture_array)  # type: ignore
+                await asyncio.sleep(0.1)
+            
+            # Captura de prueba final
             test_frame = await asyncio.to_thread(self.picam2.capture_array)  # type: ignore
             if test_frame is None:
                 raise RuntimeError("No se pudo capturar frame de prueba (Picamera2)")
             
             self.is_streaming = True
             self.is_initialized = True
-            logger.info(f"Picamera2 inicializada: {self.width}x{self.height} @ ~{self.fps}fps")
+            
+            # Log de configuración aplicada
+            logger.info(f"✅ Picamera2 ({camera_model}) inicializada:")
+            logger.info(f"   📐 Resolución: {self.width}x{self.height} @ {self.fps}fps")
+            logger.info(f"   🎨 Formato: RGB888 (óptimo para IA)")
+            logger.info(f"   ⚡ Auto-exposición: {'ON' if self.auto_exposure else 'OFF'}")
+            logger.info(f"   🌈 Auto-WB: {'ON' if self.auto_white_balance else 'OFF'}")
+            logger.info(f"   🔧 Reducción ruido: Alta calidad")
+            
             return True
+            
         except Exception as e:
             self.last_error = f"Error inicializando Picamera2: {e}"
             logger.error(self.last_error)
