@@ -9,19 +9,19 @@
  "camera_settings": {
   "type": "csi_camera",
   "name": "OV5647 Camera Module v1",
-  "frame_width": 1296,
-  "frame_height": 972,
+  "frame_width": 960,
+  "frame_height": 720,
   "fps": 30,
   "auto_exposure": true,
   "auto_white_balance": true,
     "brightness": 0.0,
-    "contrast": 1.1,
+    "contrast": 1.15,
     "saturation": 1.05,
-    "sharpness": 1.2,
+    "sharpness": 1.3,
     "rotation_degrees": -90,
     "flip_horizontal": false,
     "flip_vertical": false,
-    "buffer_size": 3,
+    "buffer_size": 2,
     "auto_start_capture": true,
     "fallback_to_mock": false,
     "image_enhancement": {
@@ -44,14 +44,14 @@
     "confidence_threshold": 0.20,
     "iou_threshold": 0.45,
     "max_detections": 50,
-    "input_size": 640,
+    "input_size": 480,
     "device": "cpu",
     "num_threads": 4,
     "half_precision": false,
     "num_workers": 2,
     "class_names": ["apple", "pear", "lemon"],
-    "_comment_resolution": "Cámara OV5647 captura en 1296x972, YOLOv8 redimensiona a 640x640 internamente",
-    "_comment_optimization": "input_size=640 óptimo para Raspberry Pi 5 - balance velocidad/precisión"
+    "_comment_resolution": "Cámara OV5647 captura en 960x720, YOLOv8 redimensiona a 480x480 internamente",
+    "_comment_optimization": "input_size=480 para máxima velocidad en Raspberry Pi 5"
   },
   
   "labeler_settings": {
@@ -186,8 +186,8 @@
     "sensor_to_camera_distance_m": 0.1,
     "camera_to_labeler_distance_m": 0.12,
     "camera_to_classifier_distance_m": 0.5,
-    "min_detection_interval_s": 1.0,
-    "min_servo_activation_interval_s": 1.5
+    "min_detection_interval_s": 1.5,
+    "min_servo_activation_interval_s": 2.0
   },
   
   "safety": {
