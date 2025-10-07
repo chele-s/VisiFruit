@@ -97,12 +97,13 @@
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
       "default_angle": 90,
-      "activation_angle": -10,
+      "activation_mode": "relative",
+      "activation_offset_deg": -45,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "Gira -100 grados desde default (90°) hacia -10°, se mantiene rígido 1.5s"
+      "_comment": "Relativo a 90° → -45° (45° absolutos). Hold 1.5s."
     },
     "pear": {
       "pin_bcm": 6,
@@ -111,12 +112,13 @@
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
       "default_angle": 90,
-      "activation_angle": 180,
+      "activation_mode": "relative",
+      "activation_offset_deg": 90,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
-      "invert": false,
-      "_comment": "Gira +90 grados desde default (90°) hacia 180°, se mantiene rígido 1.5s"
+      "invert": true,
+      "_comment": "Relativo a 90° → +90° pero invertido (sentido contrario)"
     },
     "lemon": {
       "pin_bcm": 7,
@@ -125,12 +127,13 @@
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
       "default_angle": 90,
-      "activation_angle": 10,
+      "activation_mode": "relative",
+      "activation_offset_deg": -80,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "Gira -80 grados desde default (90°) hacia 10°, se mantiene rígido 1.5s"
+      "_comment": "Relativo a 90° → -80° (10° absolutos). Hold 1.5s."
     }
   },
   

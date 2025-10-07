@@ -143,14 +143,23 @@ class MG995ServoController:
             for category_name, servo_cfg in servo_configs.items():
                 try:
                     category = FruitCategory(category_name)
+                    # Resolver activation_angle absoluto a partir de modo relativo si existe
+                    activation_mode = str(servo_cfg.get("activation_mode", "absolute")).lower()
+                    default_angle_val = float(servo_cfg.get("default_angle", 90.0))
+                    if activation_mode == "relative":
+                        offset = float(servo_cfg.get("activation_offset_deg", 0.0))
+                        resolved_activation = default_angle_val + offset
+                    else:
+                        resolved_activation = float(servo_cfg.get("activation_angle", 0.0))
+
                     servo_config = ServoConfig(
                         pin_bcm=servo_cfg["pin_bcm"],
                         name=servo_cfg.get("name", f"Servo_{category_name}"),
                         category=category,
                         min_pulse_us=servo_cfg.get("min_pulse_us", 500),
                         max_pulse_us=servo_cfg.get("max_pulse_us", 2500),
-                        default_angle=servo_cfg.get("default_angle", 90.0),
-                        activation_angle=servo_cfg.get("activation_angle", 0.0),
+                        default_angle=default_angle_val,
+                        activation_angle=resolved_activation,
                         activation_duration_s=servo_cfg.get("activation_duration_s", 2.0),
                         hold_duration_s=servo_cfg.get("hold_duration_s", 1.5),
                         return_smoothly=servo_cfg.get("return_smoothly", True),
@@ -225,8 +234,11 @@ class MG995ServoController:
         if servo.invert:
             normalized_angle = 180.0 - normalized_angle
         
-        # Convertir ángulo a duty cycle (0-180° → 2.5-12.5% para pulsos 0.5-2.5ms en 20ms)
-        duty_cycle = 2.5 + (normalized_angle / 180.0) * 10.0
+        # Mapear ángulo a pulso (min_pulse_us..max_pulse_us) con 50Hz
+        # 20ms período → duty% = (pulse_us / 20000us) * 100
+        pulse_us = float(servo.min_pulse_us) + (normalized_angle / 180.0) * float(servo.max_pulse_us - servo.min_pulse_us)
+        pulse_us = max(float(servo.min_pulse_us), min(float(servo.max_pulse_us), pulse_us))
+        duty_cycle = (pulse_us / 20000.0) * 100.0
         pwm.ChangeDutyCycle(duty_cycle)
         
         # Si no se requiere hold, desactivar PWM después de un momento

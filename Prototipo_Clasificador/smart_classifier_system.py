@@ -658,25 +658,7 @@ class SmartFruitClassifier:
             except Exception as e:
                 logger.warning(f"⚠️ Error activando etiquetadora en trigger: {e}")
 
-            # 3) Programar activación de secciones por categoría detectada, no todas
-            try:
-                behavior = self.config.get("sensor_behavior", {})
-                # Si hay eventos pendientes, usar el más reciente para decidir la sección
-                if self.servo_controller and self.pending_classifications:
-                    latest_event = self.pending_classifications[-1]
-                    # Activar correspondiente tras el delay de clasificación normal
-                    async def _activate_section_for_latest():
-                        try:
-                            await asyncio.sleep(self.classification_delay_s)
-                            await self.servo_controller.activate_servo(latest_event.category)
-                        except Exception as e:
-                            logger.warning(f"⚠️ Error activando sección por categoría: {e}")
-                    # Thread-safe: programar desde el event loop principal
-                    self._loop.call_soon_threadsafe(
-                        lambda: asyncio.create_task(_activate_section_for_latest())
-                    )
-            except Exception as e:
-                logger.warning(f"⚠️ Error programando activación de secciones: {e}")
+            # 3) Quitar activación directa de servo en sensor; se clasifica solo vía _classification_loop
 
             # 4) Programar captura después del delay para detección IA
             # Thread-safe: programar desde el event loop principal
