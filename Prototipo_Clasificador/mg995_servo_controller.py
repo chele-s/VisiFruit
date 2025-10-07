@@ -170,9 +170,10 @@ class MG995ServoController:
                 pwm = GPIO.PWM(servo.pin_bcm, self.PWM_FREQUENCY_HZ)
                 pwm.start(0)
                 self.pwm_objects[servo.pin_bcm] = pwm
-                # Posición inicial
-                await self._set_servo_angle_gpio(servo, servo.default_angle)
-            logger.info("✅ PWM inicializado vía GPIO wrapper")
+                # Posición inicial - DESHABILITADO para evitar movimiento en startup
+                # await self._set_servo_angle_gpio(servo, servo.default_angle)
+                logger.debug(f"   Servo {category.value} (BCM {servo.pin_bcm}): PWM listo, sin posición inicial")
+            logger.info("✅ PWM inicializado vía GPIO wrapper (sin movimiento inicial)")
             
             self.initialized = True
             logger.info(f"✅ Controlador de servos inicializado ({len(self.servos)} servos)")
