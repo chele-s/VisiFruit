@@ -69,9 +69,11 @@ class ServoConfig:
     category: FruitCategory
     min_pulse_us: int = 500      # Pulso mínimo en microsegundos
     max_pulse_us: int = 2500     # Pulso máximo en microsegundos
-    default_angle: float = 0.0   # Ángulo por defecto
-    activation_angle: float = 90.0  # Ángulo de activación
-    activation_duration_s: float = 1.0  # Duración de activación
+    default_angle: float = 90.0  # Ángulo por defecto (posición neutra)
+    activation_angle: float = 0.0  # Ángulo de activación (clasificación)
+    activation_duration_s: float = 2.0  # Duración total de activación
+    hold_duration_s: float = 1.5  # Tiempo manteniendo posición rígida
+    return_smoothly: bool = True  # Retornar suavemente a posición default
     invert: bool = False         # Invertir dirección
 
 class MG995ServoController:
@@ -111,8 +113,12 @@ class MG995ServoController:
         self.total_activations = 0
         
         # Seguridad
-        self.min_activation_interval_s = 0.1  # Intervalo mínimo entre activaciones
+        self.min_activation_interval_s = 0.5  # Intervalo mínimo entre activaciones
         self.max_continuous_activations = 10  # Máximo de activaciones continuas
+        
+        # Control de activaciones simultáneas
+        self._active_servos: set = set()  # Servos actualmente en movimiento
+        self._servo_locks: Dict[FruitCategory, asyncio.Lock] = {}
         
         logger.info("🤖 MG995ServoController creado")
     
@@ -143,14 +149,21 @@ class MG995ServoController:
                         category=category,
                         min_pulse_us=servo_cfg.get("min_pulse_us", 500),
                         max_pulse_us=servo_cfg.get("max_pulse_us", 2500),
-                        default_angle=servo_cfg.get("default_angle", 0.0),
-                        activation_angle=servo_cfg.get("activation_angle", 90.0),
-                        activation_duration_s=servo_cfg.get("activation_duration_s", 1.0),
+                        default_angle=servo_cfg.get("default_angle", 90.0),
+                        activation_angle=servo_cfg.get("activation_angle", 0.0),
+                        activation_duration_s=servo_cfg.get("activation_duration_s", 2.0),
+                        hold_duration_s=servo_cfg.get("hold_duration_s", 1.5),
+                        return_smoothly=servo_cfg.get("return_smoothly", True),
                         invert=servo_cfg.get("invert", False)
                     )
                     self.servos[category] = servo_config
                     self.current_angles[category] = servo_config.default_angle
+                    self._servo_locks[category] = asyncio.Lock()
+                    
+                    # Log configuración con detalles
+                    angle_diff = servo_config.activation_angle - servo_config.default_angle
                     logger.info(f"   ✅ Servo {category.value}: Pin BCM {servo_config.pin_bcm}")
+                    logger.info(f"      📐 Default: {servo_config.default_angle}° → Activación: {servo_config.activation_angle}° (Δ {angle_diff:+.0f}°)")
                 except (ValueError, KeyError) as e:
                     logger.warning(f"⚠️ Error configurando servo {category_name}: {e}")
             
@@ -170,10 +183,12 @@ class MG995ServoController:
                 pwm = GPIO.PWM(servo.pin_bcm, self.PWM_FREQUENCY_HZ)
                 pwm.start(0)
                 self.pwm_objects[servo.pin_bcm] = pwm
-                # Posición inicial - DESHABILITADO para evitar movimiento en startup
-                # await self._set_servo_angle_gpio(servo, servo.default_angle)
-                logger.debug(f"   Servo {category.value} (BCM {servo.pin_bcm}): PWM listo, sin posición inicial")
-            logger.info("✅ PWM inicializado vía GPIO wrapper (sin movimiento inicial)")
+                logger.debug(f"   Servo {category.value} (BCM {servo.pin_bcm}): PWM inicializado")
+            
+            # Mover todos los servos a posición inicial
+            logger.info("📍 Moviendo servos a posición inicial...")
+            await self.home_all_servos()
+            logger.info("✅ PWM inicializado vía GPIO wrapper con posiciones iniciales")
             
             self.initialized = True
             logger.info(f"✅ Controlador de servos inicializado ({len(self.servos)} servos)")
@@ -190,29 +205,46 @@ class MG995ServoController:
     
     # Eliminado soporte pigpio: el control se realiza con GPIO.PWM del wrapper
     
-    async def _set_servo_angle_gpio(self, servo: ServoConfig, angle: float):
-        """Establece el ángulo del servo usando RPi.GPIO."""
+    async def _set_servo_angle_gpio(self, servo: ServoConfig, angle: float, hold: bool = False):
+        """
+        Establece el ángulo del servo usando GPIO.PWM.
+        
+        Args:
+            servo: Configuración del servo
+            angle: Ángulo objetivo (puede ser negativo en config, se normaliza a 0-180)
+            hold: Si True, mantiene el PWM activo para posición rígida
+        """
         pwm = self.pwm_objects.get(servo.pin_bcm)
         if not pwm:
             return
         
-        # Limitar ángulo
-        angle = max(0.0, min(180.0, angle))
+        # Normalizar ángulo negativo (configuración permite negativos para facilitar)
+        # -10° en config se convierte a 0°, pero mantenemos el concepto de "dirección"
+        normalized_angle = max(0.0, min(180.0, angle))
+        
         if servo.invert:
-            angle = 180.0 - angle
+            normalized_angle = 180.0 - normalized_angle
         
         # Convertir ángulo a duty cycle (0-180° → 2.5-12.5% para pulsos 0.5-2.5ms en 20ms)
-        duty_cycle = 2.5 + (angle / 180.0) * 10.0
+        duty_cycle = 2.5 + (normalized_angle / 180.0) * 10.0
         pwm.ChangeDutyCycle(duty_cycle)
-        await asyncio.sleep(0.02)
+        
+        # Si no se requiere hold, desactivar PWM después de un momento
+        if not hold:
+            await asyncio.sleep(0.02)
+            pwm.ChangeDutyCycle(0)  # Desactivar para evitar oscilaciones
+        else:
+            # Mantener PWM activo para posición rígida
+            await asyncio.sleep(0.02)
     
-    async def set_servo_angle(self, category: FruitCategory, angle: float) -> bool:
+    async def set_servo_angle(self, category: FruitCategory, angle: float, hold: bool = False) -> bool:
         """
         Establece el ángulo de un servo específico.
         
         Args:
             category: Categoría de fruta (servo)
-            angle: Ángulo en grados (0-180)
+            angle: Ángulo en grados (puede incluir negativos en configuración)
+            hold: Si True, mantiene PWM activo para posición rígida
         
         Returns:
             True si fue exitoso
@@ -228,15 +260,15 @@ class MG995ServoController:
                 return False
             
             if is_simulation_mode():
-                logger.info(f"🎭 SIMULACIÓN: Servo {category.value} → {angle}°")
+                logger.info(f"🎭 SIMULACIÓN: Servo {category.value} → {angle}° {'(HOLD)' if hold else ''}")
                 self.current_angles[category] = angle
                 return True
             
             # Mover servo
-            await self._set_servo_angle_gpio(servo, angle)
+            await self._set_servo_angle_gpio(servo, angle, hold)
             
             self.current_angles[category] = angle
-            logger.debug(f"✅ Servo {category.value} movido a {angle}°")
+            logger.debug(f"✅ Servo {category.value} movido a {angle}° {'(HOLD)' if hold else ''}")
             return True
             
         except Exception as e:
@@ -245,11 +277,18 @@ class MG995ServoController:
     
     async def activate_servo(self, category: FruitCategory, duration: Optional[float] = None) -> bool:
         """
-        Activa un servo (mueve a posición de activación y luego regresa).
+        Activa un servo con sistema de hold rígido y retorno suave.
+        
+        Secuencia:
+        1. Verificar que el servo no esté activo
+        2. Mover rápidamente a posición de activación
+        3. Mantener posición rígida (hold) durante tiempo configurado
+        4. Retornar suavemente a posición default
+        5. Desactivar PWM para evitar oscilaciones
         
         Args:
             category: Categoría de fruta
-            duration: Duración de la activación en segundos (None = usar configuración)
+            duration: Duración total (None = usar configuración)
         
         Returns:
             True si fue exitoso
@@ -257,6 +296,13 @@ class MG995ServoController:
         try:
             servo = self.servos.get(category)
             if not servo:
+                logger.error(f"❌ Servo {category.value} no encontrado")
+                return False
+            
+            # Prevenir activaciones simultáneas del mismo servo
+            lock = self._servo_locks.get(category)
+            if lock and lock.locked():
+                logger.warning(f"⚠️ Servo {category.value} ya está activo, ignorando")
                 return False
             
             # Validar intervalo mínimo
@@ -265,31 +311,72 @@ class MG995ServoController:
                 logger.warning(f"⚠️ Activación de {category.value} demasiado rápida, ignorando")
                 return False
             
-            # Usar duración configurada o por defecto
-            activation_time = duration if duration is not None else servo.activation_duration_s
-            
-            logger.info(f"🎯 Activando servo {category.value} por {activation_time:.2f}s")
-            
-            # Mover a posición de activación
-            success = await self.set_servo_angle(category, servo.activation_angle)
-            if not success:
-                return False
-            
-            # Esperar duración
-            await asyncio.sleep(activation_time)
-            
-            # Regresar a posición por defecto
-            success = await self.set_servo_angle(category, servo.default_angle)
-            
-            # Actualizar estadísticas
-            self.activation_count[category] += 1
-            self.total_activations += 1
-            self.last_activation[category] = time.time()
-            
-            return success
+            # Adquirir lock para esta activación
+            async with self._servo_locks[category]:
+                self._active_servos.add(category)
+                
+                try:
+                    # Configuración de timing
+                    hold_time = servo.hold_duration_s
+                    total_time = duration if duration is not None else servo.activation_duration_s
+                    
+                    logger.info(f"🎯 Activando servo {category.value}")
+                    logger.info(f"   📐 {servo.default_angle}° → {servo.activation_angle}° (Δ {servo.activation_angle - servo.default_angle:+.0f}°)")
+                    logger.info(f"   ⏱️ Hold: {hold_time:.1f}s | Total: {total_time:.1f}s")
+                    
+                    # FASE 1: Mover a posición de activación CON HOLD
+                    if is_simulation_mode():
+                        logger.info(f"🎭 SIMULACIÓN: Moviendo a {servo.activation_angle}°")
+                        await asyncio.sleep(0.3)  # Simular tiempo de movimiento
+                    else:
+                        # Mover con PWM activo (hold=True)
+                        await self.set_servo_angle(category, servo.activation_angle, hold=True)
+                    
+                    # FASE 2: Mantener posición RÍGIDA durante hold_duration
+                    logger.info(f"   🔒 Manteniendo posición rígida por {hold_time:.1f}s...")
+                    await asyncio.sleep(hold_time)
+                    
+                    # FASE 3: Retorno suave o directo a posición default
+                    if servo.return_smoothly:
+                        logger.info(f"   🔄 Retornando suavemente a {servo.default_angle}°...")
+                        if is_simulation_mode():
+                            await asyncio.sleep(0.3)
+                        else:
+                            # Retorno con movimiento suave
+                            steps = 10
+                            current = servo.activation_angle
+                            target = servo.default_angle
+                            step_size = (target - current) / steps
+                            
+                            for i in range(steps):
+                                intermediate_angle = current + (step_size * (i + 1))
+                                await self.set_servo_angle(category, intermediate_angle, hold=True)
+                                await asyncio.sleep(0.05)  # 50ms entre pasos
+                    else:
+                        # Retorno directo
+                        logger.info(f"   ⚡ Retornando a {servo.default_angle}°...")
+                        await self.set_servo_angle(category, servo.default_angle, hold=False)
+                    
+                    # FASE 4: Desactivar PWM para evitar oscilaciones
+                    if not is_simulation_mode():
+                        pwm = self.pwm_objects.get(servo.pin_bcm)
+                        if pwm:
+                            pwm.ChangeDutyCycle(0)
+                    
+                    # Actualizar estadísticas
+                    self.activation_count[category] += 1
+                    self.total_activations += 1
+                    self.last_activation[category] = time.time()
+                    
+                    logger.info(f"   ✅ Servo {category.value} completado exitosamente")
+                    return True
+                    
+                finally:
+                    self._active_servos.discard(category)
             
         except Exception as e:
-            logger.error(f"❌ Error activando servo {category.value}: {e}")
+            logger.error(f"❌ Error activando servo {category.value}: {e}", exc_info=True)
+            self._active_servos.discard(category)
             return False
     
     async def activate_for_fruit(self, fruit_class: str) -> bool:
@@ -334,15 +421,38 @@ class MG995ServoController:
             await asyncio.sleep(0.3)
         logger.info("✅ Prueba de servos completada")
     
-    async def home_all_servos(self) -> bool:
-        """Mueve todos los servos a su posición inicial."""
+    async def home_all_servos(self, silent: bool = False) -> bool:
+        """
+        Mueve todos los servos a su posición inicial (default_angle).
+        
+        Args:
+            silent: Si True, no imprime mensajes de log (útil para inicialización)
+        
+        Returns:
+            True si fue exitoso
+        """
         try:
-            logger.info("🏠 Regresando todos los servos a posición inicial...")
+            if not silent:
+                logger.info("🏠 Regresando todos los servos a posición inicial...")
+            
             for category, servo in self.servos.items():
-                await self.set_servo_angle(category, servo.default_angle)
-                await asyncio.sleep(0.1)
-            logger.info("✅ Todos los servos en posición inicial")
+                # Mover sin hold para que se desactive PWM después
+                await self.set_servo_angle(category, servo.default_angle, hold=False)
+                
+                # Pequeña pausa entre servos
+                await asyncio.sleep(0.2)
+                
+                # Asegurar que PWM está apagado
+                if not is_simulation_mode():
+                    pwm = self.pwm_objects.get(servo.pin_bcm)
+                    if pwm:
+                        pwm.ChangeDutyCycle(0)
+            
+            if not silent:
+                logger.info("✅ Todos los servos en posición inicial")
+            
             return True
+            
         except Exception as e:
             logger.error(f"❌ Error en home_all_servos: {e}")
             return False

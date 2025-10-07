@@ -96,10 +96,13 @@
       "category": "apple",
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
-      "default_angle": 0,
-      "activation_angle": 90,
-      "activation_duration_s": 1.0,
-      "invert": false
+      "default_angle": 90,
+      "activation_angle": -10,
+      "activation_duration_s": 2.0,
+      "hold_duration_s": 1.5,
+      "return_smoothly": true,
+      "invert": false,
+      "_comment": "Gira -100 grados desde default (90°) hacia -10°, se mantiene rígido 1.5s"
     },
     "pear": {
       "pin_bcm": 6,
@@ -107,10 +110,13 @@
       "category": "pear",
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
-      "default_angle": 0,
-      "activation_angle": 90,
-      "activation_duration_s": 1.0,
-      "invert": false
+      "default_angle": 90,
+      "activation_angle": 180,
+      "activation_duration_s": 2.0,
+      "hold_duration_s": 1.5,
+      "return_smoothly": true,
+      "invert": false,
+      "_comment": "Gira +90 grados desde default (90°) hacia 180°, se mantiene rígido 1.5s"
     },
     "lemon": {
       "pin_bcm": 7,
@@ -118,10 +124,13 @@
       "category": "lemon",
       "min_pulse_us": 500,
       "max_pulse_us": 2500,
-      "default_angle": 0,
-      "activation_angle": 90,
-      "activation_duration_s": 1.0,
-      "invert": false
+      "default_angle": 90,
+      "activation_angle": 10,
+      "activation_duration_s": 2.0,
+      "hold_duration_s": 1.5,
+      "return_smoothly": true,
+      "invert": false,
+      "_comment": "Gira -80 grados desde default (90°) hacia 10°, se mantiene rígido 1.5s"
     }
   },
   
