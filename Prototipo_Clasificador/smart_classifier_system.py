@@ -321,6 +321,8 @@ class SmartFruitClassifier:
         # Anotación de preview con bounding boxes (desactivada por defecto para evitar coste)
         self.annotate_preview: bool = bool(self.debug.get("annotate_preview", False))
         self.annotate_preview_only_on_detection: bool = bool(self.debug.get("annotate_preview_only_on_detection", True))
+        # Override manual para detener banda sin que el sensor la reinicie
+        self._manual_belt_stop_override: bool = False
         
         # API REST para integración con frontend
         self.api_enabled: bool = bool(self.config.get("api_settings", {}).get("enabled", True))
@@ -650,7 +652,10 @@ class SmartFruitClassifier:
                 behavior = self.config.get("sensor_behavior", {})
                 resume_belt = bool(behavior.get("resume_belt_on_trigger", True))
                 disable_timeout = bool(behavior.get("disable_belt_safety_timeout_on_trigger", True))
-                if resume_belt and self.belt:
+                # Respetar override manual de STOP (no reanudar banda por sensor)
+                if self._manual_belt_stop_override:
+                    logger.info("⏸️ Override manual activo: el sensor no reanuda la banda")
+                elif resume_belt and self.belt:
                     async def _resume_belt_task():
                         try:
                             # Desactivar/parchear timeout de seguridad si aplica
@@ -675,6 +680,14 @@ class SmartFruitClassifier:
                 behavior = self.config.get("sensor_behavior", {})
                 labeler_cfg = behavior.get("labeler_activation_on_trigger", {})
                 if labeler_cfg.get("enabled", True) and self.labeler:
+                    # Forzar dirección hacia adelante en DRV8825 antes de activar
+                    try:
+                        driver = getattr(self.labeler, 'driver', None)
+                        if driver and hasattr(driver, 'dir_pin'):
+                            default_dir_high = (str(getattr(driver, 'default_direction', 'CW')).upper() == 'CW') ^ bool(getattr(driver, 'invert_direction', False))
+                            GPIO.output(driver.dir_pin, GPIO.HIGH if default_dir_high else GPIO.LOW)
+                    except Exception:
+                        pass
                     duration = float(labeler_cfg.get("duration_s", 0.6))
                     intensity = float(labeler_cfg.get("intensity_percent", 100.0))
                     # Thread-safe: programar desde el event loop principal
@@ -772,6 +785,8 @@ class SmartFruitClassifier:
                         await self.belt.start_belt()
                     else:
                         raise HTTPException(status_code=501, detail="Método no soportado")
+                    # Quitar override manual para permitir marcha
+                    self._manual_belt_stop_override = False
                     
                     return {"status": "success", "action": "belt_start_forward", "message": "Banda iniciada hacia adelante"}
                 except HTTPException:
@@ -799,6 +814,8 @@ class SmartFruitClassifier:
                     else:
                         raise HTTPException(status_code=501, detail="Reversa no soportada por este controlador")
                     
+                    # Quitar override manual para permitir marcha
+                    self._manual_belt_stop_override = False
                     logger.info("🔄 Banda en reversa activada desde API")
                     return {"status": "success", "action": "belt_start_backward", "message": "Banda iniciada hacia atrás"}
                 except HTTPException:
@@ -820,6 +837,8 @@ class SmartFruitClassifier:
                         await self.belt.stop_belt()
                     else:
                         raise HTTPException(status_code=501, detail="Método no soportado")
+                    # Activar override manual para que el sensor no reanude
+                    self._manual_belt_stop_override = True
                     
                     return {"status": "success", "action": "belt_stop", "message": "Banda detenida"}
                 except HTTPException:
@@ -959,6 +978,14 @@ class SmartFruitClassifier:
                     # Activar stepper por un tiempo corto
                     duration = 0.6
                     intensity = 80.0
+                    # Forzar dirección hacia adelante antes de activar
+                    try:
+                        driver = getattr(self.labeler, 'driver', None)
+                        if driver and hasattr(driver, 'dir_pin'):
+                            default_dir_high = (str(getattr(driver, 'default_direction', 'CW')).upper() == 'CW') ^ bool(getattr(driver, 'invert_direction', False))
+                            GPIO.output(driver.dir_pin, GPIO.HIGH if default_dir_high else GPIO.LOW)
+                    except Exception:
+                        pass
                     
                     await self.labeler.activate_for_duration(duration, intensity)
                     
@@ -987,12 +1014,28 @@ class SmartFruitClassifier:
                             "message": "Etiquetadora no disponible"
                         }
                     
+                    # Obtener estado detallado del actuador/driver
+                    labeler_status = self.labeler.get_status()
+                    driver_info = labeler_status.get('driver', {}) if isinstance(labeler_status, dict) else {}
+                    # Considerar activo reciente si la última activación fue hace <= 2s
+                    recently_active = False
+                    try:
+                        if driver_info.get('is_active'):
+                            recently_active = True
+                        else:
+                            last_ts = self.labeler.activation_history[-1] if len(self.labeler.activation_history) > 0 else 0
+                            if last_ts and (time.time() - last_ts) <= 2.0:
+                                recently_active = True
+                    except Exception:
+                        pass
                     return {
                         "available": True,
                         "enabled": True,
                         "type": "DRV8825",
                         "motor": "NEMA 17",
-                        "state": getattr(self.labeler, 'state', 'unknown'),
+                        "state": labeler_status.get('state', 'unknown') if isinstance(labeler_status, dict) else str(getattr(self.labeler, 'state', 'unknown')),
+                        "recently_active": recently_active,
+                        "driver": driver_info,
                         "config": {
                             "step_pin": self.labeler.step_pin if hasattr(self.labeler, 'step_pin') else 19,
                             "dir_pin": self.labeler.dir_pin if hasattr(self.labeler, 'dir_pin') else 26,

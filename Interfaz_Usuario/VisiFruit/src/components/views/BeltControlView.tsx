@@ -232,9 +232,13 @@ const BeltControlView: React.FC = () => {
           const direction = parseDirection(beltJson.direction)
           const speedMs = typeof beltJson.speed === 'number' ? beltJson.speed : (typeof beltJson.speed_percent === 'number' ? (beltJson.speed_percent / 100) * 2.0 : 0)
           // Mapear estado del stepper si disponible
+          const isActive = Boolean(
+            (typeof stepperJson?.driver?.is_active === 'boolean' && stepperJson.driver.is_active) ||
+            (typeof stepperJson?.recently_active === 'boolean' && stepperJson.recently_active)
+          )
           const stepper: ExternalStepperStatus = {
-            isActive: Boolean(stepperJson?.state ? String(stepperJson.state).toLowerCase().includes('active') : false),
-            currentPower: stepperJson?.enabled ? 100 : 0,
+            isActive,
+            currentPower: stepperJson?.enabled ? 100 : (isActive ? 80 : 0),
             activationCount: externalStatus?.stepperStatus.activationCount || 0,
             lastActivation: externalStatus?.stepperStatus.lastActivation || null,
             activationDuration: externalStatus?.stepperStatus.activationDuration || 0,
@@ -242,7 +246,7 @@ const BeltControlView: React.FC = () => {
             sensorTriggers: externalStatus?.stepperStatus.sensorTriggers || 0,
             manualActivations: externalStatus?.stepperStatus.manualActivations || 0,
             driverTemperature: externalStatus?.stepperStatus.driverTemperature || 25,
-            currentStepRate: stepperJson?.config?.base_speed_sps || (externalStatus?.stepperStatus.currentStepRate || 0),
+            currentStepRate: stepperJson?.driver?.enabled ? (stepperJson?.config?.base_speed_sps || 1500) : (externalStatus?.stepperStatus.currentStepRate || 0),
           }
 
           const now = new Date()
