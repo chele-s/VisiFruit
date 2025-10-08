@@ -787,11 +787,19 @@ class SmartFruitClassifier:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
-                    if hasattr(self.belt, 'start_backward'):
+                    # Intentar con diferentes métodos según el tipo de driver
+                    if hasattr(self.belt, 'reverse_direction'):
+                        # RelayMotorDriver y L298NDriver
+                        await self.belt.reverse_direction()
+                    elif hasattr(self.belt, 'driver') and hasattr(self.belt.driver, 'reverse_direction'):
+                        # ConveyorBeltController con driver interno
+                        await self.belt.driver.reverse_direction()
+                    elif hasattr(self.belt, 'start_backward'):
                         await self.belt.start_backward()
                     else:
-                        raise HTTPException(status_code=501, detail="Reversa no soportada")
+                        raise HTTPException(status_code=501, detail="Reversa no soportada por este controlador")
                     
+                    logger.info("🔄 Banda en reversa activada desde API")
                     return {"status": "success", "action": "belt_start_backward", "message": "Banda iniciada hacia atrás"}
                 except HTTPException:
                     raise
@@ -894,18 +902,234 @@ class SmartFruitClassifier:
                             "message": "Banda no disponible"
                         }
                     
+                    # Detectar el estado real del motor
+                    is_running = False
+                    direction = 'stopped'
+                    
+                    if hasattr(self.belt, 'running'):
+                        is_running = self.belt.running
+                    elif hasattr(self.belt, 'is_running'):
+                        is_running = self.belt.is_running
+                    
+                    if hasattr(self.belt, 'direction'):
+                        direction = self.belt.direction if is_running else 'stopped'
+                    
                     status = {
                         "available": True,
-                        "running": getattr(self.belt, 'running', False),
+                        "running": is_running,
                         "enabled": getattr(self.belt, 'enabled', True),
-                        "direction": getattr(self.belt, 'direction', 'unknown'),
-                        "speed": getattr(self.belt, 'speed', 0.0),
+                        "direction": direction,
+                        "speed": getattr(self.belt, 'speed', 1.0),
+                        "motor_temperature": 35.0,  # Simulado
                     }
                     
                     return status
                 except Exception as e:
                     logger.error(f"Error obteniendo estado de banda: {e}")
                     raise HTTPException(status_code=500, detail=str(e))
+            
+            # ==================== CONTROL DE STEPPER DRV8825 (ETIQUETADORA) ====================
+            
+            @self._api_app.post("/laser_stepper/toggle")
+            async def toggle_laser_stepper():
+                """Activa/desactiva el stepper láser."""
+                try:
+                    if not self.labeler:
+                        raise HTTPException(status_code=503, detail="Etiquetadora no disponible")
+                    
+                    # El stepper siempre está habilitado si existe
+                    return {
+                        "status": "success",
+                        "enabled": True,
+                        "message": "Stepper DRV8825 siempre activo"
+                    }
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en toggle stepper: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/laser_stepper/test")
+            async def test_laser_stepper():
+                """Prueba manual del stepper láser."""
+                try:
+                    if not self.labeler:
+                        raise HTTPException(status_code=503, detail="Etiquetadora no disponible")
+                    
+                    # Activar stepper por un tiempo corto
+                    duration = 0.6
+                    intensity = 80.0
+                    
+                    await self.labeler.activate_for_duration(duration, intensity)
+                    
+                    logger.info(f"🧪 Test manual de stepper: {duration}s @ {intensity}%")
+                    
+                    return {
+                        "status": "success",
+                        "action": "stepper_test",
+                        "duration": duration,
+                        "intensity": intensity,
+                        "message": "Stepper activado exitosamente"
+                    }
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en test stepper: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.get("/laser_stepper/status")
+            async def get_laser_stepper_status():
+                """Obtiene el estado del stepper láser."""
+                try:
+                    if not self.labeler:
+                        return {
+                            "available": False,
+                            "message": "Etiquetadora no disponible"
+                        }
+                    
+                    return {
+                        "available": True,
+                        "enabled": True,
+                        "type": "DRV8825",
+                        "motor": "NEMA 17",
+                        "state": getattr(self.labeler, 'state', 'unknown'),
+                        "config": {
+                            "step_pin": self.labeler.step_pin if hasattr(self.labeler, 'step_pin') else 19,
+                            "dir_pin": self.labeler.dir_pin if hasattr(self.labeler, 'dir_pin') else 26,
+                            "enable_pin": self.labeler.enable_pin if hasattr(self.labeler, 'enable_pin') else 21,
+                            "base_speed_sps": 1500,
+                            "max_speed_sps": 2000,
+                        }
+                    }
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado stepper: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            # ==================== CONTROL DE SERVOS MG995 ====================
+            
+            @self._api_app.get("/servos/status")
+            async def get_servos_status():
+                """Obtiene el estado de los servomotores MG995."""
+                try:
+                    if not self.servo_controller:
+                        return {
+                            "available": False,
+                            "message": "Servos no disponibles"
+                        }
+                    
+                    servos = {}
+                    for category in ['apple', 'pear', 'lemon']:
+                        servo_info = self.servo_controller.servos.get(category, {})
+                        servos[category] = {
+                            "category": category,
+                            "pin": servo_info.get('pin', 0),
+                            "current_angle": servo_info.get('current_angle', 90.0),
+                            "default_angle": servo_info.get('default_angle', 90.0),
+                            "available": bool(servo_info)
+                        }
+                    
+                    return {
+                        "available": True,
+                        "servos": servos,
+                        "total_servos": len(self.servo_controller.servos)
+                    }
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado servos: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/servos/test/{category}")
+            async def test_servo(category: str):
+                """Prueba un servo específico."""
+                try:
+                    if not self.servo_controller:
+                        raise HTTPException(status_code=503, detail="Servos no disponibles")
+                    
+                    if category not in ['apple', 'pear', 'lemon']:
+                        raise HTTPException(status_code=400, detail="Categoría inválida")
+                    
+                    # Activar servo
+                    await self.servo_controller.activate_servo(category)
+                    
+                    logger.info(f"🧪 Test manual de servo: {category}")
+                    
+                    return {
+                        "status": "success",
+                        "category": category,
+                        "message": f"Servo {category} activado exitosamente"
+                    }
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en test servo: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            # ==================== SIMULACIÓN DE SENSOR ====================
+            
+            @self._api_app.post("/sensor/simulate")
+            async def simulate_sensor():
+                """Simula la activación del sensor de trigger."""
+                try:
+                    logger.info("🧪 Simulación de sensor activada manualmente desde API")
+                    
+                    # Llamar al callback del sensor
+                    if hasattr(self, '_sensor_callback'):
+                        self._sensor_callback()
+                        return {
+                            "status": "success",
+                            "message": "Sensor simulado - etiquetadora y captura programadas"
+                        }
+                    else:
+                        raise HTTPException(status_code=501, detail="Callback de sensor no disponible")
+                    
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error simulando sensor: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.get("/sensor/status")
+            async def get_sensor_status():
+                """Obtiene el estado del sensor."""
+                try:
+                    if not self.sensor:
+                        return {
+                            "available": False,
+                            "message": "Sensor no disponible"
+                        }
+                    
+                    return {
+                        "available": True,
+                        "type": "MH Flying Fish",
+                        "pin": 4,
+                        "enabled": True,
+                        "trigger_level": "falling",
+                        "config": self.config.get("sensor_settings", {}).get("trigger_sensor", {})
+                    }
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado sensor: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            # ==================== CONFIGURACIÓN ====================
+            
+            @self._api_app.get("/config/stepper")
+            async def get_stepper_config():
+                """Obtiene la configuración del stepper."""
+                return self.config.get("labeler_settings", {})
+            
+            @self._api_app.get("/config/sensor")
+            async def get_sensor_config():
+                """Obtiene la configuración del sensor."""
+                return self.config.get("sensor_settings", {})
+            
+            @self._api_app.get("/config/safety")
+            async def get_safety_config():
+                """Obtiene la configuración de seguridad."""
+                return self.config.get("safety", {})
+            
+            @self._api_app.get("/config/servos")
+            async def get_servos_config():
+                """Obtiene la configuración de servos."""
+                return self.config.get("servo_settings", {})
             
             # Iniciar servidor en background
             config = uvicorn.Config(
