@@ -7,9 +7,9 @@ export default defineConfig({
 
   // Configuración del servidor de desarrollo
   server: {
-    port: 3000,
+    port: 3001,
     host: true,
-    strictPort: true,
+    strictPort: false,  // Cambiado a false para buscar puerto disponible automáticamente
     cors: true,
     // Proxy para el backend (opcional - las URLs absolutas también funcionan)
     proxy: {
