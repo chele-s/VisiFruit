@@ -194,12 +194,12 @@ class MG995ServoController:
                 self.pwm_objects[servo.pin_bcm] = pwm
                 logger.debug(f"   Servo {category.value} (BCM {servo.pin_bcm}): PWM inicializado")
             
-            # Mover todos los servos a posición inicial
-            logger.info("📍 Moviendo servos a posición inicial...")
-            await self.home_all_servos()
-            logger.info("✅ PWM inicializado vía GPIO wrapper con posiciones iniciales")
-            
+            # Marcar inicializado antes del homing para evitar warnings de "no inicializado"
             self.initialized = True
+            # Mover todos los servos a posición inicial (silencioso)
+            logger.info("📍 Moviendo servos a posición inicial...")
+            await self.home_all_servos(silent=True)
+            logger.info("✅ PWM inicializado vía GPIO wrapper con posiciones iniciales")
             logger.info(f"✅ Controlador de servos inicializado ({len(self.servos)} servos)")
             
             # Test rápido de movimiento
