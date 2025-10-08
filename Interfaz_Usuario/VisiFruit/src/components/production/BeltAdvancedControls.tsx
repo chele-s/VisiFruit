@@ -118,6 +118,8 @@ interface BeltAdvancedControlsProps {
   disabled?: boolean;
   connectionType?: 'main' | 'demo' | 'both';
   onConfigChange?: (config: BeltConfiguration) => void;
+  // Estado externo proveniente del backend para reflejar en la UI
+  externalStatus?: Partial<BeltStatus>;
 }
 
 // Componente de botón animado ultra-personalizado
@@ -207,6 +209,7 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
   disabled = false,
   connectionType = 'both',
   onConfigChange,
+  externalStatus,
 }) => {
   const theme = useTheme();
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -311,7 +314,33 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
     }
   }, []);
 
-  // Simular actualizaciones de estado desde el backend
+  // Refrescar estado desde fuente externa (backend)
+  useEffect(() => {
+    if (!externalStatus) return
+    setBeltStatus(prev => ({
+      ...prev,
+      isRunning: externalStatus.isRunning ?? prev.isRunning,
+      direction: externalStatus.direction ?? prev.direction,
+      currentSpeed: externalStatus.currentSpeed ?? prev.currentSpeed,
+      targetSpeed: externalStatus.targetSpeed ?? prev.targetSpeed,
+      motorTemperature: externalStatus.motorTemperature ?? prev.motorTemperature,
+      enabled: externalStatus.enabled ?? prev.enabled,
+      lastAction: externalStatus.lastAction ?? prev.lastAction,
+      actionTime: externalStatus.actionTime ? new Date(externalStatus.actionTime) : prev.actionTime,
+      powerConsumption: externalStatus.powerConsumption ?? prev.powerConsumption,
+      vibrationLevel: externalStatus.vibrationLevel ?? prev.vibrationLevel,
+      totalRuntime: externalStatus.totalRuntime ?? prev.totalRuntime,
+      isConnected: externalStatus.isConnected ?? prev.isConnected,
+      firmwareVersion: externalStatus.firmwareVersion ?? prev.firmwareVersion,
+      stepperStatus: externalStatus.stepperStatus ? {
+        ...prev.stepperStatus,
+        ...externalStatus.stepperStatus,
+        lastActivation: externalStatus.stepperStatus.lastActivation ? new Date(externalStatus.stepperStatus.lastActivation) : prev.stepperStatus.lastActivation,
+      } : prev.stepperStatus,
+    }))
+  }, [externalStatus])
+
+  // Simular actualizaciones internas cuando no hay estado externo
   useEffect(() => {
     const interval = setInterval(() => {
       setBeltStatus(prev => {
