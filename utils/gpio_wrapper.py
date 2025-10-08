@@ -502,7 +502,9 @@ class LGPIOPWMWrapper:
             # Intentar usar tx_pwm si está disponible
             try:
                 if hasattr(self.lgpio, 'tx_pwm'):
-                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), float(self.duty_cycle))
+                    # lgpio.tx_pwm espera duty en [0.0, 1.0]
+                    duty_0_1 = max(0.0, min(1.0, float(self.duty_cycle) / 100.0))
+                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), duty_0_1)
                     self.use_tx_pwm = True
                     self.running = True
                     logger.debug(f"LGPIO PWM (tx_pwm): start(pin={self.pin}, freq={self.frequency}Hz, duty={duty_cycle}%)")
@@ -525,7 +527,9 @@ class LGPIOPWMWrapper:
         try:
             if self.running:
                 if self.use_tx_pwm and hasattr(self.lgpio, 'tx_pwm'):
-                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), float(self.duty_cycle))
+                    # Convertir de porcentaje [0-100] a rango [0.0-1.0] requerido por lgpio.tx_pwm
+                    duty_0_1 = max(0.0, min(1.0, float(self.duty_cycle) / 100.0))
+                    self.lgpio.tx_pwm(self.chip_handle, self.pin, int(self.frequency), duty_0_1)
                 else:
                     self._software_pwm_update(duty_cycle)
             logger.debug(f"LGPIO PWM: ChangeDutyCycle(pin={self.pin}, duty={duty_cycle}%)")

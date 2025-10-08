@@ -67,8 +67,8 @@ class ServoConfig:
     pin_bcm: int
     name: str
     category: FruitCategory
-    min_pulse_us: int = 500      # Pulso mínimo en microsegundos
-    max_pulse_us: int = 2500     # Pulso máximo en microsegundos
+    min_pulse_us: int = 1000     # Pulso mínimo en microsegundos (MG995 típico)
+    max_pulse_us: int = 2000     # Pulso máximo en microsegundos (MG995 típico)
     default_angle: float = 90.0  # Ángulo por defecto (posición neutra)
     activation_angle: float = 0.0  # Ángulo de activación (clasificación)
     activation_duration_s: float = 2.0  # Duración total de activación
@@ -236,6 +236,7 @@ class MG995ServoController:
         
         # Mapear ángulo a pulso (min_pulse_us..max_pulse_us) con 50Hz
         # 20ms período → duty% = (pulse_us / 20000us) * 100
+        # Clamp robusto del rango de pulso para evitar órdenes fuera de rango
         pulse_us = float(servo.min_pulse_us) + (normalized_angle / 180.0) * float(servo.max_pulse_us - servo.min_pulse_us)
         pulse_us = max(float(servo.min_pulse_us), min(float(servo.max_pulse_us), pulse_us))
         duty_cycle = (pulse_us / 20000.0) * 100.0
@@ -246,7 +247,7 @@ class MG995ServoController:
             await asyncio.sleep(0.02)
             pwm.ChangeDutyCycle(0)  # Desactivar para evitar oscilaciones
         else:
-            # Mantener PWM activo para posición rígida
+            # Mantener PWM activo para posición rígida (PWM queda corriendo en wrapper)
             await asyncio.sleep(0.02)
     
     async def set_servo_angle(self, category: FruitCategory, angle: float, hold: bool = False) -> bool:
