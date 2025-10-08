@@ -10,7 +10,8 @@ export const APP_CONFIG = {
     baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8001',
     websocketUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8001/ws/realtime',
     
-    // Sistema principal (main_etiquetadora.py)
+    // Sistema principal (main_etiquetadora.py o smart_classifier_system.py en modo prototipo)
+    // Ambos usan el puerto 8000 para compatibilidad
     mainSystemUrl: import.meta.env.VITE_MAIN_API_URL || 'http://localhost:8000',
     
     // Demo system web server (demo_sistema_web_server.py)  

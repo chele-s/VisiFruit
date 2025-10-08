@@ -243,5 +243,12 @@
     "labeler_test_duration_s": 1.0,
     "camera_warmup_frames": 10,
     "ai_warmup_iterations": 5
+  },
+  
+  "api_settings": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8000,
+    "_comment": "API REST para control del sistema desde frontend. Puerto 8000 para compatibilidad con sistema principal."
   }
 }

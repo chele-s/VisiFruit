@@ -111,6 +111,22 @@ except ImportError as e:
     def is_simulation_mode():
         return True
 
+# FastAPI para servidor API REST
+try:
+    from fastapi import FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel
+    import uvicorn
+    FASTAPI_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ FastAPI no disponible: {e}")
+    print(f"   Instala con: pip install fastapi uvicorn")
+    FASTAPI_AVAILABLE = False
+    FastAPI = None
+    HTTPException = None
+    BaseModel = None
+
 logger = logging.getLogger(__name__)
 # Asegurar salida de logs en consola si el entorno no configuró logging
 if not logging.getLogger().handlers:
@@ -305,6 +321,13 @@ class SmartFruitClassifier:
         # Anotación de preview con bounding boxes (desactivada por defecto para evitar coste)
         self.annotate_preview: bool = bool(self.debug.get("annotate_preview", False))
         self.annotate_preview_only_on_detection: bool = bool(self.debug.get("annotate_preview_only_on_detection", True))
+        
+        # API REST para integración con frontend
+        self.api_enabled: bool = bool(self.config.get("api_settings", {}).get("enabled", True))
+        self.api_port: int = int(self.config.get("api_settings", {}).get("port", 8000))
+        self.api_host: str = str(self.config.get("api_settings", {}).get("host", "0.0.0.0"))
+        self._api_app: Optional[FastAPI] = None
+        self._api_server_task: Optional[asyncio.Task] = None
 
         # Estadísticas
         self.stats = {
@@ -444,6 +467,9 @@ class SmartFruitClassifier:
             
             # 6. Sensor (opcional)
             await self._initialize_sensor()
+            
+            # 7. API REST (servidor web para integración con frontend)
+            await self._initialize_api()
             
             self.state = SystemState.IDLE
             logger.info("=== ✅ Sistema inicializado correctamente ===")
@@ -667,6 +693,249 @@ class SmartFruitClassifier:
             )
         except Exception as e:
             logger.error(f"❌ Error en sensor callback: {e}")
+    
+    async def _initialize_api(self):
+        """Inicializa el servidor API REST para integración con frontend."""
+        if not FASTAPI_AVAILABLE:
+            logger.warning("⚠️ FastAPI no disponible, API REST deshabilitada")
+            logger.info("   Instala con: pip install fastapi uvicorn")
+            return
+            
+        if not self.api_enabled:
+            logger.info("ℹ️ API REST deshabilitada por configuración")
+            return
+            
+        try:
+            logger.info("🌐 Inicializando servidor API REST...")
+            
+            # Crear aplicación FastAPI
+            self._api_app = FastAPI(
+                title="VisiFruit Prototipo API",
+                description="API REST para control del sistema de clasificación de frutas",
+                version="1.0.0"
+            )
+            
+            # Configurar CORS para permitir acceso desde frontend
+            self._api_app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"]
+            )
+            
+            # ==================== ENDPOINTS ====================
+            
+            @self._api_app.get("/health")
+            async def health_check():
+                """Health check del sistema."""
+                return {
+                    "status": "healthy",
+                    "system": "VisiFruit Prototipo",
+                    "version": "1.0.0",
+                    "state": self.state.value,
+                    "running": self.running,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            @self._api_app.get("/")
+            async def root():
+                """Root endpoint con información del sistema."""
+                return {
+                    "system": "VisiFruit Prototipo API",
+                    "version": "1.0.0",
+                    "endpoints": {
+                        "health": "/health",
+                        "status": "/status",
+                        "belt_control": "/belt/*",
+                        "docs": "/docs"
+                    }
+                }
+            
+            @self._api_app.get("/status")
+            async def get_system_status():
+                """Estado completo del sistema."""
+                return self.get_status()
+            
+            # ==================== CONTROL DE BANDA ====================
+            
+            @self._api_app.post("/belt/start_forward")
+            async def belt_start_forward():
+                """Inicia la banda hacia adelante."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    if hasattr(self.belt, 'start_forward'):
+                        await self.belt.start_forward()
+                    elif hasattr(self.belt, 'start_belt'):
+                        await self.belt.start_belt()
+                    else:
+                        raise HTTPException(status_code=501, detail="Método no soportado")
+                    
+                    return {"status": "success", "action": "belt_start_forward", "message": "Banda iniciada hacia adelante"}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error iniciando banda: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/belt/start_backward")
+            async def belt_start_backward():
+                """Inicia la banda hacia atrás."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    if hasattr(self.belt, 'start_backward'):
+                        await self.belt.start_backward()
+                    else:
+                        raise HTTPException(status_code=501, detail="Reversa no soportada")
+                    
+                    return {"status": "success", "action": "belt_start_backward", "message": "Banda iniciada hacia atrás"}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error iniciando banda en reversa: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/belt/stop")
+            async def belt_stop():
+                """Detiene la banda."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    if hasattr(self.belt, 'stop'):
+                        await self.belt.stop()
+                    elif hasattr(self.belt, 'stop_belt'):
+                        await self.belt.stop_belt()
+                    else:
+                        raise HTTPException(status_code=501, detail="Método no soportado")
+                    
+                    return {"status": "success", "action": "belt_stop", "message": "Banda detenida"}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error deteniendo banda: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/belt/emergency_stop")
+            async def belt_emergency_stop():
+                """Parada de emergencia de la banda."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    if hasattr(self.belt, 'emergency_stop'):
+                        await self.belt.emergency_stop()
+                    elif hasattr(self.belt, 'stop'):
+                        await self.belt.stop()
+                    else:
+                        raise HTTPException(status_code=501, detail="Método no soportado")
+                    
+                    return {"status": "success", "action": "emergency_stop", "message": "Parada de emergencia ejecutada"}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en parada de emergencia: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/belt/set_speed")
+            async def belt_set_speed(speed: float):
+                """Ajusta la velocidad de la banda."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    if hasattr(self.belt, 'set_speed'):
+                        await self.belt.set_speed(speed)
+                        return {"status": "success", "action": "set_speed", "speed": speed, "message": f"Velocidad ajustada a {speed}"}
+                    else:
+                        raise HTTPException(status_code=501, detail="Control de velocidad no soportado")
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error ajustando velocidad: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.post("/belt/toggle_enable")
+            async def belt_toggle_enable():
+                """Activa/desactiva la banda."""
+                try:
+                    if not self.belt:
+                        raise HTTPException(status_code=503, detail="Banda no disponible")
+                    
+                    # Implementación simple: detener si está corriendo, iniciar si está detenida
+                    if hasattr(self.belt, 'running') and self.belt.running:
+                        await self.belt.stop()
+                        enabled = False
+                    else:
+                        if hasattr(self.belt, 'start_forward'):
+                            await self.belt.start_forward()
+                        elif hasattr(self.belt, 'start_belt'):
+                            await self.belt.start_belt()
+                        enabled = True
+                    
+                    return {"status": "success", "action": "toggle_enable", "enabled": enabled}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error toggle enable: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            @self._api_app.get("/belt/status")
+            async def get_belt_status():
+                """Obtiene el estado actual de la banda."""
+                try:
+                    if not self.belt:
+                        return {
+                            "available": False,
+                            "message": "Banda no disponible"
+                        }
+                    
+                    status = {
+                        "available": True,
+                        "running": getattr(self.belt, 'running', False),
+                        "enabled": getattr(self.belt, 'enabled', True),
+                        "direction": getattr(self.belt, 'direction', 'unknown'),
+                        "speed": getattr(self.belt, 'speed', 0.0),
+                    }
+                    
+                    return status
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado de banda: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            # Iniciar servidor en background
+            config = uvicorn.Config(
+                app=self._api_app,
+                host=self.api_host,
+                port=self.api_port,
+                log_level="warning",
+                access_log=False
+            )
+            
+            server = uvicorn.Server(config)
+            
+            # Ejecutar servidor en una tarea async
+            async def run_server():
+                try:
+                    await server.serve()
+                except Exception as e:
+                    logger.error(f"❌ Error en servidor API: {e}")
+            
+            self._api_server_task = asyncio.create_task(run_server())
+            
+            # Esperar un momento para que el servidor inicie
+            await asyncio.sleep(0.5)
+            
+            logger.info(f"✅ Servidor API REST iniciado en http://{self.api_host}:{self.api_port}")
+            logger.info(f"   📚 Documentación en http://{self.api_host}:{self.api_port}/docs")
+            
+        except Exception as e:
+            logger.error(f"❌ Error inicializando API REST: {e}")
+            logger.exception(e)
     
     async def _delayed_capture(self):
         """Captura con delay después de trigger del sensor."""
@@ -1547,6 +1816,15 @@ class SmartFruitClassifier:
             
             if self.ai_detector:
                 await self.ai_detector.shutdown()
+            
+            # Detener servidor API
+            if self._api_server_task and not self._api_server_task.done():
+                logger.info("🌐 Deteniendo servidor API...")
+                self._api_server_task.cancel()
+                try:
+                    await self._api_server_task
+                except asyncio.CancelledError:
+                    pass
             
             logger.info("✅ Sistema apagado correctamente")
             
