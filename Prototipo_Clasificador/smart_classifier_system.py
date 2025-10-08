@@ -658,25 +658,7 @@ class SmartFruitClassifier:
             except Exception as e:
                 logger.warning(f"⚠️ Error activando etiquetadora en trigger: {e}")
 
-            # 3) Programar activación de secciones por categoría detectada, no todas
-            try:
-                behavior = self.config.get("sensor_behavior", {})
-                # Si hay eventos pendientes, usar el más reciente para decidir la sección
-                if self.servo_controller and self.pending_classifications:
-                    latest_event = self.pending_classifications[-1]
-                    # Activar correspondiente tras el delay de clasificación normal
-                    async def _activate_section_for_latest():
-                        try:
-                            await asyncio.sleep(self.classification_delay_s)
-                            await self.servo_controller.activate_servo(latest_event.category)
-                        except Exception as e:
-                            logger.warning(f"⚠️ Error activando sección por categoría: {e}")
-                    # Thread-safe: programar desde el event loop principal
-                    self._loop.call_soon_threadsafe(
-                        lambda: asyncio.create_task(_activate_section_for_latest())
-                    )
-            except Exception as e:
-                logger.warning(f"⚠️ Error programando activación de secciones: {e}")
+            # 3) Quitar activación directa de servo en sensor; se clasifica solo vía _classification_loop
 
             # 4) Programar captura después del delay para detección IA
             # Thread-safe: programar desde el event loop principal
@@ -1355,14 +1337,21 @@ class SmartFruitClassifier:
             logger.error(f"❌ Error activando etiquetadora: {e}")
     
     async def _classification_loop(self):
-        """Bucle de clasificación con servomotores."""
+        """
+        Bucle de clasificación con servomotores MG995.
+        
+        Procesa eventos de clasificación pendientes de manera secuencial
+        para evitar activaciones simultáneas que causen oscilaciones.
+        """
         logger.info("🔄 Bucle de clasificación iniciado")
         
         while self.running:
             try:
                 # Buscar eventos pendientes de clasificación
                 current_time = time.time()
+                events_to_process = []
                 
+                # Recolectar eventos listos para clasificar
                 for event in list(self.pending_classifications):
                     if event.classified:
                         self.pending_classifications.remove(event)
@@ -1371,10 +1360,21 @@ class SmartFruitClassifier:
                     # Verificar si ya pasó el tiempo de clasificación
                     elapsed = current_time - event.timestamp
                     if elapsed >= self.classification_delay_s:
+                        events_to_process.append(event)
+                
+                # Procesar eventos UNO A LA VEZ para evitar activaciones simultáneas
+                for event in events_to_process:
+                    try:
                         await self._classify_fruit(event)
                         self.pending_classifications.remove(event)
+                        
+                        # Pequeña pausa entre clasificaciones para estabilidad
+                        await asyncio.sleep(0.2)
+                    except Exception as e:
+                        logger.error(f"❌ Error clasificando evento: {e}")
+                        self.pending_classifications.remove(event)
                 
-                await asyncio.sleep(0.05)  # 50ms
+                await asyncio.sleep(0.1)  # 100ms entre iteraciones
                 
             except asyncio.CancelledError:
                 break
@@ -1383,45 +1383,76 @@ class SmartFruitClassifier:
                 await asyncio.sleep(1)
     
     async def _classify_fruit(self, event: DetectionEvent):
-        """Clasifica la fruta activando el servo correspondiente."""
+        """
+        Clasifica la fruta activando el servo correspondiente.
+        
+        Utiliza el sistema mejorado de servos con:
+        - Hold rígido durante la clasificación
+        - Retorno suave a posición inicial
+        - Protección contra activaciones simultáneas
+        """
         try:
             if not self.servo_controller:
                 logger.debug("⚠️ Controlador de servos no disponible")
                 event.classified = True
                 return
             
-            logger.info(f"📦 ¡CLASIFICANDO! {event.fruit_class.upper()} → Servo {event.category.value}")
+            # Log detallado de la clasificación
+            logger.info("=" * 60)
+            logger.info(f"📦 ¡CLASIFICANDO FRUTA!")
+            logger.info(f"   Tipo: {event.fruit_class.upper()} {self._get_emoji(event.category)}")
+            logger.info(f"   Categoría: {event.category.value}")
+            logger.info(f"   Confianza: {event.confidence:.2%}")
+            logger.info("=" * 60)
             
             # Activar servo correspondiente para cada categoría
             if event.category in [FruitCategory.APPLE, FruitCategory.PEAR, FruitCategory.LEMON]:
+                # Obtener configuración del servo para mostrar ángulos
+                servo_cfg = self.config.get("servo_settings", {}).get(event.category.value, {})
+                default_angle = servo_cfg.get("default_angle", 90)
+                activation_angle = servo_cfg.get("activation_angle", 0)
+                
+                logger.info(f"🤖 Activando servo {event.category.value}")
+                logger.info(f"   Movimiento: {default_angle}° → {activation_angle}° (Δ {activation_angle - default_angle:+.0f}°)")
+                
+                # Activar servo con el sistema mejorado
                 success = await self.servo_controller.activate_servo(event.category)
                 
                 if success:
                     event.classified = True
                     self.stats["classified_total"] += 1
+                    
                     # Actualizar contador específico del servo
-                    if event.category == FruitCategory.APPLE:
-                        self.stats["classified_by_servo"]["apple"] += 1
-                        emoji = "🍎"
-                    elif event.category == FruitCategory.PEAR:
-                        self.stats["classified_by_servo"]["pear"] += 1
-                        emoji = "🍐"
-                    elif event.category == FruitCategory.LEMON:
-                        self.stats["classified_by_servo"]["lemon"] += 1
-                        emoji = "🍋"
-                    else:
-                        emoji = "🍓"
-                    logger.info(f"   ✅ {emoji} {event.fruit_class.upper()} clasificada exitosamente en caja {event.category.value}")
+                    emoji = self._get_emoji(event.category)
+                    category_key = event.category.value
+                    self.stats["classified_by_servo"][category_key] = \
+                        self.stats["classified_by_servo"].get(category_key, 0) + 1
+                    
+                    logger.info(f"✅ {emoji} {event.fruit_class.upper()} clasificada exitosamente")
+                    logger.info(f"   Total clasificadas de {category_key}: {self.stats['classified_by_servo'][category_key]}")
                 else:
-                    logger.error(f"   ❌ Error al activar servo para {event.fruit_class}")
+                    logger.error(f"❌ Error al activar servo para {event.fruit_class}")
+                    logger.error(f"   El servo puede estar ocupado o bloqueado")
             else:
                 # Para otras categorías desconocidas, marcar como clasificado sin acción
                 event.classified = True
                 self.stats["classified_total"] += 1
-                logger.info(f"   ⚠️ Categoría desconocida - sin clasificación")
+                logger.warning(f"⚠️ Categoría desconocida: {event.category.value} - sin clasificación")
+            
+            logger.info("=" * 60)
                 
         except Exception as e:
-            logger.error(f"❌ Error en clasificación: {e}")
+            logger.error(f"❌ Error crítico en clasificación: {e}", exc_info=True)
+    
+    def _get_emoji(self, category: FruitCategory) -> str:
+        """Obtiene el emoji correspondiente a una categoría."""
+        emoji_map = {
+            FruitCategory.APPLE: "🍎",
+            FruitCategory.PEAR: "🍐",
+            FruitCategory.LEMON: "🍋",
+            FruitCategory.UNKNOWN: "❓"
+        }
+        return emoji_map.get(category, "🍓")
     
     async def _stats_loop(self):
         """Bucle de actualización de estadísticas."""
