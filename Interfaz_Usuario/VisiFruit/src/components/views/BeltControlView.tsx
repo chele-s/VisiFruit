@@ -215,60 +215,66 @@ const BeltControlView: React.FC = () => {
 
     const fetchStatusOnce = async () => {
       try {
-        // Solo consultar si el sistema principal está marcado como conectado
+        // Usar endpoint /status unificado que incluye banda + stepper
         const base = connectionConfig.mainUrl
-        // 1) Estado de banda
-        const beltResp = await fetch(`${base}/belt/status`, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(4000) })
-        const beltJson = beltResp.ok ? await beltResp.json() : null
-        // 2) Estado del stepper (DRV8825)
-        const stepperResp = await fetch(`${base}/laser_stepper/status`, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(4000) }).catch(() => null as any)
-        const stepperJson = stepperResp && stepperResp.ok ? await stepperResp.json() : null
-        // 3) Estado general para runtime (opcional)
-        const statusResp = await fetch(`${base}/status`, { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(4000) }).catch(() => null as any)
-        const statusJson = statusResp && statusResp.ok ? await statusResp.json() : null
+        const statusResp = await fetch(`${base}/status`, { 
+          headers: { 'Accept': 'application/json' }, 
+          signal: AbortSignal.timeout(4000) 
+        })
+        
+        if (!statusResp.ok) {
+          throw new Error(`HTTP ${statusResp.status}`)
+        }
+        
+        const statusJson = await statusResp.json()
 
-        if (!cancelled && beltJson) {
-          const isRunning = Boolean(beltJson.running)
-          const direction = parseDirection(beltJson.direction)
-          const speedMs = typeof beltJson.speed === 'number' ? beltJson.speed : (typeof beltJson.speed_percent === 'number' ? (beltJson.speed_percent / 100) * 2.0 : 0)
-          // Mapear estado del stepper si disponible
-          const isActive = Boolean(
-            (typeof stepperJson?.driver?.is_active === 'boolean' && stepperJson.driver.is_active) ||
-            (typeof stepperJson?.recently_active === 'boolean' && stepperJson.recently_active)
-          )
+        if (!cancelled && statusJson) {
+          // Datos de la banda desde el endpoint unificado
+          const beltData = statusJson.belt || {}
+          const stepperData = statusJson.stepper || {}
+          
+          const isRunning = Boolean(beltData.running)
+          const direction = parseDirection(beltData.direction)
+          const speedPercent = typeof beltData.speed === 'number' ? beltData.speed : 100
+          
+          // Estado del stepper mejorado
+          const isActive = Boolean(stepperData.isActive)
           const stepper: ExternalStepperStatus = {
             isActive,
-            currentPower: stepperJson?.enabled ? 100 : (isActive ? 80 : 0),
-            activationCount: externalStatus?.stepperStatus.activationCount || 0,
-            lastActivation: externalStatus?.stepperStatus.lastActivation || null,
-            activationDuration: externalStatus?.stepperStatus.activationDuration || 0,
-            totalActiveTime: externalStatus?.stepperStatus.totalActiveTime || 0,
-            sensorTriggers: externalStatus?.stepperStatus.sensorTriggers || 0,
-            manualActivations: externalStatus?.stepperStatus.manualActivations || 0,
-            driverTemperature: externalStatus?.stepperStatus.driverTemperature || 25,
-            currentStepRate: stepperJson?.driver?.enabled ? (stepperJson?.config?.base_speed_sps || 1500) : (externalStatus?.stepperStatus.currentStepRate || 0),
+            currentPower: isActive ? 80 : 0,
+            activationCount: stepperData.activationCount || 0,
+            lastActivation: stepperData.lastActivation ? new Date(stepperData.lastActivation * 1000) : null,
+            activationDuration: 0.6,
+            totalActiveTime: 0,
+            sensorTriggers: stepperData.sensorTriggers || 0,
+            manualActivations: stepperData.manualActivations || 0,
+            driverTemperature: 25,
+            currentStepRate: isActive ? 1500 : 0,
           }
 
           const now = new Date()
           setExternalStatus({
             isRunning,
             direction,
-            currentSpeed: speedMs || 0,
-            targetSpeed: speedMs || 0,
-            motorTemperature: typeof beltJson.motor_temperature === 'number' ? beltJson.motor_temperature : 35,
-            enabled: beltJson.enabled !== false,
-            lastAction: isRunning ? (direction === 'forward' ? 'Banda en avance' : direction === 'backward' ? 'Banda en reversa' : 'Banda detenida') : 'Banda detenida',
+            currentSpeed: speedPercent / 100,
+            targetSpeed: speedPercent / 100,
+            motorTemperature: 35,
+            enabled: beltData.enabled !== false,
+            lastAction: isRunning 
+              ? (direction === 'forward' ? 'Banda en avance' : direction === 'backward' ? 'Banda en reversa' : 'Banda detenida') 
+              : 'Banda detenida',
             actionTime: now,
-            powerConsumption: externalStatus?.powerConsumption || 0,
-            vibrationLevel: externalStatus?.vibrationLevel || 0,
-            totalRuntime: typeof statusJson?.stats?.uptime_s === 'number' ? statusJson.stats.uptime_s : (externalStatus?.totalRuntime || 0),
+            powerConsumption: isRunning ? 150 : 0,
+            vibrationLevel: isRunning ? 1.2 : 0,
+            totalRuntime: statusJson.stats?.uptime_s || 0,
             isConnected: true,
-            firmwareVersion: externalStatus?.firmwareVersion || 'v2.1.4',
+            firmwareVersion: 'v2.1.4',
             stepperStatus: stepper,
           })
         }
       } catch (err) {
         if (!cancelled) {
+          console.warn('Error fetching status:', err)
           // Marcar como desconectado pero no romper la UI
           setExternalStatus(prev => prev ? { ...prev, isConnected: false } : prev)
         }

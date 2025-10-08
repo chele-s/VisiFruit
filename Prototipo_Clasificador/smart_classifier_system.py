@@ -341,7 +341,9 @@ class SmartFruitClassifier:
             "errors": 0,
             "start_time": time.time(),
             "uptime_s": 0,
-            "last_detection_ts": 0.0
+            "last_detection_ts": 0.0,
+            "stepper_manual_activations": 0,
+            "stepper_sensor_triggers": 0,
         }
         
         # Control en caliente vía archivo runtime
@@ -690,6 +692,10 @@ class SmartFruitClassifier:
                         pass
                     duration = float(labeler_cfg.get("duration_s", 0.6))
                     intensity = float(labeler_cfg.get("intensity_percent", 100.0))
+                    
+                    # Incrementar contador de activaciones por sensor
+                    self.stats["stepper_sensor_triggers"] = self.stats.get("stepper_sensor_triggers", 0) + 1
+                    
                     # Thread-safe: programar desde el event loop principal
                     self._loop.call_soon_threadsafe(
                         lambda: asyncio.create_task(self.labeler.activate_for_duration(duration, intensity))
@@ -767,8 +773,72 @@ class SmartFruitClassifier:
             
             @self._api_app.get("/status")
             async def get_system_status():
-                """Estado completo del sistema."""
-                return self.get_status()
+                """Estado completo del sistema incluyendo banda y stepper."""
+                try:
+                    # Estado base del sistema
+                    base_status = self.get_status()
+                    
+                    # Estado de la banda
+                    belt_status = {
+                        "available": self.belt is not None,
+                        "running": False,
+                        "enabled": True,
+                        "direction": "stopped",
+                        "speed": 100.0,
+                    }
+                    
+                    if self.belt:
+                        if hasattr(self.belt, 'running'):
+                            belt_status["running"] = self.belt.running
+                        elif hasattr(self.belt, 'is_running'):
+                            belt_status["running"] = self.belt.is_running
+                        
+                        if hasattr(self.belt, 'direction'):
+                            belt_status["direction"] = self.belt.direction if belt_status["running"] else "stopped"
+                        elif belt_status["running"]:
+                            belt_status["direction"] = "forward"
+                        
+                        belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
+                        belt_status["enabled"] = getattr(self.belt, 'enabled', True)
+                    
+                    # Estado del stepper (labeler)
+                    stepper_status = {
+                        "available": self.labeler is not None,
+                        "enabled": True,
+                        "isActive": False,
+                        "currentPower": 0,
+                        "activationCount": 0,
+                        "lastActivation": None,
+                        "sensorTriggers": self.stats.get("stepper_sensor_triggers", 0),
+                        "manualActivations": self.stats.get("stepper_manual_activations", 0),
+                    }
+                    
+                    if self.labeler:
+                        try:
+                            labeler_state = self.labeler.get_status()
+                            if isinstance(labeler_state, dict):
+                                driver_info = labeler_state.get('driver', {})
+                                stepper_status["isActive"] = driver_info.get('is_active', False)
+                                stepper_status["activationCount"] = len(getattr(self.labeler, 'activation_history', []))
+                                
+                                # Última activación
+                                history = getattr(self.labeler, 'activation_history', [])
+                                if history:
+                                    stepper_status["lastActivation"] = history[-1]
+                                    # Considerar activo si la última activación fue hace <= 1s
+                                    if (time.time() - history[-1]) <= 1.0:
+                                        stepper_status["isActive"] = True
+                        except Exception as e:
+                            logger.debug(f"Error obteniendo estado detallado del labeler: {e}")
+                    
+                    # Combinar todo
+                    base_status["belt"] = belt_status
+                    base_status["stepper"] = stepper_status
+                    
+                    return base_status
+                except Exception as e:
+                    logger.error(f"Error en get_system_status: {e}")
+                    return {"error": str(e), "state": self.state.value}
             
             # ==================== CONTROL DE BANDA ====================
             
@@ -831,20 +901,28 @@ class SmartFruitClassifier:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
-                    if hasattr(self.belt, 'stop'):
-                        await self.belt.stop()
-                    elif hasattr(self.belt, 'stop_belt'):
+                    # Intentar detener con todos los métodos posibles
+                    stopped = False
+                    if hasattr(self.belt, 'stop_belt'):
                         await self.belt.stop_belt()
-                    else:
+                        stopped = True
+                    elif hasattr(self.belt, 'stop'):
+                        await self.belt.stop()
+                        stopped = True
+                    
+                    if not stopped:
                         raise HTTPException(status_code=501, detail="Método no soportado")
+                    
                     # Activar override manual para que el sensor no reanude
                     self._manual_belt_stop_override = True
+                    
+                    logger.info("⏹️ Banda detenida desde API web")
                     
                     return {"status": "success", "action": "belt_stop", "message": "Banda detenida"}
                 except HTTPException:
                     raise
                 except Exception as e:
-                    logger.error(f"Error deteniendo banda: {e}")
+                    logger.error(f"Error deteniendo banda: {e}", exc_info=True)
                     raise HTTPException(status_code=500, detail=str(e))
             
             @self._api_app.post("/belt/emergency_stop")
@@ -988,6 +1066,9 @@ class SmartFruitClassifier:
                         pass
                     
                     await self.labeler.activate_for_duration(duration, intensity)
+                    
+                    # Incrementar contador de activaciones manuales
+                    self.stats["stepper_manual_activations"] = self.stats.get("stepper_manual_activations", 0) + 1
                     
                     logger.info(f"🧪 Test manual de stepper: {duration}s @ {intensity}%")
                     
