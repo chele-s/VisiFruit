@@ -361,8 +361,8 @@ const BeltControlView: React.FC = () => {
         endpoint = '/laser_stepper/test';
         method = 'POST';
         body = JSON.stringify({ 
-          duration: params?.duration || 0.6,
-          intensity: params?.intensity || 80.0
+          duration: Number(params?.duration) || 0.6,
+          intensity: Number(params?.intensity) || 80.0
         });
         break;
       case 'stepper_sensor_trigger':
@@ -370,8 +370,8 @@ const BeltControlView: React.FC = () => {
         endpoint = '/laser_stepper/test';
         method = 'POST';
         body = JSON.stringify({ 
-          duration: params?.duration || 0.6,
-          intensity: params?.intensity || 80.0,
+          duration: Number(params?.duration) || 0.6,
+          intensity: Number(params?.intensity) || 80.0,
           triggered_by: 'sensor_simulation'
         });
         break;
@@ -457,16 +457,16 @@ const callDemoSystemAPI = async (action: string, params?: any) => {
         endpoint = '/laser_stepper/test';
         method = 'POST';
         body = JSON.stringify({ 
-          duration: params?.duration || 0.6,
-          intensity: params?.intensity || 80.0
+          duration: Number(params?.duration) || 0.6,
+          intensity: Number(params?.intensity) || 80.0
         });
         break;
       case 'stepper_sensor_trigger':
         endpoint = '/laser_stepper/test';
         method = 'POST';
         body = JSON.stringify({ 
-          duration: params?.duration || 0.6,
-          intensity: params?.intensity || 80.0,
+          duration: Number(params?.duration) || 0.6,
+          intensity: Number(params?.intensity) || 0.0,
           triggered_by: 'sensor_simulation'
         });
         break;

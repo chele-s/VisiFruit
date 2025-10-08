@@ -121,6 +121,75 @@ class UltraAPIFactory:
             if self.system.motor_controller:
                 motor_status = self.system.motor_controller.get_status()
             
+            # Estado de la banda transportadora
+            belt_status = {
+                "available": False,
+                "running": False,
+                "direction": "stopped",
+                "speed": 0.0,
+                "enabled": True,
+            }
+            
+            if self.system.belt_controller:
+                try:
+                    belt_driver_status = await self.system.belt_controller.get_status()
+                    if isinstance(belt_driver_status, dict):
+                        # Mapear del formato del driver al formato esperado por el frontend
+                        belt_status["available"] = True
+                        belt_status["running"] = belt_driver_status.get("running", belt_driver_status.get("is_running", False))
+                        belt_status["enabled"] = belt_driver_status.get("enabled", True)
+                        
+                        # Determinar dirección
+                        if belt_status["running"]:
+                            direction = belt_driver_status.get("direction", "forward")
+                            belt_status["direction"] = direction if direction != "stopped" else "forward"
+                        else:
+                            belt_status["direction"] = "stopped"
+                        
+                        # Velocidad (convertir de porcentaje a m/s si es necesario)
+                        speed_value = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 0.0))
+                        belt_status["speed"] = speed_value
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado de banda: {e}")
+            
+            # Estado del stepper (labeler laser DRV8825)
+            stepper_status = {
+                "available": self.system.laser_stepper is not None,
+                "enabled": True,
+                "isActive": False,
+                "currentPower": 0,
+                "activationCount": 0,
+                "lastActivation": None,
+                "sensorTriggers": 0,
+                "manualActivations": 0,
+            }
+            
+            if self.system.laser_stepper:
+                try:
+                    labeler_state = self.system.laser_stepper.get_status()
+                    if isinstance(labeler_state, dict):
+                        driver_info = labeler_state.get('driver', {})
+                        stepper_status["isActive"] = driver_info.get('is_active', False)
+                        stepper_status["activationCount"] = labeler_state.get('activation_count', 0)
+                        
+                        # Última activación
+                        history = labeler_state.get('activation_history', [])
+                        if history:
+                            stepper_status["lastActivation"] = history[-1]
+                except Exception as e:
+                    logger.debug(f"Error obteniendo estado del stepper: {e}")
+            
+            # Estado del sistema de clasificación
+            stats = {
+                "uptime_s": self.system.metrics_manager.metrics.uptime_seconds,
+                "detections_total": self.system.metrics_manager.metrics.total_fruits_detected,
+                "labeled_total": self.system.metrics_manager.metrics.total_labels_applied,
+                "classified_total": sum(
+                    metrics.classified_count 
+                    for metrics in self.system.metrics_manager.category_metrics.values()
+                ),
+            }
+            
             return {
                 "system": {
                     "id": self.system.system_id,
@@ -129,6 +198,9 @@ class UltraAPIFactory:
                     "uptime": self.system.metrics_manager.metrics.uptime_seconds,
                     "version": self.system.version
                 },
+                "belt": belt_status,
+                "stepper": stepper_status,
+                "stats": stats,
                 "metrics": asdict(self.system.metrics_manager.metrics),
                 "labelers": labelers_status,
                 "motor": motor_status,

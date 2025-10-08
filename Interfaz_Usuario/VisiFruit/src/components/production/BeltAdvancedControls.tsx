@@ -404,144 +404,70 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
         });
       }
 
-      const newStatus = { ...beltStatus };
       let actionDescription = '';
+
+      // Preparar parámetros específicos para cada acción
+      let apiParams: any = {
+        ...params,
+        connectionType,
+      };
 
       switch (action) {
         case 'start_forward':
-          newStatus.isRunning = true;
-          newStatus.direction = 'forward';
-          newStatus.targetSpeed = configuration.defaultSpeed;
-          actionDescription = `Banda iniciada hacia adelante a ${configuration.defaultSpeed.toFixed(1)} m/s`;
+          actionDescription = 'Banda iniciando hacia adelante...';
           break;
         case 'start_backward':
-          newStatus.isRunning = true;
-          newStatus.direction = 'backward';
-          newStatus.targetSpeed = configuration.defaultSpeed;
-          actionDescription = `Banda iniciada hacia atrás a ${configuration.defaultSpeed.toFixed(1)} m/s`;
+          actionDescription = 'Banda iniciando hacia atrás...';
           break;
         case 'stop':
-          newStatus.isRunning = false;
-          newStatus.direction = 'stopped';
-          newStatus.targetSpeed = 0;
-          newStatus.currentSpeed = 0;
-          actionDescription = 'Banda detenida';
+          actionDescription = 'Deteniendo banda...';
           break;
         case 'emergency_stop':
-          newStatus.isRunning = false;
-          newStatus.direction = 'stopped';
-          newStatus.enabled = false;
-          newStatus.targetSpeed = 0;
-          newStatus.currentSpeed = 0;
-          actionDescription = 'PARADA DE EMERGENCIA EJECUTADA';
+          actionDescription = 'PARADA DE EMERGENCIA';
           showAlert(actionDescription, 'error');
           break;
         case 'toggle_enable':
-          newStatus.enabled = !newStatus.enabled;
-          if (!newStatus.enabled) {
-            newStatus.isRunning = false;
-            newStatus.direction = 'stopped';
-            newStatus.targetSpeed = 0;
-            newStatus.currentSpeed = 0;
-          }
-          actionDescription = newStatus.enabled ? 'Sistema habilitado' : 'Sistema deshabilitado';
+          actionDescription = beltStatus.enabled ? 'Deshabilitando sistema...' : 'Habilitando sistema...';
           break;
         case 'set_speed':
-          newStatus.targetSpeed = params?.speed || newStatus.targetSpeed;
-          if (newStatus.isRunning) {
-            newStatus.currentSpeed = newStatus.targetSpeed;
-          }
-          actionDescription = `Velocidad objetivo establecida a ${newStatus.targetSpeed.toFixed(1)} m/s`;
+          apiParams.speed = params?.speed || beltStatus.targetSpeed;
+          actionDescription = `Ajustando velocidad a ${apiParams.speed.toFixed(1)} m/s...`;
           break;
         case 'sensor_activation':
-          if (configuration.autoStartOnSensor && !newStatus.isRunning) {
-            newStatus.isRunning = true;
-            newStatus.direction = 'forward';
-          }
+          actionDescription = 'Simulando activación de sensor...';
           break;
         case 'stepper_manual_activation':
-          // Activación manual del motor NEMA 17
-          if (newStatus.stepperStatus && configuration.stepperConfig) {
-            newStatus.stepperStatus = {
-              ...newStatus.stepperStatus,
-              isActive: true,
-              currentPower: configuration.stepperConfig.powerIntensity,
-              manualActivations: newStatus.stepperStatus.manualActivations + 1,
-              activationCount: newStatus.stepperStatus.activationCount + 1,
-              lastActivation: new Date(),
-              activationDuration: configuration.stepperConfig.manualActivationDuration,
-              currentStepRate: configuration.stepperConfig.currentStepSpeed,
-            };
-            actionDescription = `Motor NEMA 17 activado manualmente: ${configuration.stepperConfig.powerIntensity}% por ${configuration.stepperConfig.manualActivationDuration}s`;
-            
-            // Simular desactivación después de la duración
-            setTimeout(() => {
-              setBeltStatus(prev => ({
-                ...prev,
-                stepperStatus: {
-                  ...prev.stepperStatus!,
-                  isActive: false,
-                  currentPower: 0,
-                  currentStepRate: 0,
-                  totalActiveTime: prev.stepperStatus!.totalActiveTime + configuration.stepperConfig.manualActivationDuration,
-                }
-              }));
-            }, configuration.stepperConfig.manualActivationDuration * 1000);
-          }
+          // Pasar configuración del stepper al backend
+          apiParams.duration = configuration.stepperConfig?.manualActivationDuration || 0.6;
+          apiParams.intensity = configuration.stepperConfig?.powerIntensity || 80.0;
+          actionDescription = `Activando motor NEMA 17: ${apiParams.intensity}% por ${apiParams.duration}s`;
           break;
         case 'stepper_sensor_trigger':
-          // Activación automática por sensor MH Flying Fish
-          if (newStatus.stepperStatus && configuration.stepperConfig && configuration.stepperConfig.enableAutoActivation) {
-            newStatus.stepperStatus = {
-              ...newStatus.stepperStatus,
-              isActive: true,
-              currentPower: configuration.stepperConfig.powerIntensity,
-              sensorTriggers: newStatus.stepperStatus.sensorTriggers + 1,
-              activationCount: newStatus.stepperStatus.activationCount + 1,
-              lastActivation: new Date(),
-              activationDuration: configuration.stepperConfig.sensorActivationDuration,
-              currentStepRate: configuration.stepperConfig.currentStepSpeed,
-            };
-            actionDescription = `Motor NEMA 17 activado por sensor: ${configuration.stepperConfig.powerIntensity}% por ${configuration.stepperConfig.sensorActivationDuration}s`;
-            
-            // Simular desactivación después de la duración
-            setTimeout(() => {
-              setBeltStatus(prev => ({
-                ...prev,
-                stepperStatus: {
-                  ...prev.stepperStatus!,
-                  isActive: false,
-                  currentPower: 0,
-                  currentStepRate: 0,
-                  totalActiveTime: prev.stepperStatus!.totalActiveTime + configuration.stepperConfig.sensorActivationDuration,
-                }
-              }));
-            }, configuration.stepperConfig.sensorActivationDuration * 1000);
-          }
+          // Pasar configuración del stepper al backend para trigger por sensor
+          apiParams.duration = configuration.stepperConfig?.sensorActivationDuration || 0.6;
+          apiParams.intensity = configuration.stepperConfig?.powerIntensity || 80.0;
+          actionDescription = `Simulando sensor MH Flying Fish: ${apiParams.intensity}% por ${apiParams.duration}s`;
           break;
       }
 
-      newStatus.lastAction = actionDescription;
-      newStatus.actionTime = new Date();
-      setBeltStatus(newStatus);
-
-      // Llamar callback con configuración específica por conexión
-      if (onBeltAction) {
-        const apiParams = {
-          ...params,
-          connectionType,
-          speed: action.includes('speed') ? newStatus.targetSpeed : undefined,
-        };
-        await onBeltAction(action, apiParams);
-      }
-
-      if (action !== 'emergency_stop') {
+      // Mostrar mensaje de acción iniciada
+      if (action !== 'emergency_stop' && actionDescription) {
         showAlert(actionDescription, 'success');
       }
 
+      // Llamar al backend - NO actualizar estado local, esperar respuesta del backend
+      if (onBeltAction) {
+        await onBeltAction(action, apiParams);
+      }
+
+      // El estado se actualizará automáticamente vía externalStatus desde el polling del backend
+
     } catch (error) {
       console.error('Error en acción de banda:', error);
-      showAlert('Error al ejecutar acción', 'error');
+      showAlert(`Error al ejecutar acción: ${error}`, 'error');
+      
+      // En caso de error, permitir que el usuario reintente sin quedar bloqueado
+      // El estado volverá al real cuando llegue el siguiente poll del backend
     }
   };
 
@@ -721,12 +647,15 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                   data-action="start_forward"
                   size="large"
                   onClick={() => handleBeltAction('start_forward')}
-                  disabled={disabled || !beltStatus.enabled || beltStatus.direction === 'forward'}
+                  disabled={disabled || !beltStatus.enabled}
                   sx={{
                     width: 100,
                     height: 100,
-                    background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(76, 175, 80, 0.1))',
+                    background: beltStatus.direction === 'forward' 
+                      ? 'linear-gradient(135deg, rgba(76, 175, 80, 0.5), rgba(76, 175, 80, 0.3))'
+                      : 'linear-gradient(135deg, rgba(76, 175, 80, 0.3), rgba(76, 175, 80, 0.1))',
                     color: theme.palette.success.main,
+                    border: beltStatus.direction === 'forward' ? `2px solid ${theme.palette.success.main}` : 'none',
                     '&:hover': {
                       background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.5), rgba(76, 175, 80, 0.2))',
                     },
@@ -744,12 +673,15 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                   data-action="stop"
                   size="large"
                   onClick={() => handleBeltAction('stop')}
-                  disabled={disabled || !beltStatus.enabled || beltStatus.direction === 'stopped'}
+                  disabled={disabled || !beltStatus.enabled}
                   sx={{
                     width: 100,
                     height: 100,
-                    background: 'linear-gradient(135deg, rgba(158, 158, 158, 0.3), rgba(158, 158, 158, 0.1))',
+                    background: beltStatus.direction === 'stopped'
+                      ? 'linear-gradient(135deg, rgba(158, 158, 158, 0.5), rgba(158, 158, 158, 0.3))'
+                      : 'linear-gradient(135deg, rgba(158, 158, 158, 0.3), rgba(158, 158, 158, 0.1))',
                     color: theme.palette.grey[400],
+                    border: beltStatus.direction === 'stopped' ? `2px solid ${theme.palette.grey[400]}` : 'none',
                     '&:hover': {
                       background: 'linear-gradient(135deg, rgba(158, 158, 158, 0.5), rgba(158, 158, 158, 0.2))',
                     },
@@ -767,12 +699,15 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
                   data-action="start_backward"
                   size="large"
                   onClick={() => handleBeltAction('start_backward')}
-                  disabled={disabled || !beltStatus.enabled || beltStatus.direction === 'backward'}
+                  disabled={disabled || !beltStatus.enabled}
                   sx={{
                     width: 100,
                     height: 100,
-                    background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.1))',
+                    background: beltStatus.direction === 'backward'
+                      ? 'linear-gradient(135deg, rgba(255, 193, 7, 0.5), rgba(255, 193, 7, 0.3))'
+                      : 'linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 193, 7, 0.1))',
                     color: theme.palette.warning.main,
+                    border: beltStatus.direction === 'backward' ? `2px solid ${theme.palette.warning.main}` : 'none',
                     '&:hover': {
                       background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.5), rgba(255, 193, 7, 0.2))',
                     },

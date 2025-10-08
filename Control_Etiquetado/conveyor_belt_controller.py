@@ -1127,7 +1127,33 @@ class ConveyorBeltController:
     
     def get_status(self) -> Dict[str, Any]:
         """Obtener estado completo del sistema."""
+        # Obtener dirección del driver si está disponible (síncronamente)
+        direction = "stopped"
+        
+        if self.driver:
+            # Leer atributos directos del driver de forma síncrona
+            if hasattr(self.driver, 'current_direction'):
+                driver_direction = getattr(self.driver, 'current_direction', None)
+                if driver_direction:
+                    direction = driver_direction
+        
+        # Si está corriendo pero la dirección es "stopped", asumimos "forward"
+        if self.status.is_running:
+            if direction == "stopped" or not direction:
+                direction = "forward"
+        else:
+            direction = "stopped"
+        
         return {
+            # Campos de nivel superior para compatibilidad con frontend
+            "running": self.status.is_running,
+            "is_running": self.status.is_running,
+            "direction": direction,
+            "enabled": self.status.state != BeltState.ERROR,
+            "speed": self.status.speed_percent,
+            "speed_percent": self.status.speed_percent,
+            
+            # Información detallada anidada
             "status": {
                 "state": self.status.state.value,
                 "is_running": self.status.is_running,
@@ -1137,7 +1163,8 @@ class ConveyorBeltController:
                 "error_count": self.status.error_count,
                 "uptime_s": self.status.uptime_s,
                 "last_error": self.status.last_error,
-                "health_score": self.status.health_score
+                "health_score": self.status.health_score,
+                "direction": direction
             },
             "metrics": {
                 "total_runtime_hours": self.metrics.total_runtime_hours,

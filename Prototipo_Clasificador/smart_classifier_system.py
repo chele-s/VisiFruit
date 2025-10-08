@@ -788,18 +788,27 @@ class SmartFruitClassifier:
                     }
                     
                     if self.belt:
-                        if hasattr(self.belt, 'running'):
-                            belt_status["running"] = self.belt.running
-                        elif hasattr(self.belt, 'is_running'):
-                            belt_status["running"] = self.belt.is_running
-                        
-                        if hasattr(self.belt, 'direction'):
-                            belt_status["direction"] = self.belt.direction if belt_status["running"] else "stopped"
-                        elif belt_status["running"]:
-                            belt_status["direction"] = "forward"
-                        
-                        belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
-                        belt_status["enabled"] = getattr(self.belt, 'enabled', True)
+                        # Intentar obtener el estado desde get_status() del belt
+                        try:
+                            belt_driver_status = await self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
+                            if isinstance(belt_driver_status, dict):
+                                belt_status["running"] = belt_driver_status.get("running", False)
+                                belt_status["direction"] = belt_driver_status.get("direction", "stopped")
+                                belt_status["speed"] = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 100.0))
+                                belt_status["enabled"] = belt_driver_status.get("enabled", True)
+                            else:
+                                # Fallback a atributos directos
+                                belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
+                                belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
+                                belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
+                                belt_status["enabled"] = getattr(self.belt, 'enabled', True)
+                        except Exception as e:
+                            logger.warning(f"Error getting belt status via get_status(), using fallback: {e}")
+                            # Fallback: leer atributos directamente
+                            belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
+                            belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
+                            belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
+                            belt_status["enabled"] = getattr(self.belt, 'enabled', True)
                     
                     # Estado del stepper (labeler)
                     stepper_status = {
