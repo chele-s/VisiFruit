@@ -778,36 +778,51 @@ class SmartFruitClassifier:
                     # Estado base del sistema
                     base_status = self.get_status()
                     
+                    # Detectar tipo de motor de banda (relay vs PWM)
+                    belt_control_type = "relay"  # Por defecto relay (sin control de velocidad)
+                    has_speed_control = False
+                    
+                    if self.belt and hasattr(self.belt, 'driver'):
+                        driver_class_name = self.belt.driver.__class__.__name__ if self.belt.driver else ""
+                        if 'Relay' in driver_class_name:
+                            belt_control_type = "relay"
+                            has_speed_control = False
+                        elif 'PWM' in driver_class_name or 'L298N' in driver_class_name:
+                            belt_control_type = "pwm"
+                            has_speed_control = True
+                    
                     # Estado de la banda
                     belt_status = {
                         "available": self.belt is not None,
                         "running": False,
                         "enabled": True,
                         "direction": "stopped",
-                        "speed": 100.0,
+                        "control_type": belt_control_type,  # Nuevo: tipo de motor (relay/pwm)
+                        "has_speed_control": has_speed_control,  # Nuevo: soporta velocidad variable
                     }
                     
                     if self.belt:
-                        # Intentar obtener el estado desde get_status() del belt
+                        # Obtener el estado del belt (método síncrono)
                         try:
-                            belt_driver_status = await self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
-                            if isinstance(belt_driver_status, dict):
-                                belt_status["running"] = belt_driver_status.get("running", False)
-                                belt_status["direction"] = belt_driver_status.get("direction", "stopped")
-                                belt_status["speed"] = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 100.0))
-                                belt_status["enabled"] = belt_driver_status.get("enabled", True)
+                            if hasattr(self.belt, 'get_status'):
+                                belt_driver_status = self.belt.get_status()  # SIN await - es síncrono
+                                if isinstance(belt_driver_status, dict):
+                                    belt_status["running"] = belt_driver_status.get("running", False)
+                                    belt_status["direction"] = belt_driver_status.get("direction", "stopped")
+                                    belt_status["enabled"] = belt_driver_status.get("enabled", True)
+                                    # Solo incluir velocidad si el motor la soporta
+                                    if has_speed_control:
+                                        belt_status["speed"] = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 100.0))
                             else:
                                 # Fallback a atributos directos
                                 belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
                                 belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
-                                belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
                                 belt_status["enabled"] = getattr(self.belt, 'enabled', True)
                         except Exception as e:
-                            logger.warning(f"Error getting belt status via get_status(), using fallback: {e}")
+                            logger.debug(f"Error getting belt status, using fallback: {e}")
                             # Fallback: leer atributos directamente
                             belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
                             belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
-                            belt_status["speed"] = getattr(self.belt, 'speed', 100.0)
                             belt_status["enabled"] = getattr(self.belt, 'enabled', True)
                     
                     # Estado del stepper (labeler)
@@ -824,7 +839,8 @@ class SmartFruitClassifier:
                     
                     if self.labeler:
                         try:
-                            labeler_state = self.labeler.get_status()
+                            # Llamar a get_status de forma async
+                            labeler_state = await self.labeler.get_status()
                             if isinstance(labeler_state, dict):
                                 driver_info = labeler_state.get('driver', {})
                                 stepper_status["isActive"] = driver_info.get('is_active', False)
@@ -851,28 +867,75 @@ class SmartFruitClassifier:
             
             # ==================== CONTROL DE BANDA ====================
             
+            class BeltSpeedRequest(BaseModel):
+                """Request para control de velocidad de banda."""
+                speed_percent: float = 100.0
+            
             @self._api_app.post("/belt/start_forward")
-            async def belt_start_forward():
-                """Inicia la banda hacia adelante."""
+            async def belt_start_forward(request: BeltSpeedRequest = None):
+                """Inicia la banda hacia adelante (velocidad fija para relay, variable para PWM)."""
                 try:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
+                    # Detectar si el motor soporta velocidad variable
+                    has_speed_control = False
+                    if hasattr(self.belt, 'driver'):
+                        driver_class_name = self.belt.driver.__class__.__name__ if self.belt.driver else ""
+                        if 'PWM' in driver_class_name or 'L298N' in driver_class_name:
+                            has_speed_control = True
+                    
+                    # Determinar velocidad solo si el motor lo soporta
+                    speed = None
+                    if has_speed_control and request and hasattr(request, 'speed_percent'):
+                        speed = float(request.speed_percent)
+                        speed = max(0.0, min(100.0, speed))  # Validar rango
+                    
+                    # Intentar iniciar con diferentes métodos según el driver
+                    success = False
                     if hasattr(self.belt, 'start_forward'):
                         await self.belt.start_forward()
+                        success = True
                     elif hasattr(self.belt, 'start_belt'):
-                        await self.belt.start_belt()
+                        await self.belt.start_belt(speed if speed else None)
+                        success = True
                     else:
-                        raise HTTPException(status_code=501, detail="Método no soportado")
+                        raise HTTPException(status_code=501, detail="Método no soportado por el controlador")
+                    
                     # Quitar override manual para permitir marcha
                     self._manual_belt_stop_override = False
                     
-                    return {"status": "success", "action": "belt_start_forward", "message": "Banda iniciada hacia adelante"}
+                    # Obtener estado actualizado
+                    belt_status = self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
+                    
+                    # Mensaje adaptado al tipo de motor
+                    if has_speed_control and speed:
+                        message = f"Banda iniciada hacia adelante a {speed}%"
+                    else:
+                        message = "Banda iniciada hacia adelante (velocidad fija)"
+                    
+                    logger.info(f"✅ {message}")
+                    
+                    response = {
+                        "status": "success",
+                        "action": "belt_start_forward",
+                        "message": message,
+                        "timestamp": time.time(),
+                        "belt_status": belt_status,
+                        "control_type": "pwm" if has_speed_control else "relay"
+                    }
+                    
+                    # Solo incluir velocidad si el motor la soporta
+                    if has_speed_control and speed:
+                        response["speed_percent"] = speed
+                    
+                    return response
+                    
                 except HTTPException:
                     raise
                 except Exception as e:
-                    logger.error(f"Error iniciando banda: {e}")
-                    raise HTTPException(status_code=500, detail=str(e))
+                    logger.error(f"Error iniciando banda: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"Error iniciando banda: {str(e)}")
             
             @self._api_app.post("/belt/start_backward")
             async def belt_start_backward():
@@ -905,34 +968,53 @@ class SmartFruitClassifier:
             
             @self._api_app.post("/belt/stop")
             async def belt_stop():
-                """Detiene la banda."""
+                """Detiene la banda con información detallada."""
                 try:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
                     # Intentar detener con todos los métodos posibles
                     stopped = False
-                    if hasattr(self.belt, 'stop_belt'):
-                        await self.belt.stop_belt()
-                        stopped = True
-                    elif hasattr(self.belt, 'stop'):
-                        await self.belt.stop()
-                        stopped = True
+                    error_msg = None
+                    
+                    try:
+                        if hasattr(self.belt, 'stop_belt'):
+                            await self.belt.stop_belt()
+                            stopped = True
+                        elif hasattr(self.belt, 'stop'):
+                            await self.belt.stop()
+                            stopped = True
+                        else:
+                            error_msg = "Método de parada no soportado por el controlador"
+                    except Exception as e:
+                        error_msg = f"Error ejecutando parada: {str(e)}"
+                        logger.error(error_msg, exc_info=True)
                     
                     if not stopped:
-                        raise HTTPException(status_code=501, detail="Método no soportado")
+                        raise HTTPException(status_code=501, detail=error_msg or "Método no soportado")
                     
                     # Activar override manual para que el sensor no reanude
                     self._manual_belt_stop_override = True
                     
+                    # Obtener estado actualizado
+                    belt_status = self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
+                    
                     logger.info("⏹️ Banda detenida desde API web")
                     
-                    return {"status": "success", "action": "belt_stop", "message": "Banda detenida"}
+                    return {
+                        "status": "success",
+                        "action": "belt_stop",
+                        "message": "Banda detenida correctamente",
+                        "timestamp": time.time(),
+                        "manual_override_active": self._manual_belt_stop_override,
+                        "belt_status": belt_status
+                    }
+                    
                 except HTTPException:
                     raise
                 except Exception as e:
                     logger.error(f"Error deteniendo banda: {e}", exc_info=True)
-                    raise HTTPException(status_code=500, detail=str(e))
+                    raise HTTPException(status_code=500, detail=f"Error deteniendo banda: {str(e)}")
             
             @self._api_app.post("/belt/emergency_stop")
             async def belt_emergency_stop():
@@ -956,22 +1038,57 @@ class SmartFruitClassifier:
                     raise HTTPException(status_code=500, detail=str(e))
             
             @self._api_app.post("/belt/set_speed")
-            async def belt_set_speed(speed: float):
-                """Ajusta la velocidad de la banda."""
+            async def belt_set_speed(request: BeltSpeedRequest):
+                """Ajusta la velocidad de la banda (solo para motores PWM/L298N)."""
                 try:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
-                    if hasattr(self.belt, 'set_speed'):
-                        await self.belt.set_speed(speed)
-                        return {"status": "success", "action": "set_speed", "speed": speed, "message": f"Velocidad ajustada a {speed}"}
-                    else:
-                        raise HTTPException(status_code=501, detail="Control de velocidad no soportado")
+                    # Verificar si el motor soporta control de velocidad
+                    has_speed_control = False
+                    if hasattr(self.belt, 'driver'):
+                        driver_class_name = self.belt.driver.__class__.__name__ if self.belt.driver else ""
+                        if 'PWM' in driver_class_name or 'L298N' in driver_class_name:
+                            has_speed_control = True
+                    
+                    if not has_speed_control:
+                        raise HTTPException(
+                            status_code=501, 
+                            detail="Motor con relays no soporta control de velocidad. Solo tiene velocidad fija (ON/OFF). Para cambiar velocidad, debe modificarse físicamente las bobinas del motor."
+                        )
+                    
+                    # Validar y normalizar velocidad
+                    speed = float(request.speed_percent)
+                    speed = max(0.0, min(100.0, speed))  # Clamp entre 0-100%
+                    
+                    if not hasattr(self.belt, 'set_speed'):
+                        raise HTTPException(status_code=501, detail="Control de velocidad no soportado por este controlador")
+                    
+                    # Establecer velocidad
+                    success = await self.belt.set_speed(speed)
+                    
+                    if not success:
+                        raise HTTPException(status_code=500, detail="Error al establecer velocidad")
+                    
+                    # Obtener estado actualizado
+                    belt_status = self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
+                    
+                    logger.info(f"⚡ Velocidad de banda ajustada a {speed}%")
+                    
+                    return {
+                        "status": "success",
+                        "action": "set_speed",
+                        "speed_percent": speed,
+                        "message": f"Velocidad ajustada a {speed}%",
+                        "timestamp": time.time(),
+                        "belt_status": belt_status
+                    }
+                    
                 except HTTPException:
                     raise
                 except Exception as e:
-                    logger.error(f"Error ajustando velocidad: {e}")
-                    raise HTTPException(status_code=500, detail=str(e))
+                    logger.error(f"Error ajustando velocidad: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"Error ajustando velocidad: {str(e)}")
             
             @self._api_app.post("/belt/toggle_enable")
             async def belt_toggle_enable():
@@ -1055,44 +1172,71 @@ class SmartFruitClassifier:
                     logger.error(f"Error en toggle stepper: {e}")
                     raise HTTPException(status_code=500, detail=str(e))
             
+            class StepperActivationRequest(BaseModel):
+                """Request para activación manual del stepper."""
+                duration: float = 0.6
+                intensity: float = 80.0
+                
             @self._api_app.post("/laser_stepper/test")
-            async def test_laser_stepper():
-                """Prueba manual del stepper láser."""
+            async def test_laser_stepper(request: StepperActivationRequest = None):
+                """Prueba manual del stepper láser con parámetros configurables."""
                 try:
                     if not self.labeler:
                         raise HTTPException(status_code=503, detail="Etiquetadora no disponible")
                     
-                    # Activar stepper por un tiempo corto
-                    duration = 0.6
-                    intensity = 80.0
+                    # Usar valores del request o valores por defecto
+                    if request:
+                        duration = float(request.duration)
+                        intensity = float(request.intensity)
+                    else:
+                        # Valores por defecto de la configuración
+                        stepper_cfg = self.config.get("labeler_settings", {})
+                        duration = float(stepper_cfg.get("activation_duration_seconds", 0.6))
+                        intensity = float(stepper_cfg.get("intensity_percent", 80.0))
+                    
+                    # Validar parámetros
+                    duration = max(0.1, min(10.0, duration))  # Entre 0.1 y 10 segundos
+                    intensity = max(10.0, min(100.0, intensity))  # Entre 10% y 100%
+                    
                     # Forzar dirección hacia adelante antes de activar
                     try:
                         driver = getattr(self.labeler, 'driver', None)
-                        if driver and hasattr(driver, 'dir_pin'):
+                        if driver and hasattr(driver, 'dir_pin') and not is_simulation_mode():
                             default_dir_high = (str(getattr(driver, 'default_direction', 'CW')).upper() == 'CW') ^ bool(getattr(driver, 'invert_direction', False))
                             GPIO.output(driver.dir_pin, GPIO.HIGH if default_dir_high else GPIO.LOW)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Error configurando dirección del stepper: {e}")
                     
-                    await self.labeler.activate_for_duration(duration, intensity)
+                    # Activar stepper
+                    success = await self.labeler.activate_for_duration(duration, intensity)
                     
-                    # Incrementar contador de activaciones manuales
-                    self.stats["stepper_manual_activations"] = self.stats.get("stepper_manual_activations", 0) + 1
-                    
-                    logger.info(f"🧪 Test manual de stepper: {duration}s @ {intensity}%")
-                    
-                    return {
-                        "status": "success",
-                        "action": "stepper_test",
-                        "duration": duration,
-                        "intensity": intensity,
-                        "message": "Stepper activado exitosamente"
-                    }
+                    if success:
+                        # Incrementar contador de activaciones manuales
+                        self.stats["stepper_manual_activations"] = self.stats.get("stepper_manual_activations", 0) + 1
+                        
+                        logger.info(f"🧪 Test manual de stepper: {duration}s @ {intensity}%")
+                        
+                        # Obtener estado actualizado
+                        stepper_status = await self.labeler.get_status()
+                        
+                        return {
+                            "status": "success",
+                            "action": "stepper_test",
+                            "duration": duration,
+                            "intensity": intensity,
+                            "message": "Stepper activado exitosamente",
+                            "timestamp": time.time(),
+                            "manual_activations_count": self.stats["stepper_manual_activations"],
+                            "stepper_status": stepper_status
+                        }
+                    else:
+                        raise HTTPException(status_code=500, detail="Error al activar el stepper")
+                        
                 except HTTPException:
                     raise
                 except Exception as e:
-                    logger.error(f"Error en test stepper: {e}")
-                    raise HTTPException(status_code=500, detail=str(e))
+                    logger.error(f"Error en test stepper: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"Error al activar stepper: {str(e)}")
             
             @self._api_app.get("/laser_stepper/status")
             async def get_laser_stepper_status():

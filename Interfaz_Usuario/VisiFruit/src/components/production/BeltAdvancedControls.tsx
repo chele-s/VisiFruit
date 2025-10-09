@@ -97,6 +97,9 @@ interface BeltStatus {
   totalRuntime: number;
   isConnected: boolean;
   firmwareVersion: string;
+  // Información del tipo de motor
+  controlType?: 'relay' | 'pwm' | 'l298n'; // Tipo de control de motor
+  hasSpeedControl?: boolean; // Si el motor soporta control de velocidad variable
   // Estado del motor NEMA 17 (DRV8825)
   stepperStatus: {
     isActive: boolean; // si el stepper está activamente funcionando
@@ -229,6 +232,8 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
     totalRuntime: 0,
     isConnected: true,
     firmwareVersion: 'v2.1.4',
+    controlType: 'relay', // Por defecto relay (sin control de velocidad)
+    hasSpeedControl: false, // Se actualizará desde el backend
     stepperStatus: {
       isActive: false,
       currentPower: 0,
@@ -332,6 +337,8 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
       totalRuntime: externalStatus.totalRuntime ?? prev.totalRuntime,
       isConnected: externalStatus.isConnected ?? prev.isConnected,
       firmwareVersion: externalStatus.firmwareVersion ?? prev.firmwareVersion,
+      controlType: externalStatus.controlType ?? prev.controlType, // Actualizar tipo de control
+      hasSpeedControl: externalStatus.hasSpeedControl ?? prev.hasSpeedControl, // Actualizar si soporta velocidad
       stepperStatus: externalStatus.stepperStatus ? {
         ...prev.stepperStatus,
         ...externalStatus.stepperStatus,
@@ -567,14 +574,31 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
               <Paper sx={{ p: 2, background: 'rgba(0, 229, 160, 0.1)', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Speed sx={{ color: theme.palette.primary.main }} />
-                  <Typography variant="subtitle2" fontWeight={600}>Velocidad</Typography>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {beltStatus.hasSpeedControl ? 'Velocidad' : 'Estado Motor'}
+                  </Typography>
                 </Box>
-                <Typography variant="h5" fontWeight={700}>
-                  {beltStatus.currentSpeed.toFixed(1)} m/s
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Objetivo: {beltStatus.targetSpeed.toFixed(1)} m/s
-                </Typography>
+                {beltStatus.hasSpeedControl ? (
+                  // Motor PWM - mostrar velocidad variable
+                  <>
+                    <Typography variant="h5" fontWeight={700}>
+                      {beltStatus.currentSpeed.toFixed(1)} m/s
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Objetivo: {beltStatus.targetSpeed.toFixed(1)} m/s
+                    </Typography>
+                  </>
+                ) : (
+                  // Motor Relay - mostrar estado ON/OFF
+                  <>
+                    <Typography variant="h5" fontWeight={700}>
+                      {beltStatus.isRunning ? 'ENCENDIDO' : 'APAGADO'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Velocidad: Fija (Relay)
+                    </Typography>
+                  </>
+                )}
               </Paper>
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
@@ -722,68 +746,112 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
 
           <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />
 
-          {/* Control de Velocidad Avanzado */}
+          {/* Control de Velocidad Avanzado - Solo si el motor lo soporta */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <Speed sx={{ color: theme.palette.primary.main }} />
-              Control de Velocidad Inteligente
+              {beltStatus.hasSpeedControl ? 'Control de Velocidad Inteligente' : 'Información de Velocidad'}
             </Typography>
-            <Box sx={{ px: 3 }}>
-              <Slider
-                value={beltStatus.targetSpeed}
-                onChange={(_, newValue) => {
-                  setBeltStatus(prev => ({ ...prev, targetSpeed: newValue as number }));
-                }}
-                onChangeCommitted={(_, newValue) => {
-                  handleBeltAction('set_speed', { speed: newValue });
-                }}
-                min={0.1}
-                max={2.5}
-                step={0.1}
-                marks={[
-                  { value: 0.5, label: '0.5 m/s' },
-                  { value: 1.0, label: '1.0 m/s' },
-                  { value: 1.5, label: '1.5 m/s' },
-                  { value: 2.0, label: '2.0 m/s' },
-                  { value: 2.5, label: '2.5 m/s' },
-                ]}
-                disabled={disabled || !beltStatus.enabled}
-                sx={{
-                  color: theme.palette.primary.main,
-                  height: 12,
-                  '& .MuiSlider-thumb': {
-                    width: 24,
-                    height: 24,
-                    boxShadow: theme.shadows[8],
-                    background: theme.gradients.primary,
-                    border: '3px solid rgba(255, 255, 255, 0.2)',
-                    '&:hover': {
-                      boxShadow: theme.shadows[12],
+            
+            {beltStatus.hasSpeedControl ? (
+              // Motor con control PWM/L298N - mostrar slider
+              <Box sx={{ px: 3 }}>
+                <Slider
+                  value={beltStatus.targetSpeed}
+                  onChange={(_, newValue) => {
+                    setBeltStatus(prev => ({ ...prev, targetSpeed: newValue as number }));
+                  }}
+                  onChangeCommitted={(_, newValue) => {
+                    handleBeltAction('set_speed', { speed: newValue });
+                  }}
+                  min={0.1}
+                  max={2.5}
+                  step={0.1}
+                  marks={[
+                    { value: 0.5, label: '0.5 m/s' },
+                    { value: 1.0, label: '1.0 m/s' },
+                    { value: 1.5, label: '1.5 m/s' },
+                    { value: 2.0, label: '2.0 m/s' },
+                    { value: 2.5, label: '2.5 m/s' },
+                  ]}
+                  disabled={disabled || !beltStatus.enabled}
+                  sx={{
+                    color: theme.palette.primary.main,
+                    height: 12,
+                    '& .MuiSlider-thumb': {
+                      width: 24,
+                      height: 24,
+                      boxShadow: theme.shadows[8],
+                      background: theme.gradients.primary,
+                      border: '3px solid rgba(255, 255, 255, 0.2)',
+                      '&:hover': {
+                        boxShadow: theme.shadows[12],
+                      },
                     },
-                  },
-                  '& .MuiSlider-track': {
-                    height: 8,
-                    background: theme.gradients.primary,
-                    borderRadius: 4,
-                  },
-                  '& .MuiSlider-rail': {
-                    height: 8,
-                    borderRadius: 4,
-                    background: 'rgba(255, 255, 255, 0.1)',
-                  },
-                  '& .MuiSlider-mark': {
-                    width: 4,
-                    height: 4,
-                    borderRadius: '50%',
-                    backgroundColor: theme.palette.primary.main,
-                  },
-                  '& .MuiSlider-markLabel': {
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                  },
-                }}
-              />
-            </Box>
+                    '& .MuiSlider-track': {
+                      height: 8,
+                      background: theme.gradients.primary,
+                      borderRadius: 4,
+                    },
+                    '& .MuiSlider-rail': {
+                      height: 8,
+                      borderRadius: 4,
+                      background: 'rgba(255, 255, 255, 0.1)',
+                    },
+                    '& .MuiSlider-mark': {
+                      width: 4,
+                      height: 4,
+                      borderRadius: '50%',
+                      backgroundColor: theme.palette.primary.main,
+                    },
+                    '& .MuiSlider-markLabel': {
+                      fontSize: '0.8rem',
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+              </Box>
+            ) : (
+              // Motor con relays - mostrar mensaje informativo
+              <Box sx={{ px: 3 }}>
+                <Alert 
+                  severity="info" 
+                  icon={<Speed />}
+                  sx={{
+                    background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05))',
+                    border: `1px solid ${theme.palette.info.main}`,
+                    borderRadius: 2,
+                    '& .MuiAlert-message': {
+                      width: '100%'
+                    }
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                    Motor DC con Control de Relays (Velocidad Fija)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Este motor funciona solo con ON/OFF (adelante/atrás/detenido). No tiene control de velocidad variable por software.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    💡 Para cambiar la velocidad, debe modificarse físicamente las bobinas del motor.
+                  </Typography>
+                  <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Chip 
+                      label={`Tipo: ${beltStatus.controlType?.toUpperCase() || 'RELAY'}`}
+                      size="small"
+                      color="info"
+                      variant="outlined"
+                    />
+                    <Chip 
+                      label="Velocidad: Fija"
+                      size="small"
+                      color="default"
+                      variant="outlined"
+                    />
+                  </Box>
+                </Alert>
+              </Box>
+            )}
           </Box>
 
           <Divider sx={{ my: 3, borderColor: 'rgba(255, 255, 255, 0.1)' }} />

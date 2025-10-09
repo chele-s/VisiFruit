@@ -1088,16 +1088,15 @@ class LabelerActuator:
         """Registra callback para alertas."""
         self.alert_callbacks.append(callback)
     
-    def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> Dict[str, Any]:
         """Obtiene el estado completo del actuador."""
         driver_status = {}
         if self.driver:
             try:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                driver_status = loop.run_until_complete(self.driver.get_status())
-                loop.close()
-            except:
+                # Llamar a get_status async del driver correctamente
+                driver_status = await self.driver.get_status()
+            except Exception as e:
+                logger.debug(f"Error obteniendo estado del driver: {e}")
                 driver_status = {"error": "No se pudo obtener estado del driver"}
         
         return {
