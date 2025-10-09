@@ -32,6 +32,7 @@ import signal
 import sys
 import time
 import uuid
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
@@ -363,77 +364,169 @@ class UltraBackendSystem:
             }
 
     async def _get_ultra_status(self) -> Dict[str, Any]:
-        """Obtiene estado ultra-detallado del sistema."""
+        """Obtiene estado ultra-detallado del sistema CON DATOS REALES DEL BACKEND PRINCIPAL."""
         try:
-            # Simular datos del sistema principal de etiquetado
-            production_status = {
-                "state": "running",
-                "active_group": 0,  # Grupo de manzanas
-                "total_labelers": 12,
-                "active_labelers": 4,
-                "motor_position": "group_0_active",
-                "belt_speed_mps": 0.5,
-                "items_per_minute": 45.2,
-                "efficiency_percent": 87.3
+            current_time = time.time()
+            
+            # Intentar conectar al sistema principal (puerto 8000)
+            main_system_status = {}
+            main_connected = False
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get('http://localhost:8000/status', timeout=aiohttp.ClientTimeout(total=2)) as resp:
+                        if resp.status == 200:
+                            main_system_status = await resp.json()
+                            main_connected = True
+                            safe_log(logger, logging.DEBUG, "✅ Conectado al sistema principal en puerto 8000")
+            except Exception as e:
+                safe_log(logger, logging.DEBUG, f"Sistema principal no disponible: {e}")
+            
+            # Estado de la banda CON DATOS REALES O FALLBACK
+            belt_status = {
+                "available": False,
+                "running": False,
+                "isRunning": False,
+                "direction": "stopped",
+                "speed": 0.0,
+                "currentSpeed": 0.0,
+                "targetSpeed": 0.0,
+                "enabled": True,
+                "controlType": "relay",
+                "hasSpeedControl": False,
+                "motorTemperature": 35.0,
+                "lastAction": "stopped",
+                "actionTime": datetime.now().isoformat(),
+                "totalRuntime": current_time - self.start_time,
+                "timestamp": current_time
             }
             
-            labelers_status = {}
-            for i in range(12):
-                group_id = i // 4
-                categories = ["apple", "pear", "lemon"]
-                category = categories[group_id] if group_id < len(categories) else "unknown"
+            if main_system_status and "belt" in main_system_status:
+                belt_status.update(main_system_status["belt"])
                 
-                labelers_status[f"labeler_{i}"] = {
-                    "id": i,
-                    "group": group_id,
-                    "category": category,
-                    "active": group_id == 0,  # Solo grupo 0 activo
-                    "activations_today": np.random.randint(100, 500),
-                    "success_rate": np.random.uniform(95, 99.5),
-                    "maintenance_score": np.random.uniform(85, 100)
-                }
+                # Persistir histórico
+                if not hasattr(self, '_belt_history'):
+                    self._belt_history = []
+                self._belt_history.append({
+                    "timestamp": current_time,
+                    "running": belt_status.get("running", False),
+                    "direction": belt_status.get("direction", "stopped")
+                })
+                if len(self._belt_history) > 1000:
+                    self._belt_history = self._belt_history[-1000:]
             
-            motor_status = {
-                "calibrated": True,
-                "current_group": 0,
-                "is_moving": False,
-                "group_positions": {
-                    "0": "down",   # Activo
-                    "1": "up",     # Inactivo
-                    "2": "up"      # Inactivo
-                },
-                "runtime_hours": 142.5,
-                "switch_count": 234
+            # Estado del stepper CON DATOS REALES O FALLBACK
+            stepper_status = {
+                "available": False,
+                "enabled": True,
+                "isActive": False,
+                "currentPower": 0,
+                "activationCount": 0,
+                "lastActivation": None,
+                "sensorTriggers": 0,
+                "manualActivations": 0,
+                "driverTemperature": 45.0,
+                "currentStepRate": 0,
+                "timestamp": current_time
             }
             
-            ia_status = {
-                "model_loaded": True,
-                "confidence_avg": 94.2,
-                "processing_time_ms": 45.8,
-                "detections_today": 1247,
-                "accuracy_rate": 96.7,
-                "categories_detected": {
-                    "apple": 456,
-                    "pear": 398,
-                    "lemon": 393
-                }
+            if main_system_status and "stepper" in main_system_status:
+                stepper_status.update(main_system_status["stepper"])
+                
+                # Persistir histórico
+                if not hasattr(self, '_stepper_history'):
+                    self._stepper_history = []
+                self._stepper_history.append({
+                    "timestamp": current_time,
+                    "isActive": stepper_status.get("isActive", False),
+                    "sensorTriggers": stepper_status.get("sensorTriggers", 0),
+                    "manualActivations": stepper_status.get("manualActivations", 0)
+                })
+                if len(self._stepper_history) > 1000:
+                    self._stepper_history = self._stepper_history[-1000:]
+            
+            # Estado de los desviadores (clasificación) CON DATOS REALES O FALLBACK
+            diverters_status = {
+                "available": False,
+                "enabled": True,
+                "initialized": False,
+                "diverters_count": 0,
+                "active_diverters": [],
+                "diverters": {},
+                "timestamp": current_time
             }
+            
+            if main_system_status and "diverters" in main_system_status:
+                diverters_status.update(main_system_status["diverters"])
+                
+                # Persistir histórico
+                if not hasattr(self, '_diverters_history'):
+                    self._diverters_history = []
+                self._diverters_history.append({
+                    "timestamp": current_time,
+                    "initialized": diverters_status.get("initialized", False),
+                    "active_count": len(diverters_status.get("active_diverters", []))
+                })
+                if len(self._diverters_history) > 1000:
+                    self._diverters_history = self._diverters_history[-1000:]
+            
+            # Estadísticas generales
+            stats = main_system_status.get("stats", {}) if main_connected else {
+                "uptime_s": current_time - self.start_time,
+                "detections_total": 0,
+                "labeled_total": 0,
+                "classified_total": 0
+            }
+            
+            # Datos históricos calculados
+            belt_uptime = 0.0
+            stepper_rate = 0.0
+            diverters_usage = 0.0
+            
+            if hasattr(self, '_belt_history') and len(self._belt_history) > 0:
+                belt_uptime = (sum(1 for h in self._belt_history if h.get("running")) / len(self._belt_history)) * 100
+            if hasattr(self, '_stepper_history') and len(self._stepper_history) > 0:
+                stepper_rate = (sum(1 for h in self._stepper_history if h.get("isActive")) / len(self._stepper_history)) * 100
+            if hasattr(self, '_diverters_history') and len(self._diverters_history) > 0:
+                diverters_usage = (sum(1 for h in self._diverters_history if h.get("active_count", 0) > 0) / len(self._diverters_history)) * 100
             
             return {
                 "timestamp": datetime.now().isoformat(),
                 "system_id": self.system_id,
                 "version": self.version,
-                "production": production_status,
-                "labelers": labelers_status,
-                "motor": motor_status,
-                "ia": ia_status,
+                "system": {
+                    "state": main_system_status.get("system_state", "offline") if main_connected else "offline",
+                    "running": main_system_status.get("system_running", False) if main_connected else False,
+                    "uptime": current_time - self.start_time,
+                    "start_time": datetime.fromtimestamp(self.start_time).isoformat()
+                },
+                "belt": belt_status,
+                "stepper": stepper_status,
+                "diverters": diverters_status,
+                "stats": stats,
+                "historical": {
+                    "belt_uptime_percent": belt_uptime,
+                    "stepper_activation_rate": stepper_rate,
+                    "diverters_usage_rate": diverters_usage,
+                    "data_points": {
+                        "belt": len(self._belt_history) if hasattr(self, '_belt_history') else 0,
+                        "stepper": len(self._stepper_history) if hasattr(self, '_stepper_history') else 0,
+                        "diverters": len(self._diverters_history) if hasattr(self, '_diverters_history') else 0
+                    }
+                },
+                "main_system_connected": main_connected,
                 "alerts_active": await self.alert_system.get_active_count(),
                 "metrics_collected": await self.metrics_manager.get_total_count()
             }
             
         except Exception as e:
             logger.error(f"Error obteniendo estado ultra: {e}")
-            return {"error": str(e)}
+            traceback.print_exc()
+            return {
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+                "belt": {"available": False, "running": False},
+                "stepper": {"available": False, "isActive": False}
+            }
 
     async def _get_performance_metrics(self) -> Dict[str, Any]:
         """Obtiene métricas de rendimiento del sistema."""

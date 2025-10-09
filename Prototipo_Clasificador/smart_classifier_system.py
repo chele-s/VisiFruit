@@ -88,6 +88,22 @@ except ImportError as e:
     SensorInterface = None
 
 try:
+    from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
+except ImportError as e:
+    print(f"⚠️ ConveyorBeltController no disponible: {e}")
+    ConveyorBeltController = None
+
+try:
+    from Control_Etiquetado.fruit_diverter_controller import (
+        FruitDiverterController,
+        FruitCategory as DiverterFruitCategory
+    )
+except ImportError as e:
+    print(f"⚠️ FruitDiverterController no disponible: {e}")
+    FruitDiverterController = None
+    DiverterFruitCategory = None
+
+try:
     from utils.camera_controller import CameraController
 except ImportError as e:
     print(f"⚠️ CameraController no disponible: {e}")
@@ -158,82 +174,8 @@ class DetectionEvent:
     labeled: bool = False
     classified: bool = False
     
-class SimpleBeltController:
-    """Controlador simple de banda transportadora."""
-    
-    def __init__(self, relay1_pin=22, relay2_pin=23, enable_pin=27):
-        self.relay1_pin = relay1_pin
-        self.relay2_pin = relay2_pin
-        self.enable_pin = enable_pin
-        self.initialized = False
-        self.running = False
-        
-    async def initialize(self) -> bool:
-        """Inicializa el controlador."""
-        try:
-            if is_simulation_mode():
-                logger.info("🎭 Banda en modo simulación")
-                self.initialized = True
-                return True
-            
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.relay1_pin, GPIO.OUT)
-            GPIO.setup(self.relay2_pin, GPIO.OUT)
-            if self.enable_pin:
-                GPIO.setup(self.enable_pin, GPIO.OUT)
-                GPIO.output(self.enable_pin, GPIO.HIGH)
-            
-            GPIO.output(self.relay1_pin, GPIO.LOW)
-            GPIO.output(self.relay2_pin, GPIO.LOW)
-            
-            self.initialized = True
-            logger.info("✅ Banda transportadora inicializada")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Error inicializando banda: {e}")
-            return False
-    
-    async def start(self) -> bool:
-        """Inicia la banda."""
-        try:
-            if is_simulation_mode():
-                self.running = True
-                logger.info("🎭 Banda iniciada (simulación)")
-                return True
-            
-            if self.enable_pin:
-                GPIO.output(self.enable_pin, GPIO.HIGH)
-            GPIO.output(self.relay2_pin, GPIO.LOW)
-            GPIO.output(self.relay1_pin, GPIO.HIGH)
-            self.running = True
-            logger.info("✅ Banda transportadora iniciada")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Error iniciando banda: {e}")
-            return False
-    
-    async def stop(self) -> bool:
-        """Detiene la banda."""
-        try:
-            if is_simulation_mode():
-                self.running = False
-                logger.info("🎭 Banda detenida (simulación)")
-                return True
-            
-            GPIO.output(self.relay1_pin, GPIO.LOW)
-            GPIO.output(self.relay2_pin, GPIO.LOW)
-            self.running = False
-            logger.info("✅ Banda transportadora detenida")
-            return True
-        except Exception as e:
-            logger.error(f"❌ Error deteniendo banda: {e}")
-            return False
-    
-    async def cleanup(self):
-        """Limpia recursos."""
-        await self.stop()
-        if GPIO and not is_simulation_mode():
-            GPIO.cleanup([self.relay1_pin, self.relay2_pin, self.enable_pin])
+# SimpleBeltController DEPRECADO - Usar ConveyorBeltController con RelayMotorDriverPi5
+# Se mantiene solo para compatibilidad temporal
 
 class SmartFruitClassifier:
     """
@@ -271,8 +213,9 @@ class SmartFruitClassifier:
         self.ai_detector: Optional[EnterpriseFruitDetector] = None
         self.labeler: Optional[LabelerActuator] = None
         self.servo_controller: Optional[MG995ServoController] = None
-        self.belt: Optional[Any] = None  # Puede ser SimpleBeltController o ConveyorBeltController
+        self.belt: Optional[Any] = None  # ConveyorBeltController con RelayMotorDriverPi5
         self.sensor: Optional[SensorInterface] = None
+        self.diverter_controller: Optional[FruitDiverterController] = None  # Sistema de desviadores MG995
         
         # Cola de eventos de detección
         self.detection_queue: deque = deque(maxlen=100)
@@ -472,7 +415,10 @@ class SmartFruitClassifier:
             # 6. Sensor (opcional)
             await self._initialize_sensor()
             
-            # 7. API REST (servidor web para integración con frontend)
+            # 7. Sistema de desviadores (clasificación con servos MG995)
+            await self._initialize_diverters()
+            
+            # 8. API REST (servidor web para integración con frontend)
             await self._initialize_api()
             
             self.state = SystemState.IDLE
@@ -577,45 +523,55 @@ class SmartFruitClassifier:
             logger.warning(f"⚠️ Error con servomotores: {e}")
     
     async def _initialize_belt(self):
-        """Inicializa la banda transportadora usando controlador avanzado si es posible."""
-        logger.info("🎚️ Inicializando banda transportadora...")
+        """Inicializa la banda transportadora con controlador profesional RelayMotorDriverPi5."""
+        logger.info("🎚️ Inicializando banda transportadora profesional...")
         try:
             belt_config = self.config.get("belt_settings", {})
-            # Preferir controlador avanzado si hay configuración completa
-            use_advanced = bool(belt_config.get("use_advanced_controller", True))
+            
+            # Configuración para ConveyorBeltController con RelayMotorDriverPi5
             advanced_cfg = {
-                "control_type": belt_config.get("control_type", "relay_motor"),
+                "control_type": belt_config.get("control_type", "relay_motor"),  # IMPORTANTE: relay_motor
                 "relay1_pin_bcm": belt_config.get("relay1_pin", 22),
                 "relay2_pin_bcm": belt_config.get("relay2_pin", 23),
                 "enable_pin_bcm": belt_config.get("enable_pin", 27),
-                "active_state_on": belt_config.get("active_state_on", "LOW"),
-                "default_speed_percent": belt_config.get("default_speed_percent", 100),
-                "safety_timeout_s": belt_config.get("safety_timeout_s", 10.0),
+                "active_state_on": belt_config.get("active_state_on", "LOW"),  # Relays activos en LOW
+                "default_speed_percent": 100,  # Relay es ON/OFF, siempre 100%
+                "safety_timeout_s": belt_config.get("safety_timeout_s", 10.0),  # Auto-apagado tras 10s
+                "recovery_attempts": 3,  # Intentos de recuperación ante errores
+                "health_check_interval_s": 1.0  # Monitoreo cada segundo
             }
-            tried_advanced = False
-            if use_advanced:
-                try:
-                    from Control_Etiquetado.conveyor_belt_controller import ConveyorBeltController
-                    self.belt = ConveyorBeltController(advanced_cfg)
-                    if await self.belt.initialize():
-                        logger.info("✅ Banda transportadora (controlador avanzado) inicializada")
-                        return
-                    else:
-                        tried_advanced = True
-                        logger.warning("⚠️ Controlador avanzado no inicializó, probando controlador simple")
-                except Exception as e:
-                    tried_advanced = True
-                    logger.warning(f"⚠️ Fallo importando/inicializando controlador avanzado: {e}")
-            # Fallback a controlador simple
-            self.belt = SimpleBeltController(
-                relay1_pin=belt_config.get("relay1_pin", 22),
-                relay2_pin=belt_config.get("relay2_pin", 23),
-                enable_pin=belt_config.get("enable_pin", 27)
-            )
+            
+            if not ConveyorBeltController:
+                logger.error("❌ ConveyorBeltController no disponible")
+                self.belt = None
+                return
+            
+            # Crear controlador avanzado
+            self.belt = ConveyorBeltController(advanced_cfg)
+            
+            # Inicializar (automáticamente usará RelayMotorDriverPi5 si está en Pi5)
             if await self.belt.initialize():
-                logger.info("✅ Banda transportadora (controlador simple) inicializada")
+                # Obtener info del driver
+                driver_info = ""
+                if hasattr(self.belt, 'driver') and self.belt.driver:
+                    driver_class = self.belt.driver.__class__.__name__
+                    if 'Pi5' in driver_class:
+                        driver_info = " 🚀 (RelayMotorDriverPi5 - lgpio optimizado)"
+                    else:
+                        driver_info = f" ({driver_class})"
+                
+                logger.info(f"✅ Banda transportadora PROFESIONAL inicializada{driver_info}")
+                logger.info(f"   🔌 Relay 1 (Adelante): GPIO {advanced_cfg['relay1_pin_bcm']}")
+                logger.info(f"   🔌 Relay 2 (Atrás): GPIO {advanced_cfg['relay2_pin_bcm']}")
+                logger.info(f"   🛡️ Safety timeout: {advanced_cfg['safety_timeout_s']}s")
+                logger.info(f"   ⚡ Control: ON/OFF (sin velocidad variable)")
+            else:
+                logger.error("❌ Fallo al inicializar banda transportadora")
+                self.belt = None
+                
         except Exception as e:
-            logger.warning(f"⚠️ Error con banda: {e}")
+            logger.error(f"❌ Error crítico con banda: {e}", exc_info=True)
+            self.belt = None
     
     async def _initialize_sensor(self):
         """Inicializa el sensor de trigger (opcional)."""
@@ -639,6 +595,47 @@ class SmartFruitClassifier:
                     logger.info("ℹ️ Sensor no configurado")
         except Exception as e:
             logger.warning(f"⚠️ Error con sensor: {e}")
+    
+    async def _initialize_diverters(self):
+        """Inicializa el sistema de desviadores para clasificación automática."""
+        logger.info("🔀 Inicializando sistema de desviadores...")
+        try:
+            if not FruitDiverterController:
+                logger.info("ℹ️ FruitDiverterController no disponible")
+                return
+            
+            diverter_config = self.config.get("diverter_settings", {})
+            
+            # Verificar si está habilitado
+            if not diverter_config.get("enabled", False):
+                logger.info("ℹ️ Sistema de desviadores deshabilitado por configuración")
+                return
+            
+            # Crear controlador
+            self.diverter_controller = FruitDiverterController(diverter_config)
+            
+            # Inicializar
+            if await self.diverter_controller.initialize():
+                logger.info("✅ Sistema de desviadores inicializado correctamente")
+                
+                # Mostrar configuración de desviadores
+                if hasattr(self.diverter_controller, 'diverters'):
+                    logger.info(f"   📊 Desviadores activos: {len(self.diverter_controller.diverters)}")
+                    for diverter_id, servo in self.diverter_controller.diverters.items():
+                        category_name = "Manzanas" if diverter_id == 0 else "Peras" if diverter_id == 1 else "Limones"
+                        logger.info(f"   🔀 Desviador {diverter_id} ({category_name}): Pin {servo.pin}")
+                
+                # Log del flujo de clasificación
+                logger.info("   📦 Flujo de clasificación:")
+                logger.info("      🍎 Manzanas → Desviador 0 (MG995) → Caja manzanas")
+                logger.info("      🍐 Peras → Desviador 1 (MG995) → Caja peras")
+                logger.info("      🍋 Limones → Desviador 2 (MG995) → Caja limones")
+            else:
+                logger.warning("⚠️ Sistema de desviadores en modo simulación")
+                
+        except Exception as e:
+            logger.error(f"❌ Error inicializando desviadores: {e}", exc_info=True)
+            self.diverter_controller = None
     
     def _sensor_callback(self):
         """Callback cuando el sensor detecta una fruta."""
@@ -773,33 +770,59 @@ class SmartFruitClassifier:
             
             @self._api_app.get("/status")
             async def get_system_status():
-                """Estado completo del sistema incluyendo banda y stepper."""
+                """Estado completo del sistema incluyendo banda y stepper CON TIMESTAMPS."""
                 try:
+                    current_time = time.time()
+                    
                     # Estado base del sistema
                     base_status = self.get_status()
                     
-                    # Detectar tipo de motor de banda (relay vs PWM)
+                    # Detectar tipo de motor de banda (relay de 2 contactos vs PWM)
                     belt_control_type = "relay"  # Por defecto relay (sin control de velocidad)
                     has_speed_control = False
                     
-                    if self.belt and hasattr(self.belt, 'driver'):
-                        driver_class_name = self.belt.driver.__class__.__name__ if self.belt.driver else ""
-                        if 'Relay' in driver_class_name:
-                            belt_control_type = "relay"
-                            has_speed_control = False
-                        elif 'PWM' in driver_class_name or 'L298N' in driver_class_name:
-                            belt_control_type = "pwm"
-                            has_speed_control = True
+                    if self.belt:
+                        # Detectar por driver interno (ConveyorBeltController)
+                        if hasattr(self.belt, 'driver') and self.belt.driver:
+                            driver_class_name = self.belt.driver.__class__.__name__
+                            
+                            # RelayMotorDriverPi5 o RelayMotorDriver = Motor DC con 2 relays
+                            if 'RelayMotor' in driver_class_name:
+                                belt_control_type = "relay"
+                                has_speed_control = False
+                                if 'Pi5' in driver_class_name:
+                                    logger.debug("🚀 RelayMotorDriverPi5 detectado (ON/OFF, lgpio, Raspberry Pi 5)")
+                                else:
+                                    logger.debug("🔌 RelayMotorDriver detectado (ON/OFF, RPi.GPIO)")
+                            
+                            # L298N o PWM = Motor con control de velocidad
+                            elif 'PWM' in driver_class_name or 'L298N' in driver_class_name:
+                                belt_control_type = "pwm"
+                                has_speed_control = True
+                                logger.debug("⚡ Motor con control PWM detectado (velocidad variable)")
+                            
+                            # GPIOOnOffDriver = Simple ON/OFF
+                            elif 'GPIO' in driver_class_name:
+                                belt_control_type = "gpio"
+                                has_speed_control = False
+                                logger.debug("🔌 GPIOOnOffDriver detectado (ON/OFF simple)")
+                            
+                            else:
+                                logger.debug(f"🔌 Driver genérico detectado: {driver_class_name}")
+                        
+                        # Fallback: detectar por clase del controlador
+                        else:
+                            belt_class_name = self.belt.__class__.__name__
+                            if 'Conveyor' in belt_class_name:
+                                logger.debug("🎚️ ConveyorBeltController detectado (revisar config para tipo)")
+                            else:
+                                logger.debug(f"🔌 Controlador detectado: {belt_class_name}")
                     
-                    # Estado de la banda
-                    belt_status = {
-                        "available": self.belt is not None,
-                        "running": False,
-                        "enabled": True,
-                        "direction": "stopped",
-                        "control_type": belt_control_type,  # Nuevo: tipo de motor (relay/pwm)
-                        "has_speed_control": has_speed_control,  # Nuevo: soporta velocidad variable
-                    }
+                    # Estado de la banda CON MÁS DETALLE
+                    belt_running = False
+                    belt_direction = "stopped"
+                    belt_enabled = True
+                    belt_speed = 0.0
                     
                     if self.belt:
                         # Obtener el estado del belt (método síncrono)
@@ -807,35 +830,48 @@ class SmartFruitClassifier:
                             if hasattr(self.belt, 'get_status'):
                                 belt_driver_status = self.belt.get_status()  # SIN await - es síncrono
                                 if isinstance(belt_driver_status, dict):
-                                    belt_status["running"] = belt_driver_status.get("running", False)
-                                    belt_status["direction"] = belt_driver_status.get("direction", "stopped")
-                                    belt_status["enabled"] = belt_driver_status.get("enabled", True)
+                                    belt_running = belt_driver_status.get("running", False)
+                                    belt_direction = belt_driver_status.get("direction", "stopped")
+                                    belt_enabled = belt_driver_status.get("enabled", True)
                                     # Solo incluir velocidad si el motor la soporta
                                     if has_speed_control:
-                                        belt_status["speed"] = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 100.0))
+                                        belt_speed = belt_driver_status.get("speed", belt_driver_status.get("speed_percent", 100.0))
                             else:
                                 # Fallback a atributos directos
-                                belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
-                                belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
-                                belt_status["enabled"] = getattr(self.belt, 'enabled', True)
+                                belt_running = getattr(self.belt, 'running', False)
+                                belt_direction = "forward" if belt_running else "stopped"
+                                belt_enabled = getattr(self.belt, 'enabled', True)
                         except Exception as e:
                             logger.debug(f"Error getting belt status, using fallback: {e}")
                             # Fallback: leer atributos directamente
-                            belt_status["running"] = getattr(self.belt, 'current_state', 'stopped') == 'running'
-                            belt_status["direction"] = getattr(self.belt, 'current_direction', 'stopped')
-                            belt_status["enabled"] = getattr(self.belt, 'enabled', True)
+                            belt_running = getattr(self.belt, 'running', False)
+                            belt_direction = "forward" if belt_running else "stopped"
+                            belt_enabled = True
                     
-                    # Estado del stepper (labeler)
-                    stepper_status = {
-                        "available": self.labeler is not None,
-                        "enabled": True,
-                        "isActive": False,
-                        "currentPower": 0,
-                        "activationCount": 0,
-                        "lastActivation": None,
-                        "sensorTriggers": self.stats.get("stepper_sensor_triggers", 0),
-                        "manualActivations": self.stats.get("stepper_manual_activations", 0),
+                    belt_status = {
+                        "available": self.belt is not None,
+                        "running": belt_running,
+                        "isRunning": belt_running,  # Alias para compatibilidad
+                        "enabled": belt_enabled,
+                        "direction": belt_direction,
+                        "control_type": belt_control_type,
+                        "controlType": belt_control_type,  # Alias
+                        "has_speed_control": has_speed_control,
+                        "hasSpeedControl": has_speed_control,  # Alias
+                        "currentSpeed": belt_speed if has_speed_control else (1.0 if belt_running else 0.0),
+                        "targetSpeed": belt_speed if has_speed_control else (1.0 if belt_running else 0.0),
+                        "motorTemperature": 35.0,  # Simulado
+                        "lastAction": "running" if belt_running else "stopped",
+                        "actionTime": datetime.now().isoformat(),
+                        "timestamp": current_time
                     }
+                    
+                    # Estado del stepper (labeler) CON MÁS DETALLE
+                    stepper_is_active = False
+                    stepper_power = 0
+                    stepper_activation_count = 0
+                    stepper_last_activation = None
+                    stepper_last_activation_ts = None
                     
                     if self.labeler:
                         try:
@@ -843,27 +879,90 @@ class SmartFruitClassifier:
                             labeler_state = await self.labeler.get_status()
                             if isinstance(labeler_state, dict):
                                 driver_info = labeler_state.get('driver', {})
-                                stepper_status["isActive"] = driver_info.get('is_active', False)
-                                stepper_status["activationCount"] = len(getattr(self.labeler, 'activation_history', []))
+                                stepper_is_active = driver_info.get('is_active', False)
+                                stepper_activation_count = len(getattr(self.labeler, 'activation_history', []))
                                 
                                 # Última activación
                                 history = getattr(self.labeler, 'activation_history', [])
                                 if history:
-                                    stepper_status["lastActivation"] = history[-1]
-                                    # Considerar activo si la última activación fue hace <= 1s
-                                    if (time.time() - history[-1]) <= 1.0:
-                                        stepper_status["isActive"] = True
+                                    stepper_last_activation_ts = history[-1]
+                                    stepper_last_activation = datetime.fromtimestamp(history[-1]).isoformat()
+                                    # Considerar activo si la última activación fue hace <= 1.5s
+                                    if (current_time - history[-1]) <= 1.5:
+                                        stepper_is_active = True
+                                        stepper_power = 80  # Asumimos potencia nominal
                         except Exception as e:
                             logger.debug(f"Error obteniendo estado detallado del labeler: {e}")
                     
-                    # Combinar todo
+                    stepper_status = {
+                        "available": self.labeler is not None,
+                        "enabled": True,
+                        "isActive": stepper_is_active,
+                        "currentPower": stepper_power,
+                        "activationCount": stepper_activation_count,
+                        "lastActivation": stepper_last_activation,
+                        "lastActivationTimestamp": stepper_last_activation_ts,
+                        "sensorTriggers": self.stats.get("stepper_sensor_triggers", 0),
+                        "manualActivations": self.stats.get("stepper_manual_activations", 0),
+                        "activationDuration": self.config.get("labeler_settings", {}).get("activation_duration_seconds", 0.6),
+                        "driverTemperature": 45.0,  # Simulado
+                        "currentStepRate": 1500 if stepper_is_active else 0,
+                        "timestamp": current_time
+                    }
+                    
+                    # Estado de los desviadores (clasificación)
+                    diverters_status = {
+                        "available": self.diverter_controller is not None,
+                        "enabled": True,
+                        "initialized": False,
+                        "diverters_count": 0,
+                        "active_diverters": [],
+                        "timestamp": current_time
+                    }
+                    
+                    if self.diverter_controller:
+                        try:
+                            # Obtener estado de cada desviador
+                            diverter_data = self.diverter_controller.get_status()
+                            if isinstance(diverter_data, dict):
+                                diverters_status["initialized"] = diverter_data.get("initialized", False)
+                                diverters_status["diverters_count"] = diverter_data.get("diverters_count", 0)
+                                diverters_status["active_diverters"] = diverter_data.get("active_diverters", [])
+                                
+                                # Información detallada de cada desviador
+                                diverters_detail = {}
+                                for diverter_id, diverter_info in diverter_data.get("diverters", {}).items():
+                                    category_name = "apple" if diverter_id == "0" else "pear" if diverter_id == "1" else "lemon"
+                                    diverters_detail[category_name] = {
+                                        "id": int(diverter_id),
+                                        "pin": diverter_info.get("pin", 0),
+                                        "current_position": diverter_info.get("current_position", "straight"),
+                                        "activations": diverter_data.get("metrics", {}).get(diverter_id, {}).get("activations_count", 0)
+                                    }
+                                
+                                diverters_status["diverters"] = diverters_detail
+                        except Exception as e:
+                            logger.debug(f"Error obteniendo estado de diverters: {e}")
+                    
+                    # Combinar todo con timestamp global
                     base_status["belt"] = belt_status
                     base_status["stepper"] = stepper_status
+                    base_status["diverters"] = diverters_status
+                    base_status["timestamp"] = current_time
+                    base_status["datetime"] = datetime.now().isoformat()
+                    base_status["system_running"] = self.running
+                    base_status["system_state"] = self.state.value
                     
                     return base_status
                 except Exception as e:
-                    logger.error(f"Error en get_system_status: {e}")
-                    return {"error": str(e), "state": self.state.value}
+                    logger.error(f"Error en get_system_status: {e}", exc_info=True)
+                    return {
+                        "error": str(e), 
+                        "state": self.state.value,
+                        "timestamp": time.time(),
+                        "belt": {"available": False, "running": False},
+                        "stepper": {"available": False, "isActive": False}
+                    }
             
             # ==================== CONTROL DE BANDA ====================
             
@@ -873,46 +972,76 @@ class SmartFruitClassifier:
             
             @self._api_app.post("/belt/start_forward")
             async def belt_start_forward(request: BeltSpeedRequest = None):
-                """Inicia la banda hacia adelante (velocidad fija para relay, variable para PWM)."""
+                """Inicia la banda hacia adelante (ON para relay de 2 contactos, variable para PWM)."""
                 try:
                     if not self.belt:
                         raise HTTPException(status_code=503, detail="Banda no disponible")
                     
-                    # Detectar si el motor soporta velocidad variable
+                    # Detectar tipo de motor por driver interno
                     has_speed_control = False
-                    if hasattr(self.belt, 'driver'):
-                        driver_class_name = self.belt.driver.__class__.__name__ if self.belt.driver else ""
-                        if 'PWM' in driver_class_name or 'L298N' in driver_class_name:
-                            has_speed_control = True
+                    driver_name = "unknown"
                     
-                    # Determinar velocidad solo si el motor lo soporta
+                    if hasattr(self.belt, 'driver') and self.belt.driver:
+                        driver_class_name = self.belt.driver.__class__.__name__
+                        driver_name = driver_class_name
+                        
+                        # RelayMotorDriverPi5 o RelayMotorDriver = Motor relay ON/OFF
+                        if 'RelayMotor' in driver_class_name:
+                            has_speed_control = False
+                            if 'Pi5' in driver_class_name:
+                                logger.info("🚀 RelayMotorDriverPi5 - iniciando motor relay ON/OFF")
+                            else:
+                                logger.info("🔌 RelayMotorDriver - iniciando motor relay ON/OFF")
+                        
+                        # L298N o PWM = Motor con velocidad variable
+                        elif 'PWM' in driver_class_name or 'L298N' in driver_class_name:
+                            has_speed_control = True
+                            logger.info(f"⚡ {driver_class_name} - iniciando con velocidad variable")
+                    
+                    # SOLO procesar velocidad si el motor lo soporta
                     speed = None
                     if has_speed_control and request and hasattr(request, 'speed_percent'):
                         speed = float(request.speed_percent)
-                        speed = max(0.0, min(100.0, speed))  # Validar rango
+                        speed = max(0.0, min(100.0, speed))
                     
-                    # Intentar iniciar con diferentes métodos según el driver
+                    # Iniciar banda (ConveyorBeltController siempre usa start_belt)
                     success = False
-                    if hasattr(self.belt, 'start_forward'):
-                        await self.belt.start_forward()
-                        success = True
-                    elif hasattr(self.belt, 'start_belt'):
-                        await self.belt.start_belt(speed if speed else None)
-                        success = True
+                    if hasattr(self.belt, 'start_belt'):
+                        # ConveyorBeltController - API unificada
+                        if has_speed_control and speed:
+                            success = await self.belt.start_belt(speed)
+                        else:
+                            success = await self.belt.start_belt()
+                    elif hasattr(self.belt, 'start'):
+                        # Fallback para controladores legacy
+                        success = await self.belt.start()
                     else:
-                        raise HTTPException(status_code=501, detail="Método no soportado por el controlador")
+                        raise HTTPException(status_code=501, detail="Método no soportado")
                     
-                    # Quitar override manual para permitir marcha
+                    if not success:
+                        raise HTTPException(status_code=500, detail="Error al iniciar banda")
+                    
+                    # Quitar override manual
                     self._manual_belt_stop_override = False
                     
-                    # Obtener estado actualizado
-                    belt_status = self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
+                    # Obtener estado actualizado (ConveyorBeltController es async)
+                    belt_status = {}
+                    if hasattr(self.belt, 'get_status'):
+                        try:
+                            status_result = self.belt.get_status()
+                            # Si es coroutine, awaitearlo
+                            if hasattr(status_result, '__await__'):
+                                belt_status = await status_result
+                            else:
+                                belt_status = status_result
+                        except Exception as e:
+                            logger.debug(f"Error obteniendo estado: {e}")
                     
                     # Mensaje adaptado al tipo de motor
                     if has_speed_control and speed:
-                        message = f"Banda iniciada hacia adelante a {speed}%"
+                        message = f"Banda PWM iniciada a {speed}% ({driver_name})"
                     else:
-                        message = "Banda iniciada hacia adelante (velocidad fija)"
+                        message = f"Banda RELAY iniciada ON ({driver_name})"
                     
                     logger.info(f"✅ {message}")
                     
@@ -922,7 +1051,9 @@ class SmartFruitClassifier:
                         "message": message,
                         "timestamp": time.time(),
                         "belt_status": belt_status,
-                        "control_type": "pwm" if has_speed_control else "relay"
+                        "control_type": "pwm" if has_speed_control else "relay",
+                        "has_speed_control": has_speed_control,
+                        "driver": driver_name
                     }
                     
                     # Solo incluir velocidad si el motor la soporta
@@ -1338,6 +1469,104 @@ class SmartFruitClassifier:
                     raise
                 except Exception as e:
                     logger.error(f"Error en test servo: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            # ==================== CONTROL DE DESVIADORES (CLASIFICACIÓN) ====================
+            
+            @self._api_app.get("/diverters/status")
+            async def get_diverters_status():
+                """Obtiene el estado del sistema de desviadores."""
+                try:
+                    if not self.diverter_controller:
+                        return {
+                            "available": False,
+                            "message": "Sistema de desviadores no disponible"
+                        }
+                    
+                    status = self.diverter_controller.get_status()
+                    
+                    # Enriquecer con información adicional
+                    return {
+                        **status,
+                        "available": True,
+                        "timestamp": datetime.now().isoformat(),
+                        "classification_flow": {
+                            "apple": "Desviador 0 (MG995) → Caja manzanas",
+                            "pear": "Desviador 1 (MG995) → Caja peras",
+                            "lemon": "Desviador 2 (MG995) → Caja limones"
+                        }
+                    }
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado de diverters: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+            
+            class DiverterTestRequest(BaseModel):
+                """Request para test de desviador."""
+                category: str  # apple, pear, lemon
+                delay: float = 0.0  # Delay antes de activar (segundos)
+            
+            @self._api_app.post("/diverters/test")
+            async def test_diverter(request: DiverterTestRequest):
+                """Prueba manual de un desviador específico."""
+                try:
+                    if not self.diverter_controller:
+                        raise HTTPException(status_code=503, detail="Sistema de desviadores no disponible")
+                    
+                    category_name = request.category.lower()
+                    
+                    # Validar categoría
+                    valid_categories = ["apple", "pear", "lemon"]
+                    if category_name not in valid_categories:
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"Categoría inválida. Válidas: {', '.join(valid_categories)}"
+                        )
+                    
+                    # Mapear categoría a FruitCategory del diverter
+                    category_map = {
+                        "apple": DiverterFruitCategory.APPLE,
+                        "pear": DiverterFruitCategory.PEAR,
+                        "lemon": DiverterFruitCategory.LEMON
+                    }
+                    
+                    diverter_category = category_map[category_name]
+                    
+                    # Activar desviador
+                    logger.info(f"🧪 Test manual de desviador: {category_name} con delay {request.delay}s")
+                    
+                    success = await self.diverter_controller.classify_fruit(
+                        diverter_category,
+                        request.delay
+                    )
+                    
+                    if success:
+                        logger.info(f"✅ Desviador {category_name} activado exitosamente")
+                        
+                        return {
+                            "status": "success",
+                            "category": category_name,
+                            "delay": request.delay,
+                            "message": f"Desviador {category_name} activado exitosamente",
+                            "emoji": diverter_category.emoji,
+                            "timestamp": time.time()
+                        }
+                    else:
+                        raise HTTPException(status_code=500, detail="Error al activar desviador")
+                        
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en test de desviador: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+            
+            @self._api_app.post("/diverters/classify/{category}")
+            async def manual_classify(category: str, delay: float = 0.0):
+                """Clasificación manual de fruta (endpoint alternativo)."""
+                try:
+                    # Redirigir al endpoint de test
+                    request = DiverterTestRequest(category=category, delay=delay)
+                    return await test_diverter(request)
+                except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
             
             # ==================== SIMULACIÓN DE SENSOR ====================

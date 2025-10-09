@@ -319,32 +319,74 @@ const BeltAdvancedControls: React.FC<BeltAdvancedControlsProps> = ({
     }
   }, []);
 
-  // Refrescar estado desde fuente externa (backend)
+  // Refrescar estado desde fuente externa (backend) CON MEJOR SINCRONIZACIÓN
   useEffect(() => {
-    if (!externalStatus) return
-    setBeltStatus(prev => ({
-      ...prev,
-      isRunning: externalStatus.isRunning ?? prev.isRunning,
-      direction: externalStatus.direction ?? prev.direction,
-      currentSpeed: externalStatus.currentSpeed ?? prev.currentSpeed,
-      targetSpeed: externalStatus.targetSpeed ?? prev.targetSpeed,
-      motorTemperature: externalStatus.motorTemperature ?? prev.motorTemperature,
-      enabled: externalStatus.enabled ?? prev.enabled,
-      lastAction: externalStatus.lastAction ?? prev.lastAction,
-      actionTime: externalStatus.actionTime ? new Date(externalStatus.actionTime) : prev.actionTime,
-      powerConsumption: externalStatus.powerConsumption ?? prev.powerConsumption,
-      vibrationLevel: externalStatus.vibrationLevel ?? prev.vibrationLevel,
-      totalRuntime: externalStatus.totalRuntime ?? prev.totalRuntime,
-      isConnected: externalStatus.isConnected ?? prev.isConnected,
-      firmwareVersion: externalStatus.firmwareVersion ?? prev.firmwareVersion,
-      controlType: externalStatus.controlType ?? prev.controlType, // Actualizar tipo de control
-      hasSpeedControl: externalStatus.hasSpeedControl ?? prev.hasSpeedControl, // Actualizar si soporta velocidad
-      stepperStatus: externalStatus.stepperStatus ? {
-        ...prev.stepperStatus,
-        ...externalStatus.stepperStatus,
-        lastActivation: externalStatus.stepperStatus.lastActivation ? new Date(externalStatus.stepperStatus.lastActivation) : prev.stepperStatus.lastActivation,
-      } : prev.stepperStatus,
-    }))
+    if (!externalStatus) {
+      console.debug('BeltAdvancedControls: No hay externalStatus disponible')
+      return
+    }
+    
+    console.debug('BeltAdvancedControls: Actualizando desde externalStatus:', {
+      running: externalStatus.isRunning,
+      direction: externalStatus.direction,
+      controlType: externalStatus.controlType,
+      hasSpeedControl: externalStatus.hasSpeedControl,
+      stepperActive: externalStatus.stepperStatus?.isActive,
+      sensorTriggers: externalStatus.stepperStatus?.sensorTriggers,
+    })
+    
+    setBeltStatus(prev => {
+      // Parsear timestamp de última acción
+      let actionTime = prev.actionTime
+      if (externalStatus.actionTime) {
+        try {
+          actionTime = new Date(externalStatus.actionTime)
+        } catch (e) {
+          console.warn('Error parseando actionTime:', e)
+        }
+      }
+      
+      // Parsear timestamp de última activación del stepper
+      let stepperLastActivation = prev.stepperStatus.lastActivation
+      if (externalStatus.stepperStatus?.lastActivation) {
+        try {
+          stepperLastActivation = new Date(externalStatus.stepperStatus.lastActivation)
+        } catch (e) {
+          console.warn('Error parseando stepperLastActivation:', e)
+        }
+      }
+      
+      return {
+        ...prev,
+        isRunning: externalStatus.isRunning ?? (externalStatus as any).running ?? prev.isRunning,
+        direction: externalStatus.direction ?? prev.direction,
+        currentSpeed: externalStatus.currentSpeed ?? (externalStatus.isRunning ? 1.0 : 0.0),
+        targetSpeed: externalStatus.targetSpeed ?? (externalStatus.isRunning ? 1.0 : 0.0),
+        motorTemperature: externalStatus.motorTemperature ?? prev.motorTemperature,
+        enabled: externalStatus.enabled ?? prev.enabled,
+        lastAction: externalStatus.lastAction ?? (externalStatus.isRunning ? 'running' : 'stopped'),
+        actionTime,
+        powerConsumption: externalStatus.powerConsumption ?? (externalStatus.isRunning ? 150 : 0),
+        vibrationLevel: externalStatus.vibrationLevel ?? prev.vibrationLevel,
+        totalRuntime: externalStatus.totalRuntime ?? prev.totalRuntime,
+        isConnected: externalStatus.isConnected ?? true,
+        firmwareVersion: externalStatus.firmwareVersion ?? prev.firmwareVersion,
+        controlType: externalStatus.controlType ?? (externalStatus as any).control_type ?? prev.controlType,
+        hasSpeedControl: externalStatus.hasSpeedControl ?? (externalStatus as any).has_speed_control ?? prev.hasSpeedControl,
+        stepperStatus: externalStatus.stepperStatus ? {
+          isActive: externalStatus.stepperStatus.isActive ?? false,
+          currentPower: externalStatus.stepperStatus.currentPower ?? 0,
+          activationCount: externalStatus.stepperStatus.activationCount ?? prev.stepperStatus.activationCount,
+          lastActivation: stepperLastActivation,
+          activationDuration: externalStatus.stepperStatus.activationDuration ?? prev.stepperStatus.activationDuration,
+          totalActiveTime: externalStatus.stepperStatus.totalActiveTime ?? prev.stepperStatus.totalActiveTime,
+          sensorTriggers: externalStatus.stepperStatus.sensorTriggers ?? prev.stepperStatus.sensorTriggers,
+          manualActivations: externalStatus.stepperStatus.manualActivations ?? prev.stepperStatus.manualActivations,
+          driverTemperature: externalStatus.stepperStatus.driverTemperature ?? prev.stepperStatus.driverTemperature,
+          currentStepRate: externalStatus.stepperStatus.currentStepRate ?? prev.stepperStatus.currentStepRate,
+        } : prev.stepperStatus,
+      }
+    })
   }, [externalStatus])
 
   // Simular actualizaciones internas cuando no hay estado externo

@@ -833,13 +833,21 @@ class ConveyorBeltController:
             elif control_type == ControlType.L298N_MOTOR:
                 self.driver = L298NDriver(self.config)
             elif control_type == ControlType.RELAY_MOTOR:
-                # Importar driver de relays dinámicamente
+                # Importar driver de relays dinámicamente (preferir Pi5 si está disponible)
                 try:
-                    from .relay_motor_controller import RelayMotorDriver
-                    self.driver = RelayMotorDriver(self.config)
+                    # Intentar primero con el driver optimizado para Raspberry Pi 5
+                    from .relay_motor_controller_pi5 import RelayMotorDriverPi5
+                    self.driver = RelayMotorDriverPi5(self.config)
+                    self.logger.info("✅ Usando RelayMotorDriverPi5 (optimizado para Pi 5 con lgpio)")
                 except ImportError:
-                    self.logger.error("Driver de relays no disponible")
-                    return False
+                    try:
+                        # Fallback al driver estándar si Pi5 no está disponible
+                        from .relay_motor_controller import RelayMotorDriver
+                        self.driver = RelayMotorDriver(self.config)
+                        self.logger.info("⚠️ Usando RelayMotorDriver estándar (fallback)")
+                    except ImportError:
+                        self.logger.error("❌ Ningún driver de relays disponible")
+                        return False
             elif control_type == ControlType.EXTERNAL_PLC:
                 self.logger.warning("Control PLC externo configurado - funcionalidad limitada")
                 return True

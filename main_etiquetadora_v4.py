@@ -419,9 +419,9 @@ class UltraIndustrialFruitLabelingSystem:
                 raise RuntimeError("Fallo al inicializar desviadores")
             
             logger.info("✅ Sistema de desviadores inicializado")
-            logger.info("   🍎 Manzanas → Desviador 0 → Caja manzanas")
-            logger.info("   🍐 Peras → Desviador 1 → Caja peras")
-            logger.info("   🍋 Limones → Sin desviador → Caja final")
+            logger.info("   🍎 Manzanas → Desviador 0 (MG995) → Caja manzanas")
+            logger.info("   🍐 Peras → Desviador 1 (MG995) → Caja peras")
+            logger.info("   🍋 Limones → Desviador 2 (MG995) → Caja limones")
             
         except Exception as e:
             logger.error(f"❌ Error inicializando desviadores: {e}")

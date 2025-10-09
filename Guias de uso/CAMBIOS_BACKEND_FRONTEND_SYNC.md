@@ -1,401 +1,356 @@
-# 🔧 Correcciones de Sincronización Backend-Frontend
+# 🚀 Mejoras en Sincronización Backend ↔ Frontend
 
 ## 📋 Resumen de Cambios
 
-Se han corregido todos los errores de sincronización entre el backend (Python) y el frontend (React/TypeScript) para el sistema VisiFruit, específicamente para el **Modo Prototipo** con motor NEMA 17 (DRV8825) y servomotores MG995.
+Se ha mejorado completamente la sincronización de datos entre el backend (Python) y el frontend (React/TypeScript) para resolver problemas de:
+
+1. ✅ Motor DC con 2 relays arrancando automáticamente
+2. ✅ Sensor Flying Fish MH no mostrando activaciones en frontend
+3. ✅ Datos históricos no mostrándose correctamente
+4. ✅ Detección correcta de tipo de motor (relay vs PWM)
 
 ---
 
-## ✅ Problemas Corregidos
+## 🔧 Cambios en Backend Principal (smart_classifier_system.py)
 
-### 1. **Error: `await` en método síncrono** ❌ → ✅
-**Problema Original:**
+### 1. Detección Mejorada de Tipo de Motor
+
+**ANTES:**
 ```python
-# ❌ INCORRECTO - smart_classifier_system.py línea 793
-belt_driver_status = await self.belt.get_status()  # get_status() NO es async
+# No distinguía correctamente entre relay y PWM
+belt_control_type = "relay"
 ```
 
-**Solución:**
+**AHORA:**
 ```python
-# ✅ CORRECTO - Removido await ya que get_status() es síncrono
-if hasattr(self.belt, 'get_status'):
-    belt_driver_status = self.belt.get_status()  # Sin await
+# Detecta correctamente SimpleBeltController (tu motor de 2 relays)
+belt_class_name = self.belt.__class__.__name__
+
+if 'SimpleBeltController' in belt_class_name:
+    belt_control_type = "relay"  # ✅ Motor DC con 2 relays (ON/OFF)
+    has_speed_control = False
+    logger.debug("🔌 Motor DC con 2 relays detectado (ON/OFF, sin velocidad variable)")
 ```
 
-**Archivos Modificados:**
-- `Prototipo_Clasificador/smart_classifier_system.py` (línea 794)
+### 2. Endpoint /status Mejorado
 
----
-
-### 2. **Error: RuntimeWarning coroutine no esperada** ❌ → ✅
-**Problema Original:**
+**Datos nuevos enviados:**
 ```python
-# ❌ INCORRECTO - labeler_actuator.py línea 1091-1098
-def get_status(self) -> Dict[str, Any]:  # Método síncrono
-    loop = asyncio.new_event_loop()  # Crear nuevo event loop es problemático
-    driver_status = loop.run_until_complete(self.driver.get_status())
-    loop.close()
-```
-
-**Solución:**
-```python
-# ✅ CORRECTO - Convertido a método async para llamar correctamente al driver
-async def get_status(self) -> Dict[str, Any]:
-    try:
-        driver_status = await self.driver.get_status()  # Await correcto
-    except Exception as e:
-        logger.debug(f"Error obteniendo estado del driver: {e}")
-        driver_status = {"error": "No se pudo obtener estado del driver"}
-```
-
-**Archivos Modificados:**
-- `Control_Etiquetado/labeler_actuator.py` (línea 1091)
-- `Prototipo_Clasificador/smart_classifier_system.py` (línea 829 - actualizado llamado)
-
----
-
-## 🚀 Mejoras Implementadas
-
-### 1. **Endpoints API REST Mejorados con Validación**
-
-#### **POST /belt/start_forward**
-```python
-# Ahora acepta parámetros de velocidad opcionales
-class BeltSpeedRequest(BaseModel):
-    speed_percent: float = 100.0
-
-@app.post("/belt/start_forward")
-async def belt_start_forward(request: BeltSpeedRequest = None):
-    # Validación automática de rango 0-100%
-    speed = max(0.0, min(100.0, request.speed_percent))
-    # ...
-    return {
-        "status": "success",
-        "belt_status": belt_status,  # Estado actualizado
-        "timestamp": time.time()
-    }
-```
-
-**Mejoras:**
-- ✅ Validación de parámetros (0-100%)
-- ✅ Respuesta con estado actualizado del hardware
-- ✅ Timestamp para tracking
-- ✅ Manejo de errores detallado
-
----
-
-#### **POST /belt/stop**
-```python
-@app.post("/belt/stop")
-async def belt_stop():
-    return {
-        "status": "success",
-        "manual_override_active": True,  # Indica que el sensor no reanudará
-        "belt_status": belt_status,
-        "timestamp": time.time()
-    }
-```
-
-**Mejoras:**
-- ✅ Información de override manual
-- ✅ Estado actualizado del hardware
-- ✅ Mejor manejo de errores
-
----
-
-#### **POST /belt/set_speed**
-```python
-@app.post("/belt/set_speed")
-async def belt_set_speed(request: BeltSpeedRequest):
-    # Validación robusta
-    speed = max(0.0, min(100.0, request.speed_percent))
-    
-    success = await self.belt.set_speed(speed)
-    if not success:
-        raise HTTPException(status_code=500, detail="Error al establecer velocidad")
-    
-    return {
-        "status": "success",
-        "speed_percent": speed,
-        "belt_status": belt_status,
-        "timestamp": time.time()
-    }
-```
-
-**Mejoras:**
-- ✅ Validación de rango
-- ✅ Verificación de éxito
-- ✅ Estado actualizado
-
----
-
-### 2. **Endpoints de Stepper/Motor NEMA 17 Mejorados**
-
-#### **POST /laser_stepper/test**
-```python
-class StepperActivationRequest(BaseModel):
-    duration: float = 0.6
-    intensity: float = 80.0
-
-@app.post("/laser_stepper/test")
-async def test_laser_stepper(request: StepperActivationRequest = None):
-    # Validación de parámetros
-    duration = max(0.1, min(10.0, request.duration))
-    intensity = max(10.0, min(100.0, request.intensity))
-    
-    success = await self.labeler.activate_for_duration(duration, intensity)
-    
-    if success:
-        self.stats["stepper_manual_activations"] += 1
-        stepper_status = await self.labeler.get_status()
-        
-        return {
-            "status": "success",
-            "duration": duration,
-            "intensity": intensity,
-            "manual_activations_count": self.stats["stepper_manual_activations"],
-            "stepper_status": stepper_status,  # Estado completo del stepper
-            "timestamp": time.time()
-        }
-```
-
-**Mejoras:**
-- ✅ Parámetros configurables (duración e intensidad)
-- ✅ Validación de rangos seguros
-- ✅ Tracking de activaciones manuales vs sensor
-- ✅ Estado completo del stepper en respuesta
-
----
-
-### 3. **Endpoint de Estado del Sistema Mejorado**
-
-#### **GET /status**
-```python
-@app.get("/status")
-async def get_system_status():
-    base_status = self.get_status()
-    
-    # Estado de la banda (método síncrono)
-    belt_status = self.belt.get_status() if hasattr(self.belt, 'get_status') else {}
-    
-    # Estado del stepper (método async)
-    labeler_state = await self.labeler.get_status()
-    
-    # Estadísticas detalladas
-    stepper_status = {
-        "isActive": driver_info.get('is_active', False),
-        "currentPower": driver_info.get('current_power', 0),
-        "activationCount": len(activation_history),
-        "sensorTriggers": self.stats["stepper_sensor_triggers"],
-        "manualActivations": self.stats["stepper_manual_activations"],
-        "lastActivation": history[-1] if history else None
-    }
-    
-    base_status["belt"] = belt_status
-    base_status["stepper"] = stepper_status
-    
-    return base_status
-```
-
-**Mejoras:**
-- ✅ Separación correcta de métodos async/sync
-- ✅ Estado detallado del stepper (activo/inactivo, potencia, activaciones)
-- ✅ Tracking separado de activaciones manuales vs sensor
-- ✅ Información de última activación
-
----
-
-## 📊 Flujo de Comunicación Mejorado
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND (React/TypeScript)              │
-│                                                             │
-│  BeltAdvancedControls.tsx                                   │
-│  ├─ Botones de control (Start/Stop/Test)                   │
-│  ├─ handleBeltAction(action, params)                        │
-│  └─ Espera respuesta con estado actualizado                │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           │ HTTP POST/GET
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│              API REST (FastAPI - Python)                    │
-│                                                             │
-│  smart_classifier_system.py                                 │
-│  ├─ POST /belt/start_forward                                │
-│  ├─ POST /belt/stop                                         │
-│  ├─ POST /belt/set_speed                                    │
-│  ├─ POST /laser_stepper/test                                │
-│  ├─ GET /status                                             │
-│  │                                                           │
-│  │ Validación de parámetros ✅                              │
-│  │ Llamadas async correctas ✅                              │
-│  │ Manejo de errores robusto ✅                             │
-│  └─ Respuestas con estado actualizado ✅                    │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           │ await
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│           CONTROLADORES DE HARDWARE (Drivers)               │
-│                                                             │
-│  ConveyorBeltController                                     │
-│  ├─ async start_belt()                                      │
-│  ├─ async stop_belt()                                       │
-│  ├─ async set_speed()                                       │
-│  └─ get_status() [SYNC] ✅                                  │
-│                                                             │
-│  LabelerActuator                                            │
-│  ├─ async activate_for_duration()                           │
-│  └─ async get_status() ✅                                   │
-│      └─ await self.driver.get_status()                      │
-│                                                             │
-│  StepperDriver (DRV8825)                                    │
-│  └─ async get_status()                                      │
-│                                                             │
-│  MG995ServoController                                       │
-│  └─ async activate_servo()                                  │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎯 Resultados
-
-### **Antes** ❌
-```
-14:50:23 - WARNING - Error getting belt status via get_status(), using fallback: object dict can't be used in 'await' expression
-RuntimeWarning: coroutine 'StepperDriver.get_status' was never awaited
-```
-
-### **Después** ✅
-```
-✅ Sistema PROTOTIPO funcionando - Sin errores
-✅ Sincronización backend-frontend exitosa
-✅ Estado del hardware actualizado en tiempo real
-✅ Activaciones de stepper funcionando correctamente
-✅ Control de banda funcionando correctamente
-```
-
----
-
-## 📝 Checklist de Correcciones
-
-- [x] Arreglar métodos async/sync inconsistentes
-- [x] Convertir `LabelerActuator.get_status()` a async
-- [x] Remover `await` de `ConveyorBeltController.get_status()`
-- [x] Agregar validación de parámetros en endpoints
-- [x] Mejorar respuestas de API con estado actualizado
-- [x] Agregar tracking de activaciones manuales vs sensor
-- [x] Mejorar manejo de errores con mensajes detallados
-- [x] Agregar timestamps a todas las respuestas
-- [x] Documentar cambios realizados
-
----
-
-## 🚦 Testing Recomendado
-
-### **1. Verificar endpoints de banda**
-```bash
-# Iniciar banda
-curl -X POST http://localhost:8000/belt/start_forward \
-  -H "Content-Type: application/json" \
-  -d '{"speed_percent": 75.0}'
-
-# Detener banda
-curl -X POST http://localhost:8000/belt/stop
-
-# Cambiar velocidad
-curl -X POST http://localhost:8000/belt/set_speed \
-  -H "Content-Type: application/json" \
-  -d '{"speed_percent": 50.0}'
-```
-
-### **2. Verificar endpoint de stepper**
-```bash
-# Activar stepper manualmente
-curl -X POST http://localhost:8000/laser_stepper/test \
-  -H "Content-Type: application/json" \
-  -d '{"duration": 0.8, "intensity": 85.0}'
-
-# Obtener estado del stepper
-curl http://localhost:8000/laser_stepper/status
-```
-
-### **3. Verificar estado del sistema**
-```bash
-# Estado completo (banda + stepper + servos)
-curl http://localhost:8000/status
-```
-
----
-
-## 📚 Documentación Relacionada
-
-- **Backend API**: `http://localhost:8000/docs` (Swagger UI automático)
-- **Frontend**: `Interfaz_Usuario/VisiFruit/src/components/production/BeltAdvancedControls.tsx`
-- **Controladores**: 
-  - `Control_Etiquetado/conveyor_belt_controller.py`
-  - `Control_Etiquetado/labeler_actuator.py`
-  - `Prototipo_Clasificador/mg995_servo_controller.py`
-
----
-
-## ⚙️ Configuración Requerida
-
-### **Backend (Raspberry Pi 5)**
-```json
 {
-  "api_settings": {
-    "enabled": true,
-    "host": "0.0.0.0",
-    "port": 8000
-  },
-  "labeler_settings": {
-    "enabled": true,
-    "type": "stepper",
-    "step_pin_bcm": 19,
-    "dir_pin_bcm": 26,
-    "enable_pin_bcm": 21,
-    "base_speed_sps": 1500,
-    "activation_duration_seconds": 0.6,
-    "intensity_percent": 80.0
-  }
+    "belt": {
+        "running": True/False,           # Estado real del motor
+        "isRunning": True/False,         # Alias para compatibilidad
+        "direction": "forward/stopped",  # Dirección actual
+        "controlType": "relay",          # 🔑 IMPORTANTE: tipo de motor
+        "hasSpeedControl": False,        # 🔑 NO tiene velocidad variable
+        "currentSpeed": 1.0 o 0.0,       # Para relay: 1.0=ON, 0.0=OFF
+        "timestamp": 1234567890.123      # Timestamp para sincronización
+    },
+    "stepper": {
+        "isActive": True/False,                    # Si está activo AHORA
+        "currentPower": 80,                        # Potencia aplicada (0-100)
+        "sensorTriggers": 45,                      # ✅ Contador de activaciones por sensor
+        "manualActivations": 12,                   # ✅ Contador de activaciones manuales
+        "lastActivation": "2025-10-09T...",       # ✅ Timestamp de última activación
+        "lastActivationTimestamp": 1234567890.123, # Unix timestamp
+        "activationDuration": 0.6,                 # Duración configurada
+        "currentStepRate": 1500,                   # Pasos/segundo cuando activo
+        "timestamp": 1234567890.123
+    },
+    "timestamp": 1234567890.123,  # Timestamp global
+    "system_running": True,       # Si el sistema está corriendo
+    "system_state": "running"     # Estado del sistema
 }
 ```
 
-### **Frontend (React)**
-```typescript
-// URL base de la API
-const API_BASE_URL = "http://localhost:8000";
+### 3. Endpoint /belt/start_forward Mejorado
 
-// Polling cada 2 segundos para actualizar estado
-setInterval(async () => {
-  const response = await fetch(`${API_BASE_URL}/status`);
-  const data = await response.json();
-  updateComponentState(data);
-}, 2000);
+**Para tu motor relay de 2 contactos:**
+```python
+# ✅ NO intenta establecer velocidad
+if 'SimpleBeltController' in belt_class_name:
+    await self.belt.start()  # Solo enciende el relay
+    logger.info("✅ Banda relay iniciada (relay adelante = HIGH)")
+    
+response = {
+    "message": "Banda RELAY iniciada (ON - velocidad fija física)",
+    "control_type": "relay",
+    "has_speed_control": False  # ✅ Indica que NO tiene control de velocidad
+}
 ```
 
 ---
 
-## 🎉 Conclusión
+## 🌐 Cambios en Backend Auxiliar (main.py)
 
-Todos los errores de sincronización entre backend y frontend han sido corregidos. El sistema ahora:
+### 1. Proxy Mejorado al Sistema Principal
 
-✅ **Funciona sin errores de async/await**  
-✅ **Tiene validación robusta de parámetros**  
-✅ **Devuelve información detallada en cada respuesta**  
-✅ **Permite control completo del hardware desde la web**  
-✅ **Tracking separado de activaciones manuales vs sensor**  
-✅ **Manejo de errores robusto y mensajes informativos**  
+```python
+# Conecta al puerto 8000 (sistema principal)
+async with session.get('http://localhost:8000/status') as resp:
+    main_system_status = await resp.json()
+    main_connected = True
+```
 
-El sistema está **listo para producción** en el Raspberry Pi 5 con el frontend React.
+### 2. Persistencia de Datos Históricos
+
+**Nuevo sistema de caché histórico:**
+```python
+# Guarda histórico de banda
+self._belt_history.append({
+    "timestamp": current_time,
+    "running": belt_running,
+    "direction": belt_direction
+})
+
+# Guarda histórico de stepper
+self._stepper_history.append({
+    "timestamp": current_time,
+    "isActive": stepper_is_active,
+    "sensorTriggers": sensor_triggers,  # ✅ Contador de sensor
+    "manualActivations": manual_acts     # ✅ Contador manual
+})
+```
+
+### 3. Datos Históricos Calculados
+
+**Nuevas métricas disponibles:**
+```python
+{
+    "historical": {
+        "belt_uptime_percent": 85.3,        # % del tiempo que ha estado encendida
+        "stepper_activation_rate": 12.4,    # % del tiempo activo
+        "data_points": {
+            "belt": 500,      # Número de muestras guardadas
+            "stepper": 500    # Número de muestras guardadas
+        }
+    }
+}
+```
 
 ---
 
-**Fecha de actualización**: 2025-01-09  
-**Versión**: 2.0 - Backend-Frontend Sync Fix  
-**Estado**: ✅ Completado y testeado
+## 🎨 Cambios en Frontend (BeltAdvancedControls.tsx)
+
+### 1. Sincronización Mejorada con externalStatus
+
+**ANTES:**
+```typescript
+// Sincronización básica
+setBeltStatus(prev => ({
+    ...prev,
+    isRunning: externalStatus.isRunning
+}))
+```
+
+**AHORA:**
+```typescript
+// Sincronización completa con logs de depuración
+console.debug('Actualizando desde externalStatus:', {
+    running: externalStatus.isRunning,
+    controlType: externalStatus.controlType,  // ✅ Detecta tipo de motor
+    hasSpeedControl: externalStatus.hasSpeedControl,
+    stepperActive: externalStatus.stepperStatus?.isActive,
+    sensorTriggers: externalStatus.stepperStatus?.sensorTriggers  // ✅ Muestra contador
+})
+
+setBeltStatus(prev => ({
+    ...prev,
+    isRunning: externalStatus.isRunning ?? externalStatus.running,
+    controlType: externalStatus.controlType ?? 'relay',  // ✅ Tipo de motor
+    hasSpeedControl: externalStatus.hasSpeedControl ?? false,
+    stepperStatus: {
+        sensorTriggers: externalStatus.stepperStatus?.sensorTriggers,  // ✅ Sincroniza contador
+        manualActivations: externalStatus.stepperStatus?.manualActivations,
+        lastActivation: new Date(externalStatus.stepperStatus?.lastActivation)
+    }
+}))
+```
+
+### 2. Visualización Adaptativa según Tipo de Motor
+
+**Para motor RELAY (tu caso):**
+```tsx
+{beltStatus.hasSpeedControl ? (
+    // Motor PWM - muestra velocidad
+    <Typography variant="h5">{beltStatus.currentSpeed.toFixed(1)} m/s</Typography>
+) : (
+    // Motor RELAY - muestra ON/OFF
+    <Typography variant="h5">
+        {beltStatus.isRunning ? 'ENCENDIDO ✅' : 'APAGADO ⭕'}
+    </Typography>
+)}
+```
+
+---
+
+## 🎯 Problemas Resueltos
+
+### ✅ 1. Motor arrancando automáticamente
+
+**Problema:** Al iniciar el sistema, el motor se activaba solo.
+
+**Solución:**
+- Detección correcta de `SimpleBeltController`
+- No envía comandos de velocidad innecesarios
+- Respeta el estado inicial configurado
+
+### ✅ 2. Sensor Flying Fish no mostrando activaciones
+
+**Problema:** El sensor activaba el stepper físicamente pero no se veía en UI.
+
+**Solución:**
+- Campo `sensorTriggers` se sincroniza en tiempo real
+- Campo `manualActivations` separado para distinguir origen
+- Timestamp `lastActivation` muestra cuándo fue la última vez
+- Estado `isActive` se detecta correctamente (activo si última activación < 1.5s)
+
+### ✅ 3. Datos históricos vacíos
+
+**Problema:** La UI mostraba que nunca se había encendido el sistema.
+
+**Solución:**
+- Backend guarda histórico en `_belt_history` y `_stepper_history`
+- Calcula métricas: `belt_uptime_percent` y `stepper_activation_rate`
+- Persiste datos entre llamadas a `/status`
+- Frontend recibe y muestra correctamente `totalRuntime`
+
+---
+
+## 📊 Flujo de Datos Mejorado
+
+```
+┌─────────────────────────────────────────────────┐
+│  HARDWARE (Raspberry Pi 5)                      │
+│  - Motor DC (2 relays: pins 22, 23)            │
+│  - NEMA 17 + DRV8825                            │
+│  - Sensor Flying Fish MH (pin 4)               │
+└────────────────┬────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────┐
+│  BACKEND PRINCIPAL (Puerto 8000)                │
+│  smart_classifier_system.py                     │
+│                                                  │
+│  ✅ Detecta SimpleBeltController → relay        │
+│  ✅ Incrementa sensorTriggers al activar       │
+│  ✅ Guarda timestamp de última activación      │
+│  ✅ No envía comandos de velocidad a relay     │
+└────────────────┬────────────────────────────────┘
+                 │ GET /status cada 2s
+                 ▼
+┌─────────────────────────────────────────────────┐
+│  BACKEND AUXILIAR (Puerto 8001)                 │
+│  main.py                                        │
+│                                                  │
+│  ✅ Hace proxy a puerto 8000                   │
+│  ✅ Guarda histórico en _belt_history          │
+│  ✅ Guarda histórico en _stepper_history       │
+│  ✅ Calcula métricas agregadas                 │
+└────────────────┬────────────────────────────────┘
+                 │ GET /api/status/ultra cada 2s
+                 ▼
+┌─────────────────────────────────────────────────┐
+│  FRONTEND (Puerto 3000)                         │
+│  BeltAdvancedControls.tsx                       │
+│                                                  │
+│  ✅ Detecta hasSpeedControl = false            │
+│  ✅ Muestra ON/OFF en vez de velocidad         │
+│  ✅ Muestra sensorTriggers en tiempo real      │
+│  ✅ Muestra datos históricos correctos         │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## 🧪 Cómo Probar las Mejoras
+
+### 1. Verificar detección de motor relay
+
+```bash
+# Iniciar sistema
+python main_etiquetadora_v4.py
+
+# Buscar en logs:
+# "🔌 Motor DC con 2 relays detectado (ON/OFF, sin velocidad variable)"
+```
+
+### 2. Verificar contador de sensor
+
+```bash
+# En el frontend, observar panel de stepper
+# Debe mostrar:
+# - "Activaciones por sensor: X"
+# - "Activaciones manuales: Y"
+# - "Última activación: hace 2s" (actualizado en tiempo real)
+```
+
+### 3. Verificar datos históricos
+
+```bash
+# Dejar el sistema corriendo 5 minutos
+# En el frontend, debe mostrar:
+# - "Tiempo total encendido: 5m 32s"
+# - "% tiempo activo: 78.5%"
+```
+
+---
+
+## 📝 Configuración Recomendada
+
+**Para tu motor DC de 2 relays, asegúrate de tener en `Config_Prototipo.json`:**
+
+```json
+{
+    "belt_settings": {
+        "use_advanced_controller": false,
+        "control_type": "relay_motor",
+        "relay1_pin": 22,
+        "relay2_pin": 23,
+        "enable_pin": 27,
+        "active_state_on": "LOW",
+        "default_speed_percent": 100
+    }
+}
+```
+
+---
+
+## 🐛 Debugging
+
+Si algo no funciona, revisa los logs de consola del navegador:
+
+```javascript
+// Deberías ver:
+"BeltAdvancedControls: Actualizando desde externalStatus: {
+    running: true,
+    controlType: 'relay',
+    hasSpeedControl: false,
+    stepperActive: true,
+    sensorTriggers: 45
+}"
+```
+
+---
+
+## ✨ Resumen de Mejoras
+
+| Componente | Mejora | Estado |
+|------------|--------|--------|
+| Backend Principal | Detección correcta de tipo de motor | ✅ |
+| Backend Principal | No envía velocidad a motor relay | ✅ |
+| Backend Principal | Contador de activaciones por sensor | ✅ |
+| Backend Principal | Timestamp de última activación | ✅ |
+| Backend Auxiliar | Proxy mejorado a puerto 8000 | ✅ |
+| Backend Auxiliar | Persistencia de datos históricos | ✅ |
+| Frontend | Sincronización en tiempo real | ✅ |
+| Frontend | Visualización adaptativa relay/PWM | ✅ |
+| Frontend | Muestra contadores de sensor | ✅ |
+| Frontend | Muestra datos históricos | ✅ |
+
+---
+
+**Fecha de actualización:** 9 de Octubre, 2025  
+**Versión:** 1.0.0  
+**Autores:** Gabriel Calderón, Elias Bautista, Cristian Hernandez
 
