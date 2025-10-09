@@ -1,0 +1,128 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║                                                                        ║
+║        🔄 CAMBIO DE PINES DE SERVOS MG995 - RESUMEN EJECUTIVO         ║
+║                                                                        ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+📋 SITUACIÓN
+────────────
+Los pines GPIO 5, 6, 7 se DAÑARON cuando se quemó la bobina del motor DC.
+Síntomas: Servos no se mueven, antes funcionaban de forma errática.
+
+✅ SOLUCIÓN IMPLEMENTADA
+────────────────────────
+Se han cambiado los servos a NUEVOS PINES SEGUROS con PWM hardware:
+
+   ANTES (DAÑADOS ❌)         →        AHORA (SEGUROS ✅)
+   ═══════════════════        →        ══════════════════
+   GPIO 5  → Manzanas 🍎      →        GPIO 12 → Manzanas 🍎 (PWM0)
+   GPIO 6  → Peras 🍐         →        GPIO 13 → Peras 🍐 (PWM1)
+   GPIO 7  → Limones 🍋       →        GPIO 18 → Limones 🍋 (PWM0 alt)
+
+📁 ARCHIVOS ACTUALIZADOS AUTOMÁTICAMENTE
+─────────────────────────────────────────
+✓ Config_Prototipo.json              (pines 5→12, 6→13, 7→18)
+✓ utils/gpio_wrapper.py               (protección pines 12, 13, 18)
+✓ README_SERVOS_PIGPIO.md             (documentación actualizada)
+
+📁 ARCHIVOS NUEVOS CREADOS
+──────────────────────────
+✓ CAMBIO_PINES_SERVOS.md             (Explicación detallada del cambio)
+✓ diagnostico_pines_servos.py         (Script de diagnóstico de pines)
+✓ INSTRUCCIONES_PRUEBA_SERVOS.md      (Guía paso a paso de prueba)
+
+🔌 RECONEXIÓN FÍSICA REQUERIDA
+───────────────────────────────
+ANTES de encender la Raspberry Pi, RECONECTAR los servos:
+
+   Servo Manzanas:
+   ┌─────────────────────────────────────┐
+   │ Cable NARANJA → GPIO 12 (Pin 32)    │
+   │ Cable ROJO    → 5V externo          │
+   │ Cable MARRÓN  → GND común           │
+   └─────────────────────────────────────┘
+
+   Servo Peras:
+   ┌─────────────────────────────────────┐
+   │ Cable NARANJA → GPIO 13 (Pin 33)    │
+   │ Cable ROJO    → 5V externo          │
+   │ Cable MARRÓN  → GND común           │
+   └─────────────────────────────────────┘
+
+   Servo Limones:
+   ┌─────────────────────────────────────┐
+   │ Cable NARANJA → GPIO 18 (Pin 12)    │
+   │ Cable ROJO    → 5V externo          │
+   │ Cable MARRÓN  → GND común           │
+   └─────────────────────────────────────┘
+
+⚠️  IMPORTANTE - NO OLVIDAR:
+   • GND COMÚN entre Raspberry Pi y fuente externa (OBLIGATORIO)
+   • Alimentación 5-6V EXTERNA para servos (NO usar 5V de la Pi)
+   • NO conectar a GPIO 5, 6, 7 (están dañados)
+
+🧪 PASOS PARA PROBAR
+────────────────────
+
+1. Reconectar hardware físicamente (GPIO 12, 13, 18)
+
+2. Iniciar daemon pigpio:
+   cd Prototipo_Clasificador
+   ./start_pigpio_daemon.sh start
+
+3. Ejecutar diagnóstico:
+   python3 diagnostico_pines_servos.py
+
+4. Si funciona, probar con test completo:
+   cd ..
+   python3 Demos/test_servos_mg995.py
+
+5. Si todo OK, ejecutar sistema:
+   cd Prototipo_Clasificador
+   python3 smart_classifier_system.py
+
+📖 DOCUMENTACIÓN DE REFERENCIA
+───────────────────────────────
+• CAMBIO_PINES_SERVOS.md           → Explicación técnica completa
+• INSTRUCCIONES_PRUEBA_SERVOS.md   → Guía de prueba paso a paso
+• README_SERVOS_PIGPIO.md          → Documentación general de pigpio
+• diagnostico_pines_servos.py      → Script de diagnóstico
+
+🐛 SOLUCIÓN DE PROBLEMAS
+────────────────────────
+Si los servos NO se mueven:
+
+   1. Verificar GND común (sin esto NO funciona)
+   2. Verificar voltaje 5-6V en VCC de servos
+   3. Verificar daemon pigpio: ./start_pigpio_daemon.sh status
+   4. Probar pines individuales: python3 diagnostico_pines_servos.py --pin 12
+   5. Si pin también está dañado, usar alternativos: GPIO 16, 17, 20
+
+✅ VENTAJAS DE LOS NUEVOS PINES
+────────────────────────────────
+• PWM hardware (GPIO 12, 13, 18) → Máxima precisión con pigpio
+• Alejados de zona dañada (GPIO 5, 6, 7)
+• Compatibilidad excelente con pigpio daemon
+• Sin jitter ni oscilaciones
+
+📊 CHECKLIST ANTES DE PROBAR
+─────────────────────────────
+☐ Servos reconectados a GPIO 12, 13, 18
+☐ GND común entre Pi y fuente externa
+☐ Alimentación 5V externa conectada
+☐ Voltaje verificado: 5.0-6.0V
+☐ Daemon pigpio corriendo
+☐ Config_Prototipo.json actualizado
+☐ Servo en buen estado físico
+
+═══════════════════════════════════════════════════════════════════════
+
+Para más información, lee:
+• INSTRUCCIONES_PRUEBA_SERVOS.md (inicio rápido)
+• CAMBIO_PINES_SERVOS.md (detalles técnicos)
+
+Última actualización: Enero 2025
+Razón del cambio: Daño de GPIO 5, 6, 7 tras falla de motor DC
+
+═══════════════════════════════════════════════════════════════════════
+

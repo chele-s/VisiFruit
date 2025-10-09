@@ -91,7 +91,7 @@
   
   "servo_settings": {
     "apple": {
-      "pin_bcm": 5,
+      "pin_bcm": 12,
       "name": "Servo_Manzanas",
       "category": "apple",
       "min_pulse_us": 1000,
@@ -103,10 +103,10 @@
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "Relativo a 90° → -45° (45° absolutos). Hold 1.5s."
+      "_comment": "GPIO 12 (PWM0) - Relativo a 90° → -45° (45° absolutos). Hold 1.5s."
     },
     "pear": {
-      "pin_bcm": 6,
+      "pin_bcm": 13,
       "name": "Servo_Peras",
       "category": "pear",
       "min_pulse_us": 1000,
@@ -118,10 +118,10 @@
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": true,
-      "_comment": "Relativo a 90° → +90° pero invertido (sentido contrario)"
+      "_comment": "GPIO 13 (PWM1) - Relativo a 90° → +90° pero invertido (sentido contrario)"
     },
     "lemon": {
-      "pin_bcm": 7,
+      "pin_bcm": 18,
       "name": "Servo_Limones",
       "category": "lemon",
       "min_pulse_us": 1000,
@@ -133,7 +133,7 @@
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "Relativo a 90° → -80° (10° absolutos). Hold 1.5s."
+      "_comment": "GPIO 18 (PWM0 alt) - Relativo a 90° → -80° (10° absolutos). Hold 1.5s."
     }
   },
   
