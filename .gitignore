@@ -27,3 +27,5 @@ Control_Etiquetado/__pycache__/relay_motor_controller_pi5.cpython-311.pyc
 Control_Etiquetado/__pycache__/sensor_interface.cpython-311.pyc
 Control_Etiquetado/__pycache__/relay_motor_controller_pi5.cpython-311.pyc
 Interfaz_Usuario/Backend/logs/backend_ultra.log
+weights/best.pt
+weights/best.pt
