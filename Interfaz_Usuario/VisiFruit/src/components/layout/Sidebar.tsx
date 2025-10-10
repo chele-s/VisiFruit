@@ -24,7 +24,9 @@ import {
   Warning as AlertsIcon,
   Assessment as ReportsIcon,
   Build as MaintenanceIcon,
+  PrecisionManufacturing as ServoIcon,
 } from '@mui/icons-material'
+
 import { animate, stagger } from 'animejs'
 import { useAppSelector, useAppDispatch } from '../../types/redux'
 import { setCurrentView, setSidebarOpen } from '../../store/slices/uiSlice'
@@ -42,6 +44,7 @@ const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
   { id: 'production', label: 'Producción', icon: <ProductionIcon /> },
   { id: 'belt-control', label: 'Control de Banda', icon: <BeltControlIcon />, color: 'primary' },
+  { id: 'servo-control', label: 'Control de Servos', icon: <ServoIcon /> },
   { id: '3d-view', label: 'Vista 3D', icon: <View3DIcon /> },
   { id: 'analytics', label: 'Análisis', icon: <AnalyticsIcon /> },
 ]

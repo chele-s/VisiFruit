@@ -1282,6 +1282,111 @@ class SmartFruitClassifier:
                     logger.error(f"Error obteniendo estado de banda: {e}")
                     raise HTTPException(status_code=500, detail=str(e))
             
+            # ==================== CONTROL DE SERVOS MG995 ====================
+            
+            class ServoActionRequest(BaseModel):
+                """Solicitud para ejecutar una acción de servo."""
+                servo_id: str
+                action: str
+                params: Optional[Dict[str, Any]] = None
+
+            class ServoConfigUpdateRequest(BaseModel):
+                """Solicitud para actualizar configuración de un servo."""
+                servo_id: str
+                config: Dict[str, Any]
+
+            def _map_servo_id_to_category(servo_id: str):
+                sid = str(servo_id).lower()
+                # Mapear por nombres comunes o ids simples
+                if 'apple' in sid or sid.endswith('1') or sid == 'servo1':
+                    return FruitCategory.APPLE
+                if 'pear' in sid or sid.endswith('2') or sid == 'servo2':
+                    return FruitCategory.PEAR
+                if 'lemon' in sid or sid.endswith('3') or sid == 'servo3':
+                    return FruitCategory.LEMON
+                return None
+
+            @self._api_app.post("/api/servo/action")
+            async def servo_action(request: ServoActionRequest):
+                """Ejecuta una acción sobre un servo (move, activate, reset)."""
+                try:
+                    if not self.servo_controller or not getattr(self.servo_controller, 'initialized', False):
+                        raise HTTPException(status_code=503, detail="Controlador de servos no disponible")
+
+                    category = _map_servo_id_to_category(request.servo_id)
+                    if not category:
+                        raise HTTPException(status_code=400, detail=f"servo_id desconocido: {request.servo_id}")
+
+                    action = request.action.lower()
+                    params = request.params or {}
+
+                    if action == 'move':
+                        angle = float(params.get('angle', 90))
+                        ok = await self.servo_controller.set_servo_angle(category, angle, hold=False)
+                        return {"success": ok, "action": action, "angle": angle}
+                    elif action == 'activate':
+                        ok = await self.servo_controller.activate_servo(category)
+                        return {"success": ok, "action": action}
+                    elif action == 'reset':
+                        # Mover al ángulo por defecto configurado
+                        servo_cfg = self.servo_controller.servos.get(category)
+                        default_angle = servo_cfg.default_angle if servo_cfg else 90.0
+                        ok = await self.servo_controller.set_servo_angle(category, default_angle, hold=False)
+                        return {"success": ok, "action": action, "angle": default_angle}
+                    else:
+                        raise HTTPException(status_code=400, detail=f"Acción no soportada: {request.action}")
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en servo_action: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+
+            @self._api_app.get("/api/servo/status")
+            async def servo_status():
+                """Obtiene estado de los servos."""
+                try:
+                    if not self.servo_controller:
+                        return {"available": False, "message": "Controlador de servos no inicializado"}
+                    status = self.servo_controller.get_status()
+                    # Proveer un mapeo simple de ids para el frontend
+                    servos = status.get("servos", {})
+                    mapped = {
+                        "servo1": servos.get("apple", {}),
+                        "servo2": servos.get("pear", {}),
+                        "servo3": servos.get("lemon", {}),
+                    }
+                    return {"available": True, "servos": mapped, "raw": status}
+                except Exception as e:
+                    logger.error(f"Error obteniendo estado de servos: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+
+            @self._api_app.put("/api/servo/config")
+            async def servo_config_update(request: ServoConfigUpdateRequest):
+                """Actualiza configuración de un servo. Nota: cambios avanzados pueden requerir reinicialización."""
+                try:
+                    # Por ahora, solo persistimos en la configuración del sistema; aplicar en un ciclo posterior si es necesario
+                    if not isinstance(self.config.get("servo_settings", {}), dict):
+                        self.config["servo_settings"] = {}
+
+                    # Determinar categoría desde servo_id
+                    category = _map_servo_id_to_category(request.servo_id)
+                    if not category:
+                        raise HTTPException(status_code=400, detail=f"servo_id desconocido: {request.servo_id}")
+                    cat_key = category.value
+
+                    # Fusionar config ligera
+                    existing = self.config["servo_settings"].get(cat_key, {})
+                    updated = {**existing, **request.config}
+                    self.config["servo_settings"][cat_key] = updated
+
+                    # TODO: aplicar en caliente a drivers (requeriría re-init). Por ahora, aceptamos y devolvemos estado.
+                    return {"success": True, "applied": False, "config": updated}
+                except HTTPException:
+                    raise
+                except Exception as e:
+                    logger.error(f"Error actualizando configuración de servo: {e}")
+                    raise HTTPException(status_code=500, detail=str(e))
+
             # ==================== CONTROL DE STEPPER DRV8825 (ETIQUETADORA) ====================
             
             @self._api_app.post("/laser_stepper/toggle")

@@ -19,6 +19,7 @@ import {
   Dashboard as DashboardIcon,
   Factory as ProductionIcon,
   ViewInAr as View3DIcon,
+  PrecisionManufacturing as ServoIcon,
 } from '@mui/icons-material'
 import { animate } from 'animejs'
 import { useAppSelector, useAppDispatch } from '../../types/redux'
@@ -29,6 +30,7 @@ import ProductionView from '../views/ProductionView'
 import BeltControlView from '../views/BeltControlView'
 import AnalyticsView from '../views/AnalyticsView'
 import Dashboard3DView from '../views/Dashboard3DView'
+import ServoControlView from '../views/ServoControlView'
 import AlertsList from '../alerts/AlertsList'
 import MetricsChart from '../charts/MetricsChart'
 
@@ -97,6 +99,8 @@ const MainLayout: React.FC = () => {
         return <ProductionView />
       case 'belt-control':
         return <BeltControlView />
+      case 'servo-control':
+        return <ServoControlView />
       case 'analytics':
         return <AnalyticsView />
       case 'metrics':
@@ -216,6 +220,20 @@ const MainLayout: React.FC = () => {
               }}
             >
               <ProductionIcon />
+            </IconButton>
+            
+            <IconButton
+              color={currentView === 'servo-control' ? 'primary' : 'inherit'}
+              onClick={() => dispatch(setCurrentView('servo-control'))}
+              sx={{ 
+                '&:hover': { 
+                  transform: 'scale(1.1)',
+                  boxShadow: theme.shadows[6],
+                },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <ServoIcon />
             </IconButton>
             
             <IconButton

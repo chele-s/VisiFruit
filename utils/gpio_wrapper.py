@@ -150,9 +150,11 @@ class SimulatedPWM:
 class LGPIOWrapper:
     """Wrapper para lgpio (Raspberry Pi 5)."""
     
-    # Pines reservados para pigpio (servos MG995)
-    # Estos pines NO deben ser reclamados por lgpio si pigpio está activo
-    PIGPIO_RESERVED_PINS = {12, 13, 18}  # Servos: manzanas, peras, limones (GPIO 12/13/18 - PWM hardware)
+    # Pines reservados para gpiozero/pigpio (servos MG995)
+    # Estos pines NO deben ser reclamados por lgpio si gpiozero/pigpio están activos
+    # ACTUALIZADO: GPIO 12 (PWM0), GPIO 13 (PWM1) para hardware PWM + GPIO 20 para software PWM
+    GPIOZERO_RESERVED_PINS = {12, 13, 20}  # Servos: manzanas, peras, limones (GPIO 12/13 hardware PWM, 20 software)
+    PIGPIO_RESERVED_PINS = {12, 13, 20}    # Retrocompatibilidad con pigpio
     
     def __init__(self):
         import lgpio
@@ -163,11 +165,15 @@ class LGPIOWrapper:
         self.mode = None
         self._alerts = {}
         self._poll_threads = {}
+        self.gpiozero_active = self._check_gpiozero_active()
         self.pigpio_active = self._check_pigpio_daemon()
         
         logger.info("🍓 LGPIO iniciado (Raspberry Pi 5)")
         
-        if self.pigpio_active:
+        if self.gpiozero_active:
+            logger.warning(f"⚠️ gpiozero detectado - Pines {self.GPIOZERO_RESERVED_PINS} reservados para servos")
+            logger.warning("   lgpio NO reclamará estos pines para evitar conflictos")
+        elif self.pigpio_active:
             logger.warning(f"⚠️ Daemon pigpio detectado - Pines {self.PIGPIO_RESERVED_PINS} reservados para servos")
             logger.warning("   lgpio NO reclamará estos pines para evitar conflictos")
         
@@ -178,6 +184,15 @@ class LGPIOWrapper:
         except Exception as e:
             logger.error(f"❌ Error abriendo chip GPIO: {e}")
             raise
+    
+    def _check_gpiozero_active(self) -> bool:
+        """Verifica si gpiozero está en uso."""
+        try:
+            from gpiozero import Device
+            # Si Device.pin_factory está configurado, gpiozero está activo
+            return Device.pin_factory is not None
+        except:
+            return False
     
     def _check_pigpio_daemon(self) -> bool:
         """Verifica si el daemon pigpio está corriendo."""
@@ -203,8 +218,14 @@ class LGPIOWrapper:
     def setup(self, pin, mode, pull_up_down=GPIOState.PUD_OFF):
         """Configura un pin con reintentos si está ocupado (GPIO busy)."""
         try:
-            # PROTECCIÓN: No reclamar pines reservados para pigpio
-            if self.pigpio_active and pin in self.PIGPIO_RESERVED_PINS:
+            # PROTECCIÓN: No reclamar pines reservados para gpiozero/pigpio
+            if self.gpiozero_active and pin in self.GPIOZERO_RESERVED_PINS:
+                logger.warning(f"⚠️ Pin {pin} reservado para gpiozero (servos) - lgpio NO lo reclamará")
+                logger.warning(f"   Si necesitas este pin con lgpio, cierra gpiozero primero")
+                # Marcar como configurado pero sin reclamar realmente
+                self.pins_setup[pin] = {"mode": mode, "pull": pull_up_down, "reserved_for_gpiozero": True}
+                return
+            elif self.pigpio_active and pin in self.PIGPIO_RESERVED_PINS:
                 logger.warning(f"⚠️ Pin {pin} reservado para pigpio - lgpio NO lo reclamará")
                 logger.warning(f"   Si necesitas este pin con lgpio, detén el daemon pigpio: sudo killall pigpiod")
                 # Marcar como configurado pero sin reclamar realmente
@@ -289,8 +310,13 @@ class LGPIOWrapper:
     
     def PWM(self, pin, frequency):
         """Crea instancia PWM usando lgpio."""
-        # PROTECCIÓN: No crear PWM en pines reservados para pigpio
-        if self.pigpio_active and pin in self.PIGPIO_RESERVED_PINS:
+        # PROTECCIÓN: No crear PWM en pines reservados para gpiozero/pigpio
+        if self.gpiozero_active and pin in self.GPIOZERO_RESERVED_PINS:
+            logger.error(f"❌ Pin {pin} reservado para gpiozero (servos) - NO se puede crear PWM con lgpio")
+            logger.error(f"   Cierra gpiozero o usa otro pin")
+            # Retornar wrapper dummy que no hará nada
+            return SimulatedPWM(pin, frequency)
+        elif self.pigpio_active and pin in self.PIGPIO_RESERVED_PINS:
             logger.error(f"❌ Pin {pin} reservado para pigpio - NO se puede crear PWM con lgpio")
             logger.error(f"   Detén pigpio o usa otro pin. Daemon pigpio usa estos pines.")
             # Retornar wrapper dummy que no hará nada

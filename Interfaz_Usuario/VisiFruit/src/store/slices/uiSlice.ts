@@ -5,6 +5,7 @@ export type ViewMode =
   | 'dashboard'
   | 'production'
   | 'belt-control'
+  | 'servo-control'
   | 'analytics'
   | 'metrics'
   | 'alerts'
