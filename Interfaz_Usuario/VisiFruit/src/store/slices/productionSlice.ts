@@ -16,6 +16,12 @@ export interface ProductionStatus {
   qualityScore: number
   uptimeToday: string
   lastSwitch: string
+  lastDetected?: {
+    category: string
+    emoji: string
+    confidence: number
+    timestamp: string
+  }
 }
 
 interface ProductionState {
@@ -78,6 +84,13 @@ const productionSlice = createSlice({
       }
       state.status = action.payload
     },
+    setActiveGroup: (state, action: PayloadAction<ProductionStatus['activeGroup']>) => {
+      state.status.activeGroup = action.payload
+      state.status.lastSwitch = new Date().toISOString()
+    },
+    setLastDetected: (state, action: PayloadAction<ProductionStatus['lastDetected']>) => {
+      state.status.lastDetected = action.payload
+    },
     setCurrentSession: (state, action: PayloadAction<ProductionState['currentSession']>) => {
       state.currentSession = action.payload
     },
@@ -91,6 +104,8 @@ export const {
   setLoading,
   setError,
   updateProductionStatus,
+  setActiveGroup,
+  setLastDetected,
   setCurrentSession,
   clearHistory
 } = productionSlice.actions

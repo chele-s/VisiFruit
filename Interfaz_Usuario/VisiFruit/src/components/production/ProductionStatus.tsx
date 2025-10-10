@@ -209,6 +209,11 @@ const ProductionStatus: React.FC = () => {
                   borderRadius: 2,
                   background: theme.gradients.glass,
                   border: `1px solid rgba(255, 255, 255, 0.1)`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'scale(1.02)',
+                    boxShadow: theme.shadows[6],
+                  },
                 }}
               >
                 <Box
@@ -216,6 +221,12 @@ const ProductionStatus: React.FC = () => {
                     fontSize: '2rem',
                     mr: 2,
                     filter: 'drop-shadow(0 0 10px rgba(0, 229, 160, 0.3))',
+                    animation: status.status === 'running' ? 'pulse 2s infinite' : 'none',
+                    '@keyframes pulse': {
+                      '0%': { transform: 'scale(1)' },
+                      '50%': { transform: 'scale(1.1)' },
+                      '100%': { transform: 'scale(1)' },
+                    },
                   }}
                 >
                   {status.activeGroup.emoji}
@@ -233,6 +244,56 @@ const ProductionStatus: React.FC = () => {
                 </Box>
               </Box>
             </Box>
+
+            {status.lastDetected && (
+              <Box className="status-item" sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  Última Detección
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 2,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, rgba(0, 229, 160, 0.1) 0%, rgba(78, 205, 196, 0.1) 100%)',
+                    border: `1px solid rgba(0, 229, 160, 0.3)`,
+                    animation: 'fadeIn 0.5s ease-in',
+                    '@keyframes fadeIn': {
+                      '0%': { opacity: 0, transform: 'translateY(-10px)' },
+                      '100%': { opacity: 1, transform: 'translateY(0)' },
+                    },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box
+                      sx={{
+                        fontSize: '1.5rem',
+                        mr: 2,
+                        filter: 'drop-shadow(0 0 8px rgba(0, 229, 160, 0.5))',
+                      }}
+                    >
+                      {status.lastDetected.emoji}
+                    </Box>
+                    <Box>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontWeight: 600, textTransform: 'capitalize' }}
+                      >
+                        {status.lastDetected.category}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Confianza: {(status.lastDetected.confidence * 100).toFixed(1)}%
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(status.lastDetected.timestamp).toLocaleTimeString('es-ES')}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
 
             <Box className="status-item" sx={{ flex: 1 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>

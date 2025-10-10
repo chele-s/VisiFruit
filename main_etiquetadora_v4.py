@@ -553,6 +553,27 @@ class UltraIndustrialFruitLabelingSystem:
                         detected=result.fruit_count,
                         labeled=result.fruit_count
                     )
+                    
+                    # 8. NUEVO: Broadcast evento de detección en tiempo real
+                    if self.api_factory:
+                        try:
+                            # Obtener confianza promedio de las detecciones
+                            avg_confidence = 0.95
+                            if hasattr(result, 'detections') and result.detections:
+                                confidences = [d.confidence for d in result.detections if hasattr(d, 'confidence')]
+                                if confidences:
+                                    avg_confidence = sum(confidences) / len(confidences)
+                            
+                            # Enviar evento de detección
+                            await self.api_factory.broadcast_detection_event(
+                                category=optimal_category.fruit_name.lower(),
+                                count=result.fruit_count,
+                                confidence=avg_confidence
+                            )
+                            
+                            logger.debug(f"📡 Evento de detección enviado: {optimal_category.fruit_name} x{result.fruit_count}")
+                        except Exception as e:
+                            logger.debug(f"No se pudo enviar evento de detección: {e}")
                 
                 self.metrics_manager.metrics.frames_processed += 1
                 self.metrics_manager.metrics.total_fruits_detected += result.fruit_count

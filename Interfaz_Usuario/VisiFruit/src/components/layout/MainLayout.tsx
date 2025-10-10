@@ -26,18 +26,21 @@ import { useAppSelector, useAppDispatch } from '../../types/redux'
 import { toggleSidebar, setCurrentView } from '../../store/slices/uiSlice'
 import Sidebar from './Sidebar'
 import DashboardView from '../views/DashboardView'
-import ProductionView from '../views/ProductionView'
 import BeltControlView from '../views/BeltControlView'
+import ProductionView from '../views/ProductionView'
 import AnalyticsView from '../views/AnalyticsView'
 import Dashboard3DView from '../views/Dashboard3DView'
 import ServoControlView from '../views/ServoControlView'
 import AlertsList from '../alerts/AlertsList'
 import MetricsChart from '../charts/MetricsChart'
+import { useWebSocket } from '../../hooks/useWebSocket'
 
 const MainLayout: React.FC = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const dispatch = useAppDispatch()
+  // Inicializa conexiones WebSocket (dashboard 8001 y ultra 8000) usando variables de entorno
+  useWebSocket()
   
   const { currentView, sidebarOpen } = useAppSelector(state => state.ui)
   const { unreadCount } = useAppSelector(state => state.alerts)

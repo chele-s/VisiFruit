@@ -18,13 +18,13 @@ Características Ultra-Avanzadas:
 - Middleware personalizado para logging
 - Sistema de configuración dinámico
 - Exportación de datos en múltiples formatos
-
 Autor: Gabriel Calderón, Elias Bautista, Cristian Hernandez
 Fecha: Julio 2025
 Versión: 3.0.0-ULTRA-BACKEND
 """
 
 import asyncio
+import aiohttp
 import json
 import logging
 import os
@@ -76,6 +76,7 @@ from backend_modules.report_generator import UltraReportGenerator
 from backend_modules.config_manager import UltraConfigManager
 from backend_modules.auth_manager import UltraAuthManager
 from backend_modules.cache_manager import UltraCacheManager
+from backend_modules.realtime_sync import RealtimeSyncManager, realtime_sync
 from backend_modules.api_modules import (
     ProductionAPI, SystemAPI, MetricsAPI, AlertsAPI, 
     ConfigAPI, ReportsAPI, AnalyticsAPI, MaintenanceAPI
@@ -155,6 +156,7 @@ class UltraBackendSystem:
         self.config_manager = UltraConfigManager()
         self.auth_manager = UltraAuthManager()
         self.cache_manager = UltraCacheManager()
+        self.realtime_sync = realtime_sync  # Gestor de sincronización en tiempo real
         
         # APIs especializadas
         self.production_api = ProductionAPI()
@@ -204,6 +206,9 @@ class UltraBackendSystem:
             # Permitir desactivar Redis vía env sin ruido en logs
             os.environ.setdefault("VISIFRUIT_REDIS_ENABLED", os.environ.get("VISIFRUIT_REDIS_ENABLED", "0"))
             await self.cache_manager.initialize()
+            
+            # Inicializar sincronización en tiempo real con sistema principal
+            await self.realtime_sync.initialize()
             
             # Inicializar APIs especializadas
             await self.production_api.initialize(self)
@@ -304,8 +309,39 @@ class UltraBackendSystem:
         
         @app.websocket("/ws/dashboard")
         async def dashboard_websocket(websocket: WebSocket):
-            """WebSocket para dashboard 3D."""
-            await self.websocket_manager.handle_connection(websocket, "dashboard")
+            """WebSocket para dashboard 3D con datos REALES."""
+            await websocket.accept()
+            client_id = str(uuid.uuid4())[:8]
+            
+            # Callback para enviar datos reales al cliente
+            async def send_realtime_data(data):
+                try:
+                    dashboard_data = self.realtime_sync.get_dashboard_data()
+                    await websocket.send_json(dashboard_data)
+                except Exception:
+                    pass
+            
+            # Registrar callback
+            self.realtime_sync.register_callback(send_realtime_data)
+            
+            try:
+                # Enviar datos iniciales
+                await websocket.send_json(self.realtime_sync.get_dashboard_data())
+                
+                # Mantener conexión abierta
+                while True:
+                    # Esperar mensajes del cliente
+                    data = await websocket.receive_text()
+                    
+                    # Si el cliente solicita datos específicos
+                    if data == "refresh":
+                        await websocket.send_json(self.realtime_sync.get_dashboard_data())
+                        
+            except WebSocketDisconnect:
+                self.realtime_sync.unregister_callback(send_realtime_data)
+            except Exception as e:
+                logger.error(f"Error en WebSocket dashboard: {e}")
+                self.realtime_sync.unregister_callback(send_realtime_data)
         
         @app.websocket("/ws/alerts")
         async def alerts_websocket(websocket: WebSocket):
@@ -316,6 +352,24 @@ class UltraBackendSystem:
         async def system_performance():
             """Métricas de rendimiento del sistema."""
             return await self._get_performance_metrics()
+        
+        @app.get("/api/system/temperature")
+        async def system_temperature():
+            """Temperatura real de la Raspberry Pi."""
+            temp = self.realtime_sync.get_raspberry_pi_temperature()
+            return {
+                "temperature_celsius": temp,
+                "timestamp": datetime.now().isoformat(),
+                "device": "Raspberry Pi 5",
+                "warning_threshold": 70.0,
+                "critical_threshold": 80.0,
+                "status": "normal" if temp < 70 else "warning" if temp < 80 else "critical"
+            }
+        
+        @app.get("/api/production/realtime")
+        async def production_realtime():
+            """Datos de producción en tiempo real con detecciones de IA."""
+            return self.realtime_sync.get_current_data()
         
         @app.post("/api/system/simulate")
         async def simulate_production():

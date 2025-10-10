@@ -565,6 +565,18 @@ class UltraAPIFactory:
                 self.websocket_connections.remove(ws)
             except ValueError:
                 pass
+    
+    async def broadcast_detection_event(self, category: str, count: int, confidence: float = 0.95):
+        """Envía evento de detección a todos los clientes conectados."""
+        event_data = {
+            "type": "detection_event",
+            "timestamp": datetime.now().isoformat(),
+            "category": category,
+            "count": count,
+            "confidence": confidence,
+            "emoji": FruitCategory[category.upper()].emoji if category.upper() in FruitCategory.__members__ else "🍎"
+        }
+        await self.broadcast_to_websockets(event_data)
 
 # ==================== SERVIDOR API ====================
 
