@@ -289,10 +289,12 @@ class RPi5ServoController:
                 angle_span = max(1e-6, (cal.max_angle - cal.min_angle))
                 alpha = max(0.0, min(1.0, (final_angle - cal.min_angle) / angle_span))
                 pulse_ms = cal.min_pulse_ms + alpha * (cal.max_pulse_ms - cal.min_pulse_ms)
-                duty = max(0.0, min(1.0, pulse_ms / 20.0))  # 50Hz => 20ms
-                self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, float(duty))
+                # lgpio tx_pwm espera duty cycle en porcentaje (0-100)
+                duty_percent = (pulse_ms / 20.0) * 100.0  # 50Hz => 20ms periodo
+                duty_percent = max(0.0, min(100.0, duty_percent))
+                self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, duty_percent)
                 self.current_angle = angle
-                logger.debug(f"PWM HW (lgpio): pin={self.config.pin_bcm}, duty={duty:.4f}, angle={angle} -> {final_angle}")
+                logger.debug(f"PWM HW (lgpio): pin={self.config.pin_bcm}, duty={duty_percent:.2f}%, angle={angle} -> {final_angle}")
                 return
             except Exception as e:
                 logger.error(f"❌ Error PWM HW con lgpio: {e}")
@@ -396,9 +398,9 @@ class RPi5ServoController:
         try:
             if not self.config.hold_torque:
                 if self._native_mode and self._lgpio and self._chip_handle is not None:
-                    # duty 0.0 para detener la señal PWM (liberar torque)
+                    # duty 0 para detener la señal PWM (liberar torque)
                     try:
-                        self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0.0)
+                        self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0)
                     except Exception:
                         pass
                     logger.debug(f"⏹️ Torque detenido (PWM HW) en {self.config.name}")
@@ -479,7 +481,7 @@ class RPi5ServoController:
                     try:
                         # duty 0 y liberar pin
                         try:
-                            self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0.0)
+                            self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0)
                         except Exception:
                             pass
                         try:
