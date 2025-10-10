@@ -11,21 +11,19 @@ Módulo wrapper que proporciona compatibilidad entre:
 Uso:
     from utils.gpio_wrapper import GPIO, GPIO_AVAILABLE
     
-Autor: Gabriel Calderón, Elias Bautista, Cristian Hernandez
-Fecha: Enero 2025
-Versión: 1.0 - Migración Raspberry Pi 5
 """
-
 import sys
 import platform
 import logging
 import time
+import os
+import socket
+
 from typing import Any, Dict, Optional
 from enum import Enum
 
 logger = logging.getLogger(__name__)
 
-# Estados y constantes GPIO
 class GPIOMode(Enum):
     """Modos de operación GPIO."""
     SIMULATION = "simulation"
@@ -195,14 +193,20 @@ class LGPIOWrapper:
             return False
     
     def _check_pigpio_daemon(self) -> bool:
-        """Verifica si el daemon pigpio está corriendo."""
+        """Verifica si el daemon pigpio está corriendo SIN invocar pigpio.pi().
+        Esto evita que se imprima el banner de error de pigpio cuando no hay daemon.
+        """
         try:
-            import pigpio
-            pi = pigpio.pi()
-            is_connected = pi.connected
-            pi.stop()
-            return is_connected
-        except:
+            # Permitir desactivar este chequeo vía variable de entorno
+            if os.environ.get("VISIFRUIT_DISABLE_PIGPIO_CHECK", "0") == "1":
+                return False
+            # Detectar puerto del daemon (por defecto 8888)
+            port = int(os.environ.get("PIGPIO_PORT", 8888))
+            host = os.environ.get("PIGPIO_ADDR", "127.0.0.1")
+            # Intentar conexión TCP no intrusiva
+            with socket.create_connection((host, port), timeout=0.1):
+                return True
+        except Exception:
             return False
     
     def setmode(self, mode):
