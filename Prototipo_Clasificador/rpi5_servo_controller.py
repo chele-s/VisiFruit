@@ -322,7 +322,8 @@ class RPi5ServoController:
             True si fue exitoso
         """
         try:
-            if not self.initialized or not self.servo:
+            # En modo nativo (lgpio tx_pwm) self.servo es None por diseño
+            if not self.initialized or (not self._native_mode and not self.servo):
                 logger.warning(f"⚠️ Servo '{self.config.name}' no inicializado")
                 return False
             
