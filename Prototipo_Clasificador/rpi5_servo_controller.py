@@ -150,6 +150,11 @@ class RPi5ServoController:
         self._lock = threading.Lock()
         self._movement_task: Optional[asyncio.Task] = None
         
+        # Backend nativo con lgpio (tx_pwm) para PWM HW en Pi 5
+        self._native_mode: bool = False
+        self._lgpio = None
+        self._chip_handle: Optional[int] = None
+        
         # Aplicar perfil si no es custom
         if config.profile != ServoProfile.CUSTOM:
             self.config.calibration = self.SERVO_PROFILES.get(
@@ -177,12 +182,31 @@ class RPi5ServoController:
             True si la inicialización fue exitosa
         """
         try:
-            if not GPIOZERO_AVAILABLE:
-                logger.error("❌ gpiozero no está disponible")
-                return False
-            
             with self._lock:
-                # Configurar factory para Raspberry Pi 5
+                # Intentar modo nativo con lgpio (tx_pwm) si hay HW PWM
+                try:
+                    import lgpio as _lgpio
+                    if self.config.pin_bcm in self.HARDWARE_PWM_PINS and hasattr(_lgpio, "tx_pwm"):
+                        self._lgpio = _lgpio
+                        self._chip_handle = self._lgpio.gpiochip_open(0)
+                        try:
+                            self._lgpio.gpio_claim_output(self._chip_handle, self.config.pin_bcm, 0)
+                        except Exception:
+                            pass
+                        self._native_mode = True
+                        if self.config.initial_delay_ms > 0:
+                            time.sleep(self.config.initial_delay_ms / 1000.0)
+                        self._set_angle_direct(self.config.default_angle)
+                        self.initialized = True
+                        logger.info("✅ Servo inicializado con lgpio tx_pwm (Hardware PWM)")
+                        return True
+                except Exception as e:
+                    logger.debug(f"No se pudo usar backend nativo lgpio tx_pwm: {e}")
+                
+                # Fallback: gpiozero + LGPIOFactory (puede usar PWM por software)
+                if not GPIOZERO_AVAILABLE:
+                    logger.error("❌ gpiozero no está disponible y el backend nativo no pudo activarse")
+                    return False
                 try:
                     Device.pin_factory = LGPIOFactory()
                     logger.info("✅ Usando LGPIOFactory (Raspberry Pi 5)")
@@ -190,19 +214,17 @@ class RPi5ServoController:
                     logger.warning(f"⚠️ Error configurando LGPIOFactory: {e}")
                     logger.info("   Usando factory por defecto")
                 
-                # Crear servo con configuración angular
                 cal = self.config.calibration
                 self.servo = AngularServo(
                     self.config.pin_bcm,
-                    initial_angle=None,  # No mover inicialmente
+                    initial_angle=None,
                     min_angle=cal.min_angle,
                     max_angle=cal.max_angle,
                     min_pulse_width=cal.min_pulse_ms / 1000.0,
                     max_pulse_width=cal.max_pulse_ms / 1000.0,
-                    frame_width=20.0 / 1000.0  # 20ms = 50Hz
+                    frame_width=20.0 / 1000.0
                 )
                 
-                # Información de configuración
                 pwm_type = "Hardware" if self.config.pin_bcm in self.HARDWARE_PWM_PINS else "Software"
                 logger.info(f"✅ Servo inicializado:")
                 logger.info(f"   📍 Pin: GPIO {self.config.pin_bcm} ({pwm_type} PWM)")
@@ -210,13 +232,9 @@ class RPi5ServoController:
                 logger.info(f"   ⚡ Pulsos: {cal.min_pulse_ms}ms - {cal.max_pulse_ms}ms")
                 logger.info(f"   🎯 Perfil: {self.config.profile.value}")
                 
-                # Delay inicial
                 if self.config.initial_delay_ms > 0:
                     time.sleep(self.config.initial_delay_ms / 1000.0)
-                
-                # Mover a posición inicial
                 self._set_angle_direct(self.config.default_angle)
-                
                 self.initialized = True
                 return True
                 
@@ -260,20 +278,34 @@ class RPi5ServoController:
         Args:
             angle: Ángulo objetivo
         """
-        if not self.servo:
-            return
-        
         # Aplicar límites y dirección
         safe_angle = self._apply_limits(angle)
         final_angle = self._apply_direction(safe_angle)
         
+        # Backend nativo con lgpio
+        if self._native_mode and self._lgpio and self._chip_handle is not None:
+            try:
+                cal = self.config.calibration
+                angle_span = max(1e-6, (cal.max_angle - cal.min_angle))
+                alpha = max(0.0, min(1.0, (final_angle - cal.min_angle) / angle_span))
+                pulse_ms = cal.min_pulse_ms + alpha * (cal.max_pulse_ms - cal.min_pulse_ms)
+                duty = max(0.0, min(1.0, pulse_ms / 20.0))  # 50Hz => 20ms
+                self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, float(duty))
+                self.current_angle = angle
+                logger.debug(f"PWM HW (lgpio): pin={self.config.pin_bcm}, duty={duty:.4f}, angle={angle} -> {final_angle}")
+                return
+            except Exception as e:
+                logger.error(f"❌ Error PWM HW con lgpio: {e}")
+                # Fallback: intentar con gpiozero si está disponible
+        
+        # Fallback con gpiozero
+        if not self.servo:
+            return
         try:
             self.servo.angle = final_angle
-            self.current_angle = angle  # Guardar ángulo original (sin dirección)
-            
+            self.current_angle = angle
             logger.debug(
-                f"🎯 {self.config.name}: {angle}° → {final_angle}° "
-                f"(dir={self.config.direction.value})"
+                f"🎯 {self.config.name}: {angle}° → {final_angle}° (dir={self.config.direction.value})"
             )
         except Exception as e:
             logger.error(f"❌ Error moviendo servo: {e}")
@@ -361,9 +393,17 @@ class RPi5ServoController:
         El servo queda libre para moverse manualmente.
         """
         try:
-            if self.servo and not self.config.hold_torque:
-                self.servo.angle = None
-                logger.debug(f"⏹️ Torque detenido en {self.config.name}")
+            if not self.config.hold_torque:
+                if self._native_mode and self._lgpio and self._chip_handle is not None:
+                    # duty 0.0 para detener la señal PWM (liberar torque)
+                    try:
+                        self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0.0)
+                    except Exception:
+                        pass
+                    logger.debug(f"⏹️ Torque detenido (PWM HW) en {self.config.name}")
+                elif self.servo:
+                    self.servo.angle = None
+                    logger.debug(f"⏹️ Torque detenido en {self.config.name}")
         except Exception as e:
             logger.error(f"❌ Error deteniendo torque: {e}")
     
@@ -433,13 +473,38 @@ class RPi5ServoController:
         """Limpia recursos del servo."""
         try:
             with self._lock:
+                # Detener señal PWM si está en modo nativo
+                if self._native_mode and self._lgpio and self._chip_handle is not None:
+                    try:
+                        # duty 0 y liberar pin
+                        try:
+                            self._lgpio.tx_pwm(self._chip_handle, self.config.pin_bcm, 50, 0.0)
+                        except Exception:
+                            pass
+                        try:
+                            self._lgpio.gpio_free(self._chip_handle, self.config.pin_bcm)
+                        except Exception:
+                            pass
+                        try:
+                            self._lgpio.gpiochip_close(self._chip_handle)
+                        except Exception:
+                            pass
+                    finally:
+                        self._chip_handle = None
+                        self._lgpio = None
+                        self._native_mode = False
+                
                 if self.servo:
-                    # Mover a posición segura
-                    self._set_angle_direct(self.config.default_angle)
-                    time.sleep(0.5)
-                    
-                    # Cerrar servo
-                    self.servo.close()
+                    # Mover a posición segura y cerrar
+                    try:
+                        self._set_angle_direct(self.config.default_angle)
+                        time.sleep(0.5)
+                    except Exception:
+                        pass
+                    try:
+                        self.servo.close()
+                    except Exception:
+                        pass
                     self.servo = None
                 
                 self.initialized = False

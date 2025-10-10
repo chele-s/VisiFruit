@@ -65,7 +65,7 @@ class ServoSystemTester:
             config = ServoConfig(
                 pin_bcm=12,
                 name="Test_PWM",
-                profile=ServoProfile.MG995_STANDARD
+                profile=ServoProfile.MG995_EXTENDED
             )
             
             controller = RPi5ServoController(config, auto_init=False)
@@ -94,7 +94,7 @@ class ServoSystemTester:
                 "servo1",
                 pin=12,
                 name="Servo_Test_1",
-                profile=ServoProfile.MG995_STANDARD,
+                profile=ServoProfile.MG995_EXTENDED,
                 default_angle=90,
                 activation_angle=0,
                 direction=ServoDirection.FORWARD
@@ -111,7 +111,7 @@ class ServoSystemTester:
                 "servo2",
                 pin=13,
                 name="Servo_Test_2",
-                profile=ServoProfile.MG995_STANDARD,
+                profile=ServoProfile.MG995_EXTENDED,
                 default_angle=90,
                 activation_angle=180,
                 direction=ServoDirection.FORWARD
@@ -330,8 +330,8 @@ async def interactive_test():
     controller = RPi5MultiServoController()
     
     # Configurar servos
-    controller.add_servo("servo1", pin=12, name="Servo 1")
-    controller.add_servo("servo2", pin=13, name="Servo 2")
+    controller.add_servo("servo1", pin=12, name="Servo 1", profile=ServoProfile.MG995_EXTENDED)
+    controller.add_servo("servo2", pin=13, name="Servo 2", profile=ServoProfile.MG995_EXTENDED)
     
     try:
         while True:
