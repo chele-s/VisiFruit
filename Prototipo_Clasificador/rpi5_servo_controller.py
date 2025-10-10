@@ -453,6 +453,130 @@ class RPi5ServoController:
         self.cleanup()
 
 
+class RPi5MultiServoController:
+    """
+    Controlador para gestionar múltiples `RPi5ServoController`.
+    Provee utilidades para agregar, mover y consultar el estado de varios servos.
+    """
+
+    def __init__(self):
+        self.controllers: Dict[str, RPi5ServoController] = {}
+
+    def add_servo(
+        self,
+        servo_id: str,
+        pin: int,
+        name: str = None,
+        profile: ServoProfile = ServoProfile.MG995_STANDARD,
+        default_angle: float = 90.0,
+        activation_angle: float = 0.0,
+        direction: ServoDirection = ServoDirection.FORWARD,
+        movement_speed: float = 1.0,
+        smooth_movement: bool = True,
+        smooth_steps: int = 20,
+        min_safe_angle: float = 0.0,
+        max_safe_angle: float = 180.0,
+        hold_torque: bool = True,
+        initial_delay_ms: float = 500.0,
+        calibration: Optional[ServoCalibration] = None,
+    ) -> bool:
+        """
+        Agrega un servo y lo inicializa.
+
+        Returns:
+            True si fue exitoso
+        """
+        try:
+            # Si ya existe, limpiar antes de reemplazar
+            if servo_id in self.controllers:
+                try:
+                    self.controllers[servo_id].cleanup()
+                except Exception:
+                    pass
+
+            cfg = ServoConfig(
+                pin_bcm=pin,
+                name=name or f"Servo_{servo_id}",
+                default_angle=default_angle,
+                activation_angle=activation_angle,
+                direction=direction,
+                movement_speed=movement_speed,
+                smooth_movement=smooth_movement,
+                smooth_steps=smooth_steps,
+                min_safe_angle=min_safe_angle,
+                max_safe_angle=max_safe_angle,
+                hold_torque=hold_torque,
+                initial_delay_ms=initial_delay_ms,
+                profile=profile,
+            )
+
+            # Si se proporciona una calibración explícita, usar perfil CUSTOM
+            if calibration is not None:
+                cfg.calibration = calibration
+                cfg.profile = ServoProfile.CUSTOM
+
+            controller = RPi5ServoController(cfg, auto_init=True)
+            if controller.initialized:
+                self.controllers[servo_id] = controller
+                return True
+
+            # Si no inicializó, limpiar por seguridad
+            controller.cleanup()
+            return False
+
+        except Exception as e:
+            logger.error(f"❌ Error agregando servo '{servo_id}': {e}")
+            return False
+
+    def remove_servo(self, servo_id: str) -> bool:
+        """Elimina y limpia un servo por su ID."""
+        try:
+            controller = self.controllers.pop(servo_id, None)
+            if controller:
+                controller.cleanup()
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"❌ Error eliminando servo '{servo_id}': {e}")
+            return False
+
+    def get_servo(self, servo_id: str) -> Optional[RPi5ServoController]:
+        """Obtiene el controlador de un servo por ID."""
+        return self.controllers.get(servo_id)
+
+    async def move_all(self, angle: float, smooth: bool = True) -> Dict[str, bool]:
+        """Mueve todos los servos al mismo ángulo."""
+        try:
+            ids: List[str] = []
+            coros: List[asyncio.Future] = []
+            for sid, ctrl in self.controllers.items():
+                ids.append(sid)
+                coros.append(ctrl.set_angle_async(angle, smooth))
+
+            results_list = await asyncio.gather(*coros, return_exceptions=False)
+            return {sid: bool(res) for sid, res in zip(ids, results_list)}
+        except Exception as e:
+            logger.error(f"❌ Error moviendo todos los servos: {e}")
+            return {sid: False for sid in self.controllers.keys()}
+
+    def get_status(self) -> Dict[str, Dict[str, Any]]:
+        """Obtiene el estado de todos los servos."""
+        status: Dict[str, Dict[str, Any]] = {}
+        for sid, ctrl in self.controllers.items():
+            try:
+                status[sid] = ctrl.get_status()
+            except Exception as e:
+                status[sid] = {"error": str(e)}
+        return status
+
+    def cleanup_all(self):
+        """Limpia todos los servos administrados."""
+        for ctrl in self.controllers.values():
+            try:
+                ctrl.cleanup()
+            except Exception:
+                pass
+
 # ==================== FUNCIONES DE PRUEBA ====================
 
 async def test_single_servo():
