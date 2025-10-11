@@ -57,14 +57,22 @@
   "remote_inference": {
     "enabled": true,
     "server_url": "http://192.168.1.50:9000",
+    "auth_token": "visifruittoken2025",
     "health_endpoint": "/health",
     "infer_endpoint": "/infer",
-    "connect_timeout_s": 0.25,
-    "read_timeout_s": 0.6,
+    "connect_timeout_s": 0.5,
+    "read_timeout_s": 1.0,
+    "write_timeout_s": 1.0,
+    "pool_timeout_s": 0.5,
     "max_retries": 1,
     "fallback_to_local": true,
-    "jpeg_quality": 75,
-    "downscale_before_send": 480
+    "jpeg_quality": 85,
+    "max_dimension": 640,
+    "auto_quality": true,
+    "cb_failure_threshold": 3,
+    "cb_timeout_seconds": 20.0,
+    "cb_half_open_requests": 1,
+    "_comment": "Configuración optimizada para cliente asíncrono HTTP/2 con circuit breaker"
   },
   
   "labeler_settings": {
