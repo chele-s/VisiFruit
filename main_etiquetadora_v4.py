@@ -283,12 +283,16 @@ class UltraIndustrialFruitLabelingSystem:
             # Importar detector YOLOv8 optimizado para Raspberry Pi 5
             from IA_Etiquetado.YOLOv8_detector import EnterpriseFruitDetector
             
+            # Si inferencia remota está habilitada, omitir verificación de archivo local
+            remote_cfg = self.config.get("remote_inference", {})
+            remote_enabled = bool(remote_cfg.get("enabled", False))
             model_path = self.config.get("ai_model_settings", {}).get("model_path", "weights/best.pt")
-            if not model_path or not Path(model_path).exists():
-                raise FileNotFoundError(
-                    f"Modelo YOLOv8 no encontrado: {model_path}\n"
-                    f"   Por favor, descarga tu modelo desde Roboflow y colócalo en weights/best.pt"
-                )
+            if not remote_enabled:
+                if not model_path or not Path(model_path).exists():
+                    raise FileNotFoundError(
+                        f"Modelo YOLOv8 no encontrado: {model_path}\n"
+                        f"   Por favor, descarga tu modelo desde Roboflow y colócalo en weights/best.pt"
+                    )
 
             self.ai_detector = EnterpriseFruitDetector(self.config)
             
@@ -296,8 +300,19 @@ class UltraIndustrialFruitLabelingSystem:
                 raise RuntimeError("Fallo al inicializar el detector YOLOv8")
             
             logger.info("✅ Detector YOLOv8 inicializado correctamente")
-            logger.info(f"   📦 Modelo: {model_path}")
-            logger.info(f"   🖥️ Dispositivo: CPU (Raspberry Pi 5 optimizado)")
+            try:
+                status = self.ai_detector.get_system_status() if hasattr(self.ai_detector, 'get_system_status') else {}
+                mode = status.get("mode", "local")
+                device = status.get("device", "CPU (Raspberry Pi 5)")
+                if mode == "remote":
+                    logger.info("   🌐 Modo: REMOTO (GPU en laptop/servidor)")
+                else:
+                    logger.info("   🖥️ Modo: LOCAL (CPU Raspberry Pi 5)")
+                logger.info(f"   📦 Modelo: {model_path}")
+                logger.info(f"   🧩 Dispositivo: {device}")
+            except Exception:
+                logger.info(f"   📦 Modelo: {model_path}")
+                logger.info(f"   🖥️ Dispositivo: CPU (Raspberry Pi 5 optimizado)")
             
         except (FileNotFoundError, RuntimeError) as e:
             logger.warning(f"⚠️ ADVERTENCIA: {e}")

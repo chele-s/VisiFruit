@@ -1,0 +1,10 @@
+# VisiFruit Remote Inference Server - Dependencies
+# Install PyTorch (CPU or CUDA) separately as appropriate for your GPU/CUDA:
+# https://pytorch.org/get-started/locally/
+
+ultralytics>=8.0.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.23.0
+python-multipart>=0.0.6
+opencv-python>=4.7.0
+numpy>=1.23.0

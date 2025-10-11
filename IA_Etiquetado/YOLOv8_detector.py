@@ -32,6 +32,7 @@ from threading import Thread, Event, RLock
 from queue import Queue, Empty, Full, PriorityQueue
 from pathlib import Path
 from datetime import datetime
+import json
 import numpy as np
 import cv2
 import psutil
@@ -44,6 +45,12 @@ try:
 except ImportError:
     YOLO_AVAILABLE = False
     print("⚠️  YOLOv8 no disponible. Instala con: pip install ultralytics")
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 # Importar estructuras de datos existentes
 from .Fruit_detector import (
@@ -70,6 +77,94 @@ class YOLOv8Config:
     num_threads: int = 4  # Cores de CPU
     augment: bool = False  # No aumentar en inferencia para mayor velocidad
     agnostic_nms: bool = False
+
+
+class RemoteInferenceClient:
+    """Cliente HTTP para inferencia remota con fallback configurable."""
+    def __init__(self, cfg: Dict):
+        self.server_url = str(cfg.get("server_url", "")).rstrip("/")
+        self.health_endpoint = str(cfg.get("health_endpoint", "/health"))
+        self.infer_endpoint = str(cfg.get("infer_endpoint", "/infer"))
+        self.connect_timeout = float(cfg.get("connect_timeout_s", 0.25))
+        self.read_timeout = float(cfg.get("read_timeout_s", 0.6))
+        self.max_retries = int(cfg.get("max_retries", 1))
+        self.jpeg_quality = int(cfg.get("jpeg_quality", 75))
+        self.downscale_size = int(cfg.get("downscale_before_send", 480))
+        self.enabled = bool(cfg.get("enabled", False)) and REQUESTS_AVAILABLE and len(self.server_url) > 0
+
+    def _timeouts(self):
+        return (self.connect_timeout, self.read_timeout)
+
+    def health(self) -> bool:
+        if not self.enabled:
+            return False
+        try:
+            url = f"{self.server_url}{self.health_endpoint}"
+            r = requests.get(url, timeout=self._timeouts())
+            if r.status_code == 200:
+                data = r.json()
+                return bool(data.get("status") == "ok")
+            return False
+        except Exception:
+            return False
+
+    def infer(self, frame: np.ndarray, ai_params: Dict) -> Optional[Dict[str, Any]]:
+        if not self.enabled:
+            return None
+        try:
+            # Downscale before send if configured
+            img = frame
+            if self.downscale_size and self.downscale_size > 0:
+                try:
+                    h, w = frame.shape[:2]
+                    # Keep aspect ratio by resizing shorter side to downscale_size
+                    if max(h, w) > self.downscale_size:
+                        if h >= w:
+                            new_h = self.downscale_size
+                            new_w = int(w * (self.downscale_size / float(h)))
+                        else:
+                            new_w = self.downscale_size
+                            new_h = int(h * (self.downscale_size / float(w)))
+                        img = cv2.resize(frame, (new_w, new_h))
+                except Exception:
+                    img = frame
+
+            # Encode as JPEG
+            encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), self.jpeg_quality]
+            ok, buf = cv2.imencode('.jpg', img, encode_params)
+            if not ok:
+                return None
+
+            files = {"image": ("frame.jpg", buf.tobytes(), "image/jpeg")}
+            data = {
+                "imgsz": int(ai_params.get("input_size", 640)),
+                "conf": float(ai_params.get("confidence_threshold", 0.5)),
+                "iou": float(ai_params.get("iou_threshold", 0.45)),
+                "max_det": int(ai_params.get("max_detections", 100)),
+            }
+            # Optional class names hint
+            class_names = ai_params.get("class_names")
+            if class_names:
+                try:
+                    # Send as JSON string to avoid list parsing issues in form
+                    data["class_names_json"] = json.dumps(class_names)
+                except Exception:
+                    pass
+
+            url = f"{self.server_url}{self.infer_endpoint}"
+            last_exc = None
+            for _ in range(max(1, self.max_retries)):
+                try:
+                    r = requests.post(url, files=files, data=data, timeout=self._timeouts())
+                    if r.status_code == 200:
+                        return r.json()
+                except Exception as e:
+                    last_exc = e
+            if last_exc:
+                raise last_exc
+            return None
+        except Exception:
+            return None
 
 
 class YOLOv8InferenceWorker(Thread):
@@ -100,6 +195,7 @@ class YOLOv8InferenceWorker(Thread):
             confidence_threshold=config.get("confidence_threshold", 0.5),
             iou_threshold=config.get("iou_threshold", 0.45),
             input_size=config.get("input_size", 640),
+            max_detections=config.get("max_detections", 100),
             class_names=config.get("class_names", ["apple", "pear", "lemon"]),
             num_threads=config.get("num_threads", 4)
         )
@@ -613,9 +709,16 @@ class EnterpriseFruitDetector:
             confidence_threshold=ai_config.get("confidence_threshold", 0.5),
             iou_threshold=ai_config.get("iou_threshold", 0.45),
             input_size=ai_config.get("input_size", 640),
+            max_detections=ai_config.get("max_detections", 100),
             class_names=ai_config.get("class_names", ["apple", "pear", "lemon"]),
             num_threads=ai_config.get("num_threads", 4)
         )
+        
+        # Configuración de inferencia remota
+        self.remote_cfg: Dict[str, Any] = config.get("remote_inference", {})
+        self.remote_client = RemoteInferenceClient(self.remote_cfg) if self.remote_cfg else RemoteInferenceClient({})
+        self.fallback_to_local: bool = bool(self.remote_cfg.get("fallback_to_local", True))
+        self._use_remote: bool = bool(self.remote_cfg.get("enabled", False)) and self.remote_client.enabled
         
         # Workers y colas
         self.workers = []
@@ -625,17 +728,45 @@ class EnterpriseFruitDetector:
         # Control del sistema
         self._is_initialized = False
         self._alert_callbacks = []
+        self._local_started = False
         
-        logger.info("EnterpriseFruitDetector (YOLOv8) inicializado para Raspberry Pi 5")
+        mode = "REMOTO" if self._use_remote else "LOCAL"
+        logger.info(f"EnterpriseFruitDetector (YOLOv8) inicializado para Raspberry Pi 5 - Modo {mode}")
 
     async def initialize(self) -> bool:
-        """Inicializa el detector YOLOv8."""
+        """Inicializa el detector YOLOv8. Usa remoto si está saludable; si no, arranca local."""
         try:
             logger.info("🤖 Inicializando detector YOLOv8...")
-            
-            # Número de workers (óptimo para Raspberry Pi 5)
-            num_workers = self.config.get("ai_model_settings", {}).get("num_workers", 2)
-            
+
+            # Intentar modo remoto si está habilitado
+            if self._use_remote:
+                healthy = self.remote_client.health()
+                if healthy:
+                    self._is_initialized = True
+                    logger.info("✅ Modo REMOTO habilitado y saludable; no se cargará modelo local en la Pi")
+                    return True
+                else:
+                    logger.warning("⚠️ Servidor remoto no disponible; activando fallback a modelo local")
+
+            # Fallback a workers locales
+            num_workers = int(self.config.get("ai_model_settings", {}).get("num_workers", 2))
+            ok = await self._start_local_workers(num_workers)
+            if ok:
+                self._is_initialized = True
+                logger.info(f"✅ YOLOv8 Detector LOCAL inicializado con {len(self.workers)} workers")
+                return True
+            return False
+
+        except Exception as e:
+            logger.exception(f"❌ Error inicializando YOLOv8 Detector: {e}")
+            return False
+
+    async def _start_local_workers(self, num_workers: int) -> bool:
+        """Arranca los workers locales (CPU en Pi5)."""
+        try:
+            if self._local_started:
+                return True
+            self.workers = []
             for i in range(num_workers):
                 worker = YOLOv8InferenceWorker(
                     worker_id=i,
@@ -644,6 +775,7 @@ class EnterpriseFruitDetector:
                         "confidence_threshold": self.yolo_config.confidence_threshold,
                         "iou_threshold": self.yolo_config.iou_threshold,
                         "input_size": self.yolo_config.input_size,
+                        "max_detections": self.yolo_config.max_detections,
                         "class_names": self.yolo_config.class_names,
                         "num_threads": self.yolo_config.num_threads
                     },
@@ -651,45 +783,105 @@ class EnterpriseFruitDetector:
                     output_queue=self.output_queue,
                     alert_callback=self._handle_worker_alert
                 )
-                
                 self.workers.append(worker)
                 worker.start()
-            
-            # Esperar a que los workers estén listos
+
+            # Esperar readiness
             for worker in self.workers:
-                if not worker.wait_for_model(timeout=120.0):  # Más tiempo para Raspberry Pi
+                if not worker.wait_for_model(timeout=120.0):
                     raise RuntimeError(f"Worker {worker.worker_id} no se inicializó")
-            
-            self._is_initialized = True
-            logger.info(f"✅ YOLOv8 Detector inicializado con {len(self.workers)} workers")
+            self._local_started = True
             return True
-            
         except Exception as e:
-            logger.exception(f"❌ Error inicializando YOLOv8 Detector: {e}")
+            logger.exception(f"Error iniciando workers locales: {e}")
+            self.workers = []
+            self._local_started = False
             return False
 
-    async def detect_fruits(self, frame: np.ndarray, 
-                          priority: ProcessingPriority = ProcessingPriority.NORMAL) -> Optional[FrameAnalysisResult]:
-        """Detecta frutas en un frame (interfaz compatible)."""
+    async def detect_fruits(self, frame: np.ndarray,
+                            priority: ProcessingPriority = ProcessingPriority.NORMAL) -> Optional[FrameAnalysisResult]:
+        """Detecta frutas en un frame. Intenta remoto primero si está habilitado; cae a local si falla."""
         if not self._is_initialized:
             logger.error("Detector YOLOv8 no inicializado")
             return None
-        
+
         frame_id = str(uuid.uuid4())[:8]
-        timestamp = time.time()
-        
+        start_time = time.time()
+
+        # 1) Intentar remoto
+        if self._use_remote and self.remote_client.health():
+            try:
+                ai_params = {
+                    "input_size": self.yolo_config.input_size,
+                    "confidence_threshold": self.yolo_config.confidence_threshold,
+                    "iou_threshold": self.yolo_config.iou_threshold,
+                    "max_detections": self.yolo_config.max_detections,
+                    "class_names": self.yolo_config.class_names,
+                }
+                remote = self.remote_client.infer(frame, ai_params)
+                if remote:
+                    # Mapear a FrameAnalysisResult
+                    detections = []
+                    frame_h, frame_w = frame.shape[:2]
+                    for d in remote.get("detections", []):
+                        try:
+                            cls_name = str(d.get("class_name", "unknown"))
+                            conf = float(d.get("confidence", 0.0))
+                            bbox = d.get("bbox", [0, 0, 0, 0])
+                            x1, y1, x2, y2 = map(int, bbox)
+                            cx = int((x1 + x2) / 2)
+                            cy = int((y1 + y2) / 2)
+                            try:
+                                cls_id = self.yolo_config.class_names.index(cls_name)
+                            except ValueError:
+                                cls_id = 0
+                            detections.append(FruitDetection(
+                                class_id=cls_id,
+                                class_name=cls_name,
+                                confidence=conf,
+                                bbox=(x1, y1, x2, y2),
+                                center_px=(cx, cy)
+                            ))
+                        except Exception:
+                            continue
+
+                    inference_ms = float(remote.get("inference_ms", 0.0))
+                    preprocessing_ms = float(remote.get("pre_ms", 0.0))
+                    postprocessing_ms = float(remote.get("post_ms", 0.0))
+                    total_ms = float(remote.get("total_ms", (time.time() - start_time) * 1000))
+
+                    result = FrameAnalysisResult(
+                        detections=detections,
+                        fruit_count=len(detections),
+                        inference_time_ms=inference_ms,
+                        preprocessing_time_ms=preprocessing_ms,
+                        postprocessing_time_ms=postprocessing_ms,
+                        total_processing_time_ms=total_ms,
+                        timestamp=start_time,
+                        frame_shape=(frame_h, frame_w),
+                        frame_id=frame_id
+                    )
+                    return result
+            except Exception as e:
+                logger.warning(f"⚠️ Inferencia remota falló: {e}")
+
+        # 2) Fallback a local si está permitido
         try:
-            # Enviar a cola
-            self.input_queue.put((priority.value, (frame_id, frame, timestamp)), timeout=5.0)
-            
-            # Esperar resultado
+            if not self._local_started:
+                if not self.fallback_to_local:
+                    return None
+                num_workers = int(self.config.get("ai_model_settings", {}).get("num_workers", 2))
+                ok = await self._start_local_workers(num_workers)
+                if not ok:
+                    return None
+
+            # Enviar a cola local
+            self.input_queue.put((priority.value, (frame_id, frame, start_time)), timeout=5.0)
             result_frame_id, result = self.output_queue.get(timeout=30.0)
             self.output_queue.task_done()
-            
             return result
-            
         except Exception as e:
-            logger.error(f"Error en detect_fruits: {e}")
+            logger.error(f"Error en detect_fruits (local): {e}")
             return None
 
     def _handle_worker_alert(self, alert: AlertMessage):
@@ -707,12 +899,26 @@ class EnterpriseFruitDetector:
     def get_system_status(self) -> Dict[str, Any]:
         """Obtiene el estado del sistema."""
         if not self.workers:
-            return {"status": "not_initialized"}
+            status = {
+                "status": "running" if self._is_initialized else "initializing",
+                "mode": "remote" if self._use_remote else "local",
+                "remote_enabled": self._use_remote,
+                "remote_healthy": self.remote_client.health() if self._use_remote else False,
+                "num_workers": 0,
+                "model": "YOLOv8",
+                "device": "REMOTE" if self._use_remote else "CPU (Raspberry Pi 5)",
+                "workers": [],
+                "queue_sizes": {"input": self.input_queue.qsize(), "output": self.output_queue.qsize()}
+            }
+            return status
         
         worker_statuses = [worker.get_status() for worker in self.workers]
         
         return {
             "status": "running" if self._is_initialized else "initializing",
+            "mode": "remote" if self._use_remote and not self._local_started else "local",
+            "remote_enabled": self._use_remote,
+            "remote_healthy": self.remote_client.health() if self._use_remote else False,
             "num_workers": len(self.workers),
             "model": "YOLOv8",
             "device": "CPU (Raspberry Pi 5)",

@@ -53,6 +53,19 @@
     "_comment_resolution": "Cámara OV5647 captura en 960x720, YOLOv8 redimensiona a 480x480 internamente",
     "_comment_optimization": "input_size=480 para máxima velocidad en Raspberry Pi 5"
   },
+
+  "remote_inference": {
+    "enabled": true,
+    "server_url": "http://192.168.1.50:9000",
+    "health_endpoint": "/health",
+    "infer_endpoint": "/infer",
+    "connect_timeout_s": 0.25,
+    "read_timeout_s": 0.6,
+    "max_retries": 1,
+    "fallback_to_local": true,
+    "jpeg_quality": 75,
+    "downscale_before_send": 480
+  },
   
   "labeler_settings": {
     "enabled": true,
