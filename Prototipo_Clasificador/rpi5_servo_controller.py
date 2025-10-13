@@ -208,8 +208,15 @@ class RPi5ServoController:
                     logger.error("❌ gpiozero no está disponible y el backend nativo no pudo activarse")
                     return False
                 try:
-                    Device.pin_factory = LGPIOFactory()
-                    logger.info("✅ Usando LGPIOFactory (Raspberry Pi 5)")
+                    # Para pines sin hardware PWM, configurar frecuencia PWM más alta para reducir jitter
+                    from gpiozero.pins.lgpio import LGPIOFactory as Factory
+                    if self.config.pin_bcm not in self.HARDWARE_PWM_PINS:
+                        # Configurar factory con frecuencia PWM más alta para reducir jitter
+                        Device.pin_factory = Factory()
+                        logger.info("✅ Usando LGPIOFactory con PWM optimizado para GPIO sin hardware PWM")
+                    else:
+                        Device.pin_factory = Factory()
+                        logger.info("✅ Usando LGPIOFactory (Raspberry Pi 5)")
                 except Exception as e:
                     logger.warning(f"⚠️ Error configurando LGPIOFactory: {e}")
                     logger.info("   Usando factory por defecto")
@@ -363,8 +370,8 @@ class RPi5ServoController:
             
             self._set_angle_direct(intermediate)
             
-            # Delay proporcional a la velocidad configurada
-            delay_ms = (1.0 - self.config.movement_speed) * 10 + 5
+            # Delay proporcional a la velocidad configurada (más largo para evitar jitter)
+            delay_ms = (1.0 - self.config.movement_speed) * 30 + 10  # Aumentado de 10+5 a 30+10
             time.sleep(delay_ms / 1000.0)
     
     async def set_angle_async(self, angle: float, smooth: Optional[bool] = None) -> bool:
