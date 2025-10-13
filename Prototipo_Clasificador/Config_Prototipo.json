@@ -120,8 +120,8 @@
       "default_angle": 180,
       "activation_mode": "absolute",
       "activation_angle": 90,
-      "activation_duration_s": 2.0,
-      "hold_duration_s": 1.5,
+      "activation_duration_s": 11.0,
+      "hold_duration_s": 10.0,
       "return_smoothly": true,
       "invert": false,
       "_comment": "GPIO 12 (PWM0 - Hardware PWM) - Clasificador manzanas: 180° reposo (sin detector) / 90° actuación (cuando detecta)"
@@ -135,8 +135,8 @@
       "default_angle": 150,
       "activation_mode": "absolute",
       "activation_angle": 100,
-      "activation_duration_s": 2.0,
-      "hold_duration_s": 1.5,
+      "activation_duration_s": 11.0,
+      "hold_duration_s": 10.0,
       "return_smoothly": true,
       "invert": false,
       "_comment": "GPIO 13 (PWM1 - Hardware PWM) - Clasificador peras: 150° reposo (cuando no detecta) / 100° actuación (cuando detecta)"
@@ -150,8 +150,8 @@
       "default_angle": 90,
       "activation_mode": "absolute",
       "activation_angle": 10,
-      "activation_duration_s": 2.0,
-      "hold_duration_s": 1.5,
+      "activation_duration_s": 11.0,
+      "hold_duration_s": 10.0,
       "return_smoothly": true,
       "invert": false,
       "_comment": "GPIO 20 (Software PWM via gpiozero) - Clasificador limones: 90° reposo / 10° actuación (cuando detecta). GPIO 19 ocupado por stepper."

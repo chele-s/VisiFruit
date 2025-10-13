@@ -231,9 +231,9 @@ class MG995ServoController:
                             default_angle=servo.default_angle,
                             activation_angle=servo.activation_angle,
                             direction=RPi5ServoDirection.REVERSE if servo.invert else RPi5ServoDirection.FORWARD,
-                            movement_speed=1.0,
+                            movement_speed=0.7,  # Velocidad más lenta para movimientos más suaves
                             smooth_movement=True,
-                            smooth_steps=20,
+                            smooth_steps=30,  # Más pasos para movimiento ultra-suave
                             min_safe_angle=0.0,
                             max_safe_angle=180.0,
                             hold_torque=True,
@@ -384,48 +384,29 @@ class MG995ServoController:
                     logger.info(f"   📐 {servo.default_angle}° → {servo.activation_angle}° (Δ {servo.activation_angle - servo.default_angle:+.0f}°)")
                     logger.info(f"   ⏱️ Hold: {hold_time:.1f}s | Total: {total_time:.1f}s")
                     
-                    # FASE 1: Mover a posición de activación CON HOLD
+                    # FASE 1: Mover a posición de activación con suavizado integrado
                     if not self.use_rpi5:
                         logger.info(f"🎭 SIMULACIÓN: Moviendo a {servo.activation_angle}°")
                         await asyncio.sleep(0.3)  # Simular tiempo de movimiento
                     else:
-                        # Mover con PWM activo (hold=True) usando RPi5ServoController
-                        await self.set_servo_angle(category, servo.activation_angle, hold=True)
+                        # Usar el suavizado integrado del RPi5ServoController
+                        controller = self.rpi5_controllers.get(category)
+                        if controller:
+                            await controller.set_angle_async(servo.activation_angle, smooth=True)
                     
                     # FASE 2: Mantener posición RÍGIDA durante hold_duration
                     logger.info(f"   🔒 Manteniendo posición rígida por {hold_time:.1f}s...")
                     await asyncio.sleep(hold_time)
                     
-                    # FASE 3: Retorno suave o directo a posición default
-                    if servo.return_smoothly:
-                        logger.info(f"   🔄 Retornando suavemente a {servo.default_angle}°...")
-                        if not self.use_rpi5:
-                            await asyncio.sleep(0.3)
-                        else:
-                            # Retorno con movimiento suave
-                            steps = 10
-                            current = servo.activation_angle
-                            target = servo.default_angle
-                            step_size = (target - current) / steps
-                            
-                            for i in range(steps):
-                                intermediate_angle = current + (step_size * (i + 1))
-                                await self.set_servo_angle(category, intermediate_angle, hold=True)
-                                await asyncio.sleep(0.05)  # 50ms entre pasos
+                    # FASE 3: Retorno suave usando el suavizado integrado del RPi5ServoController
+                    logger.info(f"   🔄 Retornando suavemente a {servo.default_angle}°...")
+                    if not self.use_rpi5:
+                        await asyncio.sleep(0.3)
                     else:
-                        # Retorno directo
-                        logger.info(f"   ⚡ Retornando a {servo.default_angle}°...")
-                        await self.set_servo_angle(category, servo.default_angle, hold=False)
-                    
-                    # FASE 4: Desactivar PWM para evitar oscilaciones (opcional con RPi5)
-                    if self.use_rpi5:
-                        # Detener PWM/torque del controlador RPi5
+                        # Retorno con suavizado integrado (sin pasos manuales que causan jitter)
                         controller = self.rpi5_controllers.get(category)
                         if controller:
-                            try:
-                                controller.stop_hold()
-                            except Exception:
-                                pass
+                            await controller.set_angle_async(servo.default_angle, smooth=True)
                     
                     # Actualizar estadísticas
                     self.activation_count[category] += 1
