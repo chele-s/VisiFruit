@@ -498,8 +498,16 @@ class UltraIndustrialFruitLabelingSystem:
     # ==================== BUCLES DE PROCESAMIENTO ====================
     
     async def _main_processing_loop(self):
-        """Bucle principal de procesamiento."""
-        logger.info("🔄 Bucle principal iniciado")
+        """Bucle principal de procesamiento - MODO CONTINUO."""
+        logger.info("🔄 Bucle principal iniciado - MODO CONTINUO (procesamiento constante)")
+        
+        # Configuración de FPS objetivo desde config (ajustable en Config_Etiquetadora.json)
+        processing_mode = self.config.get("processing_mode", {})
+        target_fps = int(processing_mode.get("target_fps", 15))  # Default: 15 FPS
+        frame_delay = 1.0 / target_fps  # Delay entre frames
+        
+        logger.info(f"🎯 Procesamiento continuo configurado a {target_fps} FPS")
+        logger.info(f"   📝 Ajusta 'processing_mode.target_fps' en Config_Etiquetadora.json para cambiar FPS")
         
         while True:
             try:
@@ -507,17 +515,13 @@ class UltraIndustrialFruitLabelingSystem:
                     await asyncio.sleep(0.1)
                     continue
                 
-                # Esperar trigger
-                try:
-                    trigger_time = await asyncio.wait_for(
-                        self._trigger_queue.get(), timeout=1.0
-                    )
-                except asyncio.TimeoutError:
-                    continue
-                
+                # MODO CONTINUO: Procesar frame inmediatamente sin esperar sensor
                 self._set_state(SystemState.PROCESSING)
                 await self._process_fruit_detection()
                 self._set_state(SystemState.RUNNING)
+                
+                # Control de FPS: Esperar para mantener tasa objetivo
+                await asyncio.sleep(frame_delay)
                 
             except asyncio.CancelledError:
                 break

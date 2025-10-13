@@ -254,6 +254,11 @@
       "min_interval_seconds": 0.15
     }
   },
+  "processing_mode": {
+    "mode": "continuous",
+    "target_fps": 15,
+    "description": "Modo continuo: procesa frames constantemente. Opciones: 10-30 FPS"
+  },
   "timing_configuration": {
     "system_cycle_time_ms": 100,
     "detection_to_labeling_delay_base_ms": 0,

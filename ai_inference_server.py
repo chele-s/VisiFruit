@@ -96,8 +96,8 @@ class ServerConfig:
     SERVER_PORT = int(os.getenv("SERVER_PORT", "9000"))
     SERVER_WORKERS = int(os.getenv("SERVER_WORKERS", "1"))
     
-    # Rate Limiting
-    RATE_LIMIT = os.getenv("RATE_LIMIT", "60/minute")
+    # Rate Limiting (aumentado para tiempo real: 30 FPS = 1800/minute)
+    RATE_LIMIT = os.getenv("RATE_LIMIT", "1800/minute")
     
     # Optimización
     MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", "1920"))
