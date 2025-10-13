@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisiFruit - Monitor en Vivo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #4CAF50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #2a2a3e;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.4em;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.6;
+                transform: scale(1.1);
+            }
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .video-container {
+            background: #0f0f1e;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 2px solid #2a2a3e;
+        }
+        
+        .video-header {
+            background: #2a2a3e;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .video-title {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            background: #000;
+        }
+        
+        .video-wrapper img {
+            width: 100%;
+            display: block;
+            min-height: 480px;
+            object-fit: contain;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #2a2a3e;
+            border-top-color: #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .stats-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #2a2a3e 0%, #1f1f2e 100%);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+            border: 1px solid #3a3a4e;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .stat-icon {
+            font-size: 1.5em;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-trend {
+            font-size: 0.8em;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+        
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .mini-stat {
+            background: #2a2a3e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .mini-stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .mini-stat-label {
+            color: #888;
+            margin-top: 5px;
+            font-size: 0.85em;
+        }
+        
+        .controls {
+            background: #2a2a3e;
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        input[type="text"] {
+            background: #1f1f2e;
+            border: 1px solid #3a3a4e;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 1em;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .alert {
+            background: #f44336;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🍎 VisiFruit - Monitor en Vivo
+                <span class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>En Línea</span>
+                </span>
+            </h1>
+        </header>
+        
+        <div class="alert" id="alert">
+            <strong>⚠️ Error:</strong> No se puede conectar al servidor. Verifica que esté corriendo.
+        </div>
+        
+        <div class="controls">
+            <input type="text" id="serverUrl" placeholder="URL del servidor (ej: http://192.168.137.1:9000)" value="http://192.168.137.1:9000">
+            <button onclick="updateServerUrl()">🔄 Actualizar</button>
+            <button onclick="resetStats()">📊 Reset Stats</button>
+            <button onclick="toggleFullscreen()">🖥️ Pantalla Completa</button>
+        </div>
+        
+        <div class="main-content">
+            <div class="video-container" id="videoContainer">
+                <div class="video-header">
+                    <div class="video-title">📹 Stream en Vivo</div>
+                    <div id="streamStatus">Conectando...</div>
+                </div>
+                <div class="video-wrapper">
+                    <img id="stream" src="" alt="Esperando stream..." onerror="handleStreamError()" onload="handleStreamLoad()">
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-icon">⚡</span>
+                        <span>Frames por Segundo</span>
+                    </div>
+                    <div class="stat-value" id="fps">--</div>
+                    <div class="stat-trend" id="fpsTrend">Calculando...</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-icon">⏱️</span>
+                        <span>Latencia Promedio</span>
+                    </div>
+                    <div class="stat-value" id="latency">--</div>
+                    <div class="stat-trend">milisegundos</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-icon">🍎</span>
+                        <span>Total Detecciones</span>
+                    </div>
+                    <div class="stat-value" id="detections">--</div>
+                    <div class="stat-trend" id="detectionRate">-- frutas/min</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="performance-grid">
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="frames">--</div>
+                <div class="mini-stat-label">Frames Procesados</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="uptime">--</div>
+                <div class="mini-stat-label">Tiempo Activo (s)</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="successRate">--</div>
+                <div class="mini-stat-label">Tasa de Éxito</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="requestsTotal">--</div>
+                <div class="mini-stat-label">Peticiones Totales</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>VisiFruit AI Inference Server - Monitoreo en Tiempo Real</p>
+            <p>Actualizado cada segundo</p>
+        </footer>
+    </div>
+    
+    <script>
+        let SERVER_URL = 'http://192.168.137.1:9000';
+        let previousStats = null;
+        let streamLoaded = false;
+        
+        function updateServerUrl() {
+            const input = document.getElementById('serverUrl');
+            SERVER_URL = input.value.trim();
+            localStorage.setItem('visifruit_server_url', SERVER_URL);
+            
+            // Actualizar stream
+            document.getElementById('stream').src = `${SERVER_URL}/stream?t=${Date.now()}`;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            // Actualizar stats inmediatamente
+            updateStats();
+        }
+        
+        function handleStreamError() {
+            document.getElementById('streamStatus').textContent = '❌ Error en stream';
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            streamLoaded = false;
+        }
+        
+        function handleStreamLoad() {
+            document.getElementById('streamStatus').textContent = '✅ Conectado';
+            document.getElementById('loadingOverlay').style.display = 'none';
+            streamLoaded = true;
+            hideAlert();
+        }
+        
+        function showAlert(message) {
+            const alert = document.getElementById('alert');
+            alert.querySelector('strong + text()').textContent = message;
+            alert.classList.add('show');
+        }
+        
+        function hideAlert() {
+            document.getElementById('alert').classList.remove('show');
+        }
+        
+        async function updateStats() {
+            try {
+                const response = await fetch(`${SERVER_URL}/perf`);
+                
+                if (!response.ok) {
+                    throw new Error('Error en respuesta del servidor');
+                }
+                
+                const stats = await response.json();
+                
+                // FPS
+                document.getElementById('fps').textContent = stats.fps.toFixed(1);
+                if (previousStats) {
+                    const fpsDiff = stats.fps - previousStats.fps;
+                    const trend = fpsDiff > 0 ? '↗️ +' : fpsDiff < 0 ? '↘️ ' : '→ ';
+                    document.getElementById('fpsTrend').textContent = `${trend}${Math.abs(fpsDiff).toFixed(1)} FPS`;
+                }
+                
+                // Latencia
+                document.getElementById('latency').textContent = stats.avg_latency_ms.toFixed(1);
+                
+                // Detecciones
+                document.getElementById('detections').textContent = stats.total_detections;
+                if (stats.uptime_seconds > 0) {
+                    const detRate = (stats.total_detections / stats.uptime_seconds * 60).toFixed(1);
+                    document.getElementById('detectionRate').textContent = `${detRate} frutas/min`;
+                }
+                
+                // Mini stats
+                document.getElementById('frames').textContent = stats.frames_processed;
+                document.getElementById('uptime').textContent = stats.uptime_seconds.toFixed(0);
+                document.getElementById('requestsTotal').textContent = stats.requests_total;
+                
+                const successRate = (stats.requests_success / stats.requests_total * 100) || 0;
+                document.getElementById('successRate').textContent = successRate.toFixed(1) + '%';
+                
+                previousStats = stats;
+                hideAlert();
+                
+            } catch (error) {
+                console.error('Error obteniendo estadísticas:', error);
+                showAlert('No se puede conectar al servidor. Verifica que esté corriendo.');
+            }
+        }
+        
+        function resetStats() {
+            if (confirm('¿Reiniciar todas las estadísticas?')) {
+                previousStats = null;
+                location.reload();
+            }
+        }
+        
+        function toggleFullscreen() {
+            const container = document.getElementById('videoContainer');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.error('Error al entrar en pantalla completa:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Inicialización
+        window.addEventListener('load', () => {
+            // Cargar URL guardada
+            const savedUrl = localStorage.getItem('visifruit_server_url');
+            if (savedUrl) {
+                SERVER_URL = savedUrl;
+                document.getElementById('serverUrl').value = SERVER_URL;
+            }
+            
+            // Iniciar stream
+            updateServerUrl();
+            
+            // Actualizar stats cada segundo
+            setInterval(updateStats, 1000);
+            updateStats();
+        });
+        
+        // Manejar errores globales
+        window.addEventListener('error', (e) => {
+            console.error('Error global:', e);
+        });
+    </script>
+</body>
+</html>

@@ -106,6 +106,12 @@ class ServerConfig:
     # Cache
     ENABLE_CACHE = os.getenv("ENABLE_CACHE", "true").lower() == "true"
     CACHE_TTL = int(os.getenv("CACHE_TTL", "60"))  # segundos
+    
+    # Visualización y logging
+    LOG_EVERY_N_FRAMES = int(os.getenv("LOG_EVERY_N_FRAMES", "30"))  # Log cada N frames
+    SAVE_ANNOTATED_FRAMES = os.getenv("SAVE_ANNOTATED_FRAMES", "false").lower() == "true"
+    ANNOTATED_FRAMES_DIR = os.getenv("ANNOTATED_FRAMES_DIR", "logs/annotated_frames")
+    ENABLE_MJPEG_STREAM = os.getenv("ENABLE_MJPEG_STREAM", "true").lower() == "true"
 
 
 # ==================== MODELOS DE DATOS ====================
@@ -173,6 +179,19 @@ class InferenceServer:
             "total_inference_time_ms": 0.0,
             "startup_time": time.time()
         }
+        
+        # Estadísticas de rendimiento en tiempo real
+        self.perf_stats = {
+            "frame_count": 0,
+            "fps_start_time": time.time(),
+            "current_fps": 0.0,
+            "avg_latency_ms": 0.0,
+            "detections_count": 0,
+            "last_log_time": time.time()
+        }
+        
+        # Para streaming MJPEG
+        self.latest_annotated_frame: Optional[bytes] = None
         
         # Cache de resultados
         self.cache: Dict[str, Any] = {}
@@ -377,10 +396,46 @@ class InferenceServer:
                     for key in oldest_keys:
                         del self.cache[key]
             
-            # Log de rendimiento
+            # Actualizar estadísticas de rendimiento
+            self.perf_stats["frame_count"] += 1
+            self.perf_stats["detections_count"] += len(detections)
+            
+            # Calcular FPS
+            elapsed = time.time() - self.perf_stats["fps_start_time"]
+            if elapsed > 0:
+                self.perf_stats["current_fps"] = self.perf_stats["frame_count"] / elapsed
+            
+            # Calcular latencia promedio
+            if self.stats["requests_success"] > 0:
+                self.perf_stats["avg_latency_ms"] = self.stats["total_inference_time_ms"] / self.stats["requests_success"]
+            
+            # Logging frecuente cada N frames
+            if self.perf_stats["frame_count"] % ServerConfig.LOG_EVERY_N_FRAMES == 0:
+                logger.info(
+                    f"📊 FPS: {self.perf_stats['current_fps']:.1f} | "
+                    f"Latencia: {self.perf_stats['avg_latency_ms']:.1f}ms | "
+                    f"Frames: {self.perf_stats['frame_count']} | "
+                    f"Detecciones: {self.perf_stats['detections_count']}"
+                )
+            
+            # Log individual si hay detecciones
             if len(detections) > 0:
-                logger.info(f"✅ Inferencia: {len(detections)} frutas en {total_ms:.1f}ms "
-                          f"(pre:{pre_ms:.1f}ms, inf:{inference_ms:.1f}ms, post:{post_ms:.1f}ms)")
+                logger.info(f"✅ {len(detections)} frutas en {total_ms:.1f}ms "
+                          f"(inf:{inference_ms:.1f}ms) | FPS: {self.perf_stats['current_fps']:.1f}")
+            
+            # Crear frame anotado para streaming
+            if ServerConfig.ENABLE_MJPEG_STREAM or ServerConfig.SAVE_ANNOTATED_FRAMES:
+                annotated_img = self._create_annotated_image(image.copy(), detections)
+                
+                # Guardar frame si está habilitado
+                if ServerConfig.SAVE_ANNOTATED_FRAMES and len(detections) > 0:
+                    self._save_annotated_frame(annotated_img, detections)
+                
+                # Encodear para streaming
+                if ServerConfig.ENABLE_MJPEG_STREAM:
+                    _, buffer = cv2.imencode('.jpg', annotated_img, 
+                                            [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
+                    self.latest_annotated_frame = buffer.tobytes()
             
             return response
             
@@ -388,6 +443,55 @@ class InferenceServer:
             self.stats["requests_failed"] += 1
             logger.error(f"❌ Error en inferencia: {e}")
             raise
+    
+    def _create_annotated_image(self, image: np.ndarray, detections: List[Detection]) -> np.ndarray:
+        """Crea una imagen anotada con bounding boxes."""
+        # Colores por clase
+        colors = {
+            "apple": (0, 255, 0),    # Verde
+            "pear": (255, 0, 0),     # Azul
+            "lemon": (0, 255, 255),  # Amarillo
+            "unknown": (128, 128, 128)  # Gris
+        }
+        
+        for det in detections:
+            x1, y1, x2, y2 = det.bbox
+            color = colors.get(det.class_name, (255, 255, 255))
+            
+            # Dibujar bbox
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+            
+            # Etiqueta
+            label = f"{det.class_name} {det.confidence:.2f}"
+            (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            
+            # Fondo para el texto
+            cv2.rectangle(image, (x1, y1 - h - 4), (x1 + w, y1), color, -1)
+            cv2.putText(image, label, (x1, y1 - 2), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+        
+        # Agregar info de FPS y stats
+        info_text = f"FPS: {self.perf_stats['current_fps']:.1f} | Detecciones: {len(detections)}"
+        cv2.putText(image, info_text, (10, 30), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        
+        return image
+    
+    def _save_annotated_frame(self, image: np.ndarray, detections: List[Detection]):
+        """Guarda frame anotado en disco."""
+        try:
+            save_dir = Path(ServerConfig.ANNOTATED_FRAMES_DIR)
+            save_dir.mkdir(parents=True, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"detection_{timestamp}_{len(detections)}fruits.jpg"
+            filepath = save_dir / filename
+            
+            cv2.imwrite(str(filepath), image, 
+                       [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
+            logger.debug(f"💾 Frame guardado: {filepath}")
+        except Exception as e:
+            logger.warning(f"Error guardando frame: {e}")
     
     def get_health_status(self) -> HealthResponse:
         """Obtiene el estado de salud del servidor."""
@@ -583,7 +687,69 @@ async def get_stats(token: str = Depends(verify_token)):
     else:
         stats["success_rate"] = 0
     
+    # Agregar estadísticas de rendimiento
+    stats.update({
+        "fps": inference_server.perf_stats["current_fps"],
+        "total_detections": inference_server.perf_stats["detections_count"],
+        "frames_processed": inference_server.perf_stats["frame_count"]
+    })
+    
     return stats
+
+
+@app.get("/stream")
+async def mjpeg_stream():
+    """
+    Streaming MJPEG en vivo con bounding boxes.
+    
+    Accede a esta URL en tu navegador para ver las detecciones en tiempo real:
+    http://TU_IP:9000/stream
+    """
+    from fastapi.responses import StreamingResponse
+    
+    if not ServerConfig.ENABLE_MJPEG_STREAM:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Streaming MJPEG deshabilitado"
+        )
+    
+    async def generate_frames():
+        """Generador de frames MJPEG."""
+        while True:
+            if inference_server.latest_annotated_frame is not None:
+                # Enviar frame en formato MJPEG
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + 
+                       inference_server.latest_annotated_frame + b'\r\n')
+            await asyncio.sleep(0.033)  # ~30 FPS
+    
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+
+@app.get("/perf")
+async def get_performance_stats():
+    """
+    Obtiene estadísticas de rendimiento en tiempo real.
+    No requiere autenticación para facilitar monitoreo.
+    """
+    perf = inference_server.perf_stats.copy()
+    
+    # Agregar más métricas útiles
+    uptime = time.time() - inference_server.stats["startup_time"]
+    
+    return {
+        "fps": round(perf["current_fps"], 2),
+        "avg_latency_ms": round(perf["avg_latency_ms"], 2),
+        "frames_processed": perf["frame_count"],
+        "total_detections": perf["detections_count"],
+        "uptime_seconds": round(uptime, 1),
+        "requests_total": inference_server.stats["requests_total"],
+        "requests_success": inference_server.stats["requests_success"],
+        "timestamp": datetime.now().isoformat()
+    }
 
 
 # ==================== MAIN ====================
@@ -599,6 +765,21 @@ if __name__ == "__main__":
     logger.info(f"   Host: {ServerConfig.SERVER_HOST}")
     logger.info(f"   Puerto: {ServerConfig.SERVER_PORT}")
     logger.info(f"   Rate Limit: {ServerConfig.RATE_LIMIT}")
+    logger.info("")
+    logger.info("📊 VISUALIZACIÓN Y RENDIMIENTO")
+    logger.info(f"   Log cada N frames: {ServerConfig.LOG_EVERY_N_FRAMES}")
+    logger.info(f"   Streaming MJPEG: {ServerConfig.ENABLE_MJPEG_STREAM}")
+    logger.info(f"   Guardar frames: {ServerConfig.SAVE_ANNOTATED_FRAMES}")
+    if ServerConfig.SAVE_ANNOTATED_FRAMES:
+        logger.info(f"   Directorio: {ServerConfig.ANNOTATED_FRAMES_DIR}")
+    logger.info("")
+    logger.info("🌐 ENDPOINTS DISPONIBLES")
+    logger.info(f"   http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/health")
+    logger.info(f"   http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/infer")
+    logger.info(f"   http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/stats")
+    logger.info(f"   http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/perf")
+    if ServerConfig.ENABLE_MJPEG_STREAM:
+        logger.info(f"   🎥 http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/stream")
     logger.info("=" * 60)
     
     # Ejecutar servidor
