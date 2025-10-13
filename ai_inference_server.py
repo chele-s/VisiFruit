@@ -192,6 +192,8 @@ class InferenceServer:
         
         # Para streaming MJPEG
         self.latest_annotated_frame: Optional[bytes] = None
+        self.frame_condition: Optional[asyncio.Condition] = None
+        self.last_frame_id = 0
         
         # Cache de resultados
         self.cache: Dict[str, Any] = {}
@@ -202,6 +204,9 @@ class InferenceServer:
     async def initialize(self):
         """Inicializa el modelo YOLOv8."""
         try:
+            # Inicializar condition para streaming
+            self.frame_condition = asyncio.Condition()
+            
             if not YOLO_AVAILABLE:
                 raise ImportError("YOLOv8 no está instalado")
             
@@ -436,6 +441,11 @@ class InferenceServer:
                     _, buffer = cv2.imencode('.jpg', annotated_img, 
                                             [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
                     self.latest_annotated_frame = buffer.tobytes()
+                    self.last_frame_id += 1
+                    # Notificar a TODOS los consumidores que hay un frame nuevo
+                    if self.frame_condition is not None:
+                        async with self.frame_condition:
+                            self.frame_condition.notify_all()
             
             return response
             
@@ -714,18 +724,45 @@ async def mjpeg_stream():
         )
     
     async def generate_frames():
-        """Generador de frames MJPEG."""
+        """Generador de frames MJPEG con mínima latencia y soporte multi-cliente."""
+        last_sent_frame_id = -1
+        
         while True:
-            if inference_server.latest_annotated_frame is not None:
-                # Enviar frame en formato MJPEG
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + 
-                       inference_server.latest_annotated_frame + b'\r\n')
-            await asyncio.sleep(0.033)  # ~30 FPS
+            # Esperar notificación de frame nuevo
+            async with inference_server.frame_condition:
+                try:
+                    await asyncio.wait_for(inference_server.frame_condition.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    # Timeout - verificar si hay frame disponible de todas formas
+                    pass
+                
+                # Verificar que realmente hay un frame nuevo
+                if (inference_server.latest_annotated_frame is not None and 
+                    inference_server.last_frame_id != last_sent_frame_id):
+                    
+                    last_sent_frame_id = inference_server.last_frame_id
+                    frame_data = inference_server.latest_annotated_frame
+                    
+                    # Enviar frame inmediatamente sin delay
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n'
+                           b'Cache-Control: no-cache, no-store, must-revalidate\r\n'
+                           b'Pragma: no-cache\r\n'
+                           b'Expires: 0\r\n'
+                           b'X-Frame-ID: ' + str(last_sent_frame_id).encode() + b'\r\n'
+                           b'\r\n' + 
+                           frame_data + b'\r\n')
     
     return StreamingResponse(
         generate_frames(),
-        media_type="multipart/x-mixed-replace; boundary=frame"
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Accel-Buffering": "no",  # Deshabilitar buffering en nginx
+            "Connection": "keep-alive"
+        }
     )
 
 
@@ -782,12 +819,17 @@ if __name__ == "__main__":
         logger.info(f"   🎥 http://{ServerConfig.SERVER_HOST}:{ServerConfig.SERVER_PORT}/stream")
     logger.info("=" * 60)
     
-    # Ejecutar servidor
+    # Ejecutar servidor con optimizaciones para streaming
     uvicorn.run(
         "ai_inference_server:app",
         host=ServerConfig.SERVER_HOST,
         port=ServerConfig.SERVER_PORT,
         workers=ServerConfig.SERVER_WORKERS,
         reload=False,
-        access_log=True
+        access_log=False,  # Desactivar access log para mejor rendimiento
+        log_level="info",
+        timeout_keep_alive=75,
+        # Optimizaciones para streaming de baja latencia
+        limit_concurrency=100,
+        backlog=2048
     )
