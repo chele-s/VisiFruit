@@ -503,7 +503,7 @@ async def infer(
     request: Request,
     image: UploadFile = File(...),
     imgsz: int = Form(640),
-    conf: float = Form(0.5),
+    conf: float = Form(0.2),
     iou: float = Form(0.45),
     max_det: int = Form(100),
     class_names_json: Optional[str] = Form(None),
