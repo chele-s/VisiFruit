@@ -78,8 +78,8 @@ class ServoConfig:
     # Calibración
     calibration: ServoCalibration = field(default_factory=ServoCalibration)
     # Configuración de movimiento
-    default_angle: float = 90.0
-    activation_angle: float = 0.0
+    default_angle: float = 0.0
+    activation_angle: float = 90.0
     direction: ServoDirection = ServoDirection.FORWARD
     # Velocidad y suavizado
     movement_speed: float = 1.0     # Velocidad relativa (0.1-1.0)
@@ -141,8 +141,8 @@ class RPi5ServoController:
         """
         self.config = config
         self.servo: Optional[AngularServo] = None
-        self.current_angle: float = config.default_angle
-        self.target_angle: float = config.default_angle
+        self.current_angle: float = 0.0
+        self.target_angle: float = 0.0
         self.is_moving: bool = False
         self.initialized: bool = False
         
@@ -536,8 +536,8 @@ class RPi5MultiServoController:
         pin: int,
         name: str = None,
         profile: ServoProfile = ServoProfile.MG995_STANDARD,
-        default_angle: float = 90.0,
-        activation_angle: float = 0.0,
+        default_angle: float = 0.0,
+        activation_angle: float = 90.0,
         direction: ServoDirection = ServoDirection.FORWARD,
         movement_speed: float = 1.0,
         smooth_movement: bool = True,
@@ -659,8 +659,8 @@ async def test_single_servo():
         pin_bcm=12,
         name="Servo_Test",
         profile=ServoProfile.MG995_STANDARD,
-        default_angle=90,
-        activation_angle=0,
+        default_angle=0,
+        activation_angle=90,
         direction=ServoDirection.FORWARD,
         smooth_movement=True,
         movement_speed=0.8

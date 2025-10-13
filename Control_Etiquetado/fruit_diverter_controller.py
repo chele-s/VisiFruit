@@ -46,6 +46,18 @@ except ImportError:
     print("⚠️ GPIO wrapper no disponible - Modo simulación para desviadores")
     GPIO_AVAILABLE = False
 
+# Importar RPi5ServoController optimizado
+try:
+    from Prototipo_Clasificador.rpi5_servo_controller import (
+        RPi5ServoController, ServoConfig, ServoProfile, ServoDirection
+    )
+    RPI5_SERVO_AVAILABLE = True
+except ImportError:
+    print("⚠️ RPi5ServoController no disponible - usando controlador básico")
+    RPI5_SERVO_AVAILABLE = False
+    RPi5ServoController = None
+    ServoConfig = None
+
 logger = logging.getLogger("FruitDiverterController")
 
 class DiverterPosition(Enum):
@@ -100,9 +112,13 @@ class ServoMotorSG995:
         self.max_pulse_width = 2.0  # ms para 180°
         self.center_pulse_width = 1.5  # ms para 90°
         
-        # Posiciones configurables
+        # Posiciones configurables (NUEVO: Por defecto 0° recta, 90° desviada)
         self.straight_angle = int(config.get("straight_angle", 0))    # Ángulo para posición recta
         self.diverted_angle = int(config.get("diverted_angle", 90))   # Ángulo para desviar
+        
+        # Controlador RPi5 optimizado (si está disponible)
+        self.rpi5_controller: Optional[RPi5ServoController] = None
+        self.use_rpi5_controller = RPI5_SERVO_AVAILABLE and config.get("use_rpi5_controller", True)
         
         # Estado
         self.current_position = DiverterPosition.STRAIGHT
@@ -117,6 +133,39 @@ class ServoMotorSG995:
     async def initialize(self) -> bool:
         """Inicializa el servomotor."""
         try:
+            # Intentar usar RPi5ServoController optimizado primero
+            if self.use_rpi5_controller and RPI5_SERVO_AVAILABLE:
+                try:
+                    servo_config = ServoConfig(
+                        pin_bcm=self.pin,
+                        name=self.name,
+                        default_angle=self.straight_angle,
+                        activation_angle=self.diverted_angle,
+                        profile=ServoProfile.MG995_STANDARD,
+                        direction=ServoDirection.FORWARD,
+                        smooth_movement=True,
+                        movement_speed=1.0,
+                        min_safe_angle=0.0,
+                        max_safe_angle=180.0,
+                        hold_torque=True,
+                        initial_delay_ms=500
+                    )
+                    
+                    self.rpi5_controller = RPi5ServoController(servo_config, auto_init=True)
+                    
+                    if self.rpi5_controller.initialized:
+                        self.is_initialized = True
+                        self.current_angle = self.straight_angle
+                        logger.info(f"✅ Servo {self.name} (Pin {self.pin}) inicializado con RPi5ServoController")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ RPi5ServoController falló para {self.name}, usando controlador básico...")
+                        self.rpi5_controller = None
+                except Exception as e:
+                    logger.warning(f"⚠️ Error con RPi5ServoController: {e}, usando controlador básico...")
+                    self.rpi5_controller = None
+            
+            # Fallback: usar controlador básico con GPIO
             if not GPIO_AVAILABLE:
                 logger.warning(f"GPIO no disponible - Servo {self.name} en modo simulación")
                 self.is_initialized = True
@@ -129,11 +178,11 @@ class ServoMotorSG995:
             self.pwm_instance = GPIO.PWM(self.pin, self.frequency)
             self.pwm_instance.start(0)
             
-            # Mover a posición inicial (recta)
+            # Mover a posición inicial (recta - 0°)
             await self.move_to_position(DiverterPosition.STRAIGHT)
             
             self.is_initialized = True
-            logger.info(f"Servo {self.name} (Pin {self.pin}) inicializado correctamente")
+            logger.info(f"Servo {self.name} (Pin {self.pin}) inicializado correctamente (GPIO básico)")
             return True
             
         except Exception as e:
@@ -162,6 +211,16 @@ class ServoMotorSG995:
                 # Limitar ángulo
                 target_angle = max(0, min(180, target_angle))
                 
+                # Usar RPi5ServoController si está disponible
+                if self.rpi5_controller:
+                    success = self.rpi5_controller.set_angle(target_angle, smooth=True)
+                    if success:
+                        self.current_angle = target_angle
+                        self.last_movement_time = time.time()
+                        logger.debug(f"Servo {self.name} movido a {target_angle}° (RPi5Controller)")
+                    return success
+                
+                # Fallback: controlador básico
                 if GPIO_AVAILABLE and self.pwm_instance:
                     # Movimiento real
                     duty_cycle = self._angle_to_duty_cycle(target_angle)
@@ -220,6 +279,12 @@ class ServoMotorSG995:
         """Limpia recursos del servo."""
         try:
             with self._lock:
+                # Limpiar RPi5ServoController si está activo
+                if self.rpi5_controller:
+                    self.rpi5_controller.cleanup()
+                    self.rpi5_controller = None
+                
+                # Limpiar GPIO básico
                 if GPIO_AVAILABLE and self.pwm_instance:
                     self.pwm_instance.stop()
                     GPIO.cleanup(self.pin)
@@ -265,25 +330,35 @@ class FruitDiverterController:
             
             diverters_config = self.config.get("diverters", {})
             
-            # Configuración por defecto para 2 desviadores
+            # Configuración por defecto para 3 desviadores (usando RPi5ServoController)
             default_diverters = {
                 0: {  # Desviador para manzanas
-                    "pin": 18,
+                    "pin": 12,  # GPIO 12 - Hardware PWM
                     "name": "Diverter-Apple",
                     "category": "apple",
                     "straight_angle": 0,
                     "diverted_angle": 90,
+                    "use_rpi5_controller": True,
                     "description": "Desviador para manzanas hacia caja específica"
                 },
                 1: {  # Desviador para peras
-                    "pin": 19,
+                    "pin": 13,  # GPIO 13 - Hardware PWM
                     "name": "Diverter-Pear", 
                     "category": "pear",
                     "straight_angle": 0,
                     "diverted_angle": 90,
+                    "use_rpi5_controller": True,
                     "description": "Desviador para peras hacia caja específica"
+                },
+                2: {  # Desviador para limones
+                    "pin": 18,  # GPIO 18 - Software PWM
+                    "name": "Diverter-Lemon",
+                    "category": "lemon",
+                    "straight_angle": 0,
+                    "diverted_angle": 90,
+                    "use_rpi5_controller": True,
+                    "description": "Desviador para limones hacia caja específica"
                 }
-                # Limones no tienen desviador - van directo a caja final
             }
             
             # Usar configuración personalizada si está disponible, sino usar por defecto
@@ -320,9 +395,11 @@ class FruitDiverterController:
             if self.is_initialized:
                 logger.info(f"🚀 Sistema de desviadores inicializado: {len(self.diverters)} desviadores operativos")
                 logger.info("📋 Configuración:")
-                logger.info("   🍎 Manzanas → Desviador 0 → Caja manzanas")
-                logger.info("   🍐 Peras → Desviador 1 → Caja peras")
-                logger.info("   🍋 Limones → Sin desviador → Caja final")
+                logger.info("   🍎 Manzanas → Desviador 0 (GPIO 12 - HW PWM) → Caja manzanas")
+                logger.info("   🍐 Peras → Desviador 1 (GPIO 13 - HW PWM) → Caja peras")
+                logger.info("   🍋 Limones → Desviador 2 (GPIO 18) → Caja limones")
+                if RPI5_SERVO_AVAILABLE:
+                    logger.info("   🚀 Usando RPi5ServoController optimizado (Hardware PWM + lgpio)")
             else:
                 logger.warning("⚠️ Sin desviadores operativos - Modo pass-through")
             
@@ -356,9 +433,8 @@ class FruitDiverterController:
             elif category == FruitCategory.PEAR:
                 return await self._activate_diverter(1, "peras")
             elif category == FruitCategory.LEMON:
-                # Limones van directo - no activar desviador
-                logger.info("🍋 Limón: pass-through a caja final")
-                return True
+                # Limones también tienen desviador ahora
+                return await self._activate_diverter(2, "limones")
             else:
                 logger.warning(f"❓ Categoría desconocida: {category.fruit_name} - pass-through")
                 return True
