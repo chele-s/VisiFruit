@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🧪 Script de Prueba del Sistema de Servos - VisiFruit
-=====================================================
+🧪 Script de Prueba del Sistema de Servos MG995 - VisiFruit Prototipo
+=======================================================================
 
-Script para probar y validar el funcionamiento correcto del sistema
-de control de servos MG995 en Raspberry Pi 5.
+Script mejorado para probar los 3 servomotores MG995 del prototipo:
+- Servo 1 (GPIO 12): Clasificador manzanas - 90° actuado / 180° reposo
+- Servo 2 (GPIO 13): Clasificador peras - 100° actuado / 150° reposo  
+- Servo 3 (GPIO 20): Clasificador limones - Configurable
+
+MODO DEMO: Solo usa ángulos de reposo
+MODO PRODUCCIÓN: Usa ángulos de actuación en main_etiquetadora_v4.py
 
 Autor: Sistema VisiFruit
 Fecha: Enero 2025
+Versión: 2.0 - 3 Servos Edition
 """
 
 import asyncio
@@ -51,8 +57,36 @@ class ServoSystemTester:
             "hardware_pwm": False,
             "servo1_test": False,
             "servo2_test": False,
+            "servo3_test": False,
             "movement_test": False,
             "config_test": False
+        }
+        
+        # Configuración de ángulos según especificación del usuario
+        # DEMO: Solo se usan los ángulos de reposo
+        # PRODUCCIÓN: Los ángulos de actuación se usan en detección real
+        self.servo_configs = {
+            "servo1": {
+                "name": "Clasificador_Manzanas",
+                "pin": 12,
+                "rest_angle": 180,      # Posición normal sin detector
+                "actuation_angle": 90,  # Cuando detecta frutas
+                "category": "apple"
+            },
+            "servo2": {
+                "name": "Clasificador_Peras",
+                "pin": 13,
+                "rest_angle": 150,      # Cuando no detecta nada
+                "actuation_angle": 100, # Cuando detecta frutas
+                "category": "pear"
+            },
+            "servo3": {
+                "name": "Clasificador_Limones",
+                "pin": 20,
+                "rest_angle": 90,       # Posición de reposo
+                "actuation_angle": 10,  # Cuando detecta frutas
+                "category": "lemon"
+            }
         }
     
     async def test_hardware_pwm(self):
@@ -84,80 +118,84 @@ class ServoSystemTester:
         return self.test_results["hardware_pwm"]
     
     async def test_servo_initialization(self):
-        """Prueba la inicialización de servos."""
-        print("\n🔧 Inicializando Servos...")
-        print("-" * 40)
+        """Prueba la inicialización de los 3 servos."""
+        print("\n🔧 Inicializando 3 Servos MG995...")
+        print("-" * 60)
+        print("📝 Configuración de Ángulos:")
+        print("   Servo 1 (GPIO 12): 180° reposo / 90° actuación")
+        print("   Servo 2 (GPIO 13): 150° reposo / 100° actuación")
+        print("   Servo 3 (GPIO 20): 90° reposo / 10° actuación")
+        print("-" * 60)
+        
+        success_list = []
         
         try:
-            # Servo 1 - GPIO 12
-            success1 = self.multi_controller.add_servo(
-                "servo1",
-                pin=12,
-                name="Servo_Test_1",
-                profile=ServoProfile.MG995_EXTENDED,
-                default_angle=90,
-                activation_angle=0,
-                direction=ServoDirection.FORWARD
-            )
-            
-            if success1:
-                print("✅ Servo 1 inicializado (GPIO 12)")
-                self.test_results["servo1_test"] = True
-            else:
-                print("❌ Error inicializando Servo 1")
-            
-            # Servo 2 - GPIO 13
-            success2 = self.multi_controller.add_servo(
-                "servo2",
-                pin=13,
-                name="Servo_Test_2",
-                profile=ServoProfile.MG995_EXTENDED,
-                default_angle=90,
-                activation_angle=180,
-                direction=ServoDirection.FORWARD
-            )
-            
-            if success2:
-                print("✅ Servo 2 inicializado (GPIO 13)")
-                self.test_results["servo2_test"] = True
-            else:
-                print("❌ Error inicializando Servo 2")
+            # Inicializar los 3 servos con configuración especificada
+            for servo_id, config in self.servo_configs.items():
+                print(f"\n🔩 Inicializando {config['name']}...")
+                
+                success = self.multi_controller.add_servo(
+                    servo_id,
+                    pin=config['pin'],
+                    name=config['name'],
+                    profile=ServoProfile.MG995_EXTENDED,
+                    default_angle=config['rest_angle'],
+                    activation_angle=config['actuation_angle'],
+                    direction=ServoDirection.FORWARD
+                )
+                
+                if success:
+                    print(f"✅ {config['name']} inicializado (GPIO {config['pin']})")
+                    print(f"   📐 Reposo: {config['rest_angle']}° | Actuación: {config['actuation_angle']}°")
+                    self.test_results[f"{servo_id}_test"] = True
+                    success_list.append(True)
+                else:
+                    print(f"❌ Error inicializando {config['name']}")
+                    success_list.append(False)
             
         except Exception as e:
             print(f"❌ Error en inicialización: {e}")
+            return False
         
-        return success1 and success2
+        return all(success_list)
     
     async def test_basic_movements(self):
-        """Prueba movimientos básicos de los servos."""
-        print("\n🎮 Probando Movimientos Básicos...")
-        print("-" * 40)
+        """Prueba movimientos básicos de los 3 servos."""
+        print("\n🎮 Probando Movimientos Básicos de 3 Servos...")
+        print("-" * 60)
+        print("ℹ️  MODO DEMO: Solo se prueban posiciones de REPOSO")
+        print("-" * 60)
         
         try:
-            # Obtener controladores
-            servo1 = self.multi_controller.get_servo("servo1")
-            servo2 = self.multi_controller.get_servo("servo2")
-            
-            if not servo1 or not servo2:
-                print("❌ No se pudieron obtener los controladores")
-                return False
-            
-            print("\n📐 Moviendo Servo 1...")
-            test_angles = [0, 45, 90, 135, 180, 90]
-            
-            for angle in test_angles:
-                print(f"   → {angle}°")
-                await servo1.set_angle_async(angle, smooth=True)
-                await asyncio.sleep(0.8)
-            
-            print("\n📐 Moviendo Servo 2...")
-            for angle in test_angles:
-                print(f"   → {angle}°")
-                await servo2.set_angle_async(angle, smooth=True)
-                await asyncio.sleep(0.8)
+            # Probar cada servo individualmente
+            for servo_id, config in self.servo_configs.items():
+                servo = self.multi_controller.get_servo(servo_id)
+                
+                if not servo:
+                    print(f"❌ No se pudo obtener {config['name']}")
+                    continue
+                
+                print(f"\n📐 Moviendo {config['name']} (GPIO {config['pin']})...")
+                
+                # Para el demo, solo usar ángulos de reposo + algunas posiciones intermedias
+                rest = config['rest_angle']
+                test_angles = [
+                    rest,                           # Posición de reposo
+                    rest - 30 if rest >= 30 else 0, # -30 grados
+                    rest,                           # Volver a reposo
+                    rest + 30 if rest <= 150 else 180, # +30 grados
+                    rest                            # Volver a reposo
+                ]
+                
+                for angle in test_angles:
+                    print(f"   → {angle}°")
+                    await servo.set_angle_async(angle, smooth=True)
+                    await asyncio.sleep(0.8)
+                
+                print(f"   ✅ {config['name']} completado")
             
             self.test_results["movement_test"] = True
-            print("✅ Movimientos completados")
+            print("\n✅ Movimientos básicos de 3 servos completados")
             return True
             
         except Exception as e:
@@ -165,18 +203,31 @@ class ServoSystemTester:
             return False
     
     async def test_synchronized_movement(self):
-        """Prueba movimientos sincronizados."""
-        print("\n🔄 Probando Movimientos Sincronizados...")
-        print("-" * 40)
+        """Prueba movimientos sincronizados de los 3 servos."""
+        print("\n🔄 Probando Movimientos Sincronizados (3 servos)...")
+        print("-" * 60)
         
         try:
-            angles = [0, 90, 180, 90]
+            # Mover todos a sus posiciones de reposo
+            print("   → Moviendo todos a posición de REPOSO")
+            for servo_id, config in self.servo_configs.items():
+                servo = self.multi_controller.get_servo(servo_id)
+                if servo:
+                    await servo.set_angle_async(config['rest_angle'], smooth=True)
+            await asyncio.sleep(2.0)
             
-            for angle in angles:
-                print(f"   → Ambos servos a {angle}°")
-                results = await self.multi_controller.move_all(angle, smooth=True)
-                print(f"      Resultados: {results}")
-                await asyncio.sleep(1.5)
+            # Secuencia de prueba sincronizada
+            print("   → Moviendo todos a 90° (centro)")
+            await self.multi_controller.move_all(90, smooth=True)
+            await asyncio.sleep(2.0)
+            
+            # Volver cada uno a su reposo
+            print("   → Regresando cada servo a su posición de reposo")
+            for servo_id, config in self.servo_configs.items():
+                servo = self.multi_controller.get_servo(servo_id)
+                if servo:
+                    await servo.set_angle_async(config['rest_angle'], smooth=True)
+            await asyncio.sleep(2.0)
             
             print("✅ Movimientos sincronizados completados")
             return True
@@ -229,30 +280,33 @@ class ServoSystemTester:
             return False
     
     async def test_activation_sequence(self):
-        """Prueba secuencia de activación."""
-        print("\n🎯 Probando Secuencia de Activación...")
-        print("-" * 40)
+        """Prueba secuencia de activación con los 3 servos."""
+        print("\n🎯 Probando Secuencia de Activación (DEMO - Solo Reposo)...")
+        print("-" * 60)
+        print("⚠️  En DEMO se usan posiciones de REPOSO")
+        print("⚠️  En PRODUCCIÓN se usarán posiciones de ACTUACIÓN")
+        print("-" * 60)
         
         try:
-            servo1 = self.multi_controller.get_servo("servo1")
-            servo2 = self.multi_controller.get_servo("servo2")
+            # Probar secuencia de cada servo
+            for servo_id, config in self.servo_configs.items():
+                servo = self.multi_controller.get_servo(servo_id)
+                
+                if not servo:
+                    print(f"❌ Servo {servo_id} no disponible")
+                    continue
+                
+                print(f"\n   🔹 Probando {config['name']} ({config['category']})...")
+                print(f"      Demo: Moviendo a reposo ({config['rest_angle']}°)")
+                print(f"      [En producción usaría: {config['actuation_angle']}°]")
+                
+                # En demo, solo mover a posición de reposo
+                await servo.move_to_default()  # Posición de reposo
+                await asyncio.sleep(1.5)
+                
+                print(f"      ✅ {config['name']} completado")
             
-            if not servo1 or not servo2:
-                return False
-            
-            print("   Activando Servo 1...")
-            await servo1.move_to_activation()
-            await asyncio.sleep(1)
-            await servo1.move_to_default()
-            await asyncio.sleep(0.5)
-            
-            print("   Activando Servo 2...")
-            await servo2.move_to_activation()
-            await asyncio.sleep(1)
-            await servo2.move_to_default()
-            await asyncio.sleep(0.5)
-            
-            print("✅ Secuencia de activación completada")
+            print("\n✅ Secuencia de activación DEMO completada")
             return True
             
         except Exception as e:
@@ -260,20 +314,28 @@ class ServoSystemTester:
             return False
     
     async def show_status(self):
-        """Muestra el estado del sistema."""
-        print("\n📊 Estado del Sistema")
-        print("-" * 40)
+        """Muestra el estado del sistema con 3 servos."""
+        print("\n📊 Estado del Sistema - 3 Servos MG995")
+        print("=" * 60)
         
         try:
             status = self.multi_controller.get_status()
             
             for servo_id, servo_status in status.items():
+                config = self.servo_configs.get(servo_id, {})
+                
                 print(f"\n📍 {servo_status['name']} ({servo_id}):")
                 print(f"   Pin: GPIO {servo_status['pin']}")
                 print(f"   Hardware PWM: {'✅' if servo_status['hardware_pwm'] else '❌'}")
                 print(f"   Ángulo actual: {servo_status['current_angle']}°")
+                if config:
+                    print(f"   Ángulo reposo: {config['rest_angle']}°")
+                    print(f"   Ángulo actuación: {config['actuation_angle']}° (usado en producción)")
+                    print(f"   Categoría: {config['category']}")
                 print(f"   Dirección: {servo_status['direction']}")
                 print(f"   Perfil: {servo_status['profile']}")
+            
+            print("\n" + "=" * 60)
             
         except Exception as e:
             print(f"❌ Error obteniendo estado: {e}")
@@ -322,25 +384,41 @@ class ServoSystemTester:
 
 
 async def interactive_test():
-    """Modo de prueba interactivo."""
-    print("\n" + "=" * 50)
-    print("🎮 MODO INTERACTIVO - CONTROL DE SERVOS")
-    print("=" * 50)
+    """Modo de prueba interactivo con 3 servos."""
+    print("\n" + "=" * 60)
+    print("🎮 MODO INTERACTIVO - CONTROL DE 3 SERVOS MG995")
+    print("=" * 60)
     
     controller = RPi5MultiServoController()
     
-    # Configurar servos
-    controller.add_servo("servo1", pin=12, name="Servo 1", profile=ServoProfile.MG995_EXTENDED)
-    controller.add_servo("servo2", pin=13, name="Servo 2", profile=ServoProfile.MG995_EXTENDED)
+    # Configurar los 3 servos
+    servo_configs = {
+        "servo1": {"pin": 12, "name": "Clasificador Manzanas", "rest": 180, "act": 90},
+        "servo2": {"pin": 13, "name": "Clasificador Peras", "rest": 150, "act": 100},
+        "servo3": {"pin": 20, "name": "Clasificador Limones", "rest": 90, "act": 10}
+    }
+    
+    for sid, cfg in servo_configs.items():
+        controller.add_servo(
+            sid, 
+            pin=cfg["pin"], 
+            name=cfg["name"], 
+            profile=ServoProfile.MG995_EXTENDED,
+            default_angle=cfg["rest"],
+            activation_angle=cfg["act"]
+        )
     
     try:
         while True:
             print("\n📋 Opciones:")
-            print("1. Mover Servo 1")
-            print("2. Mover Servo 2")
-            print("3. Mover ambos servos")
-            print("4. Secuencia de prueba")
-            print("5. Ver estado")
+            print("1. Mover Servo 1 (Manzanas - GPIO 12)")
+            print("2. Mover Servo 2 (Peras - GPIO 13)")
+            print("3. Mover Servo 3 (Limones - GPIO 20)")
+            print("4. Mover todos los servos")
+            print("5. Secuencia de prueba (3 servos)")
+            print("6. Todos a posición de REPOSO")
+            print("7. Todos a posición de ACTUACIÓN")
+            print("8. Ver estado")
             print("0. Salir")
             
             choice = input("\nSelecciona opción: ").strip()
@@ -348,38 +426,56 @@ async def interactive_test():
             if choice == "0":
                 break
             
-            elif choice == "1":
-                angle = float(input("Ángulo para Servo 1 (0-180): "))
-                servo1 = controller.get_servo("servo1")
-                if servo1:
-                    await servo1.set_angle_async(angle)
-                    print(f"✅ Servo 1 movido a {angle}°")
-            
-            elif choice == "2":
-                angle = float(input("Ángulo para Servo 2 (0-180): "))
-                servo2 = controller.get_servo("servo2")
-                if servo2:
-                    await servo2.set_angle_async(angle)
-                    print(f"✅ Servo 2 movido a {angle}°")
-            
-            elif choice == "3":
-                angle = float(input("Ángulo para ambos servos (0-180): "))
-                await controller.move_all(angle)
-                print(f"✅ Ambos servos movidos a {angle}°")
+            elif choice in ["1", "2", "3"]:
+                servo_map = {"1": "servo1", "2": "servo2", "3": "servo3"}
+                servo_id = servo_map[choice]
+                cfg = servo_configs[servo_id]
+                
+                angle = float(input(f"Ángulo para {cfg['name']} (0-180): "))
+                servo = controller.get_servo(servo_id)
+                if servo:
+                    await servo.set_angle_async(angle)
+                    print(f"✅ {cfg['name']} movido a {angle}°")
             
             elif choice == "4":
-                print("Ejecutando secuencia de prueba...")
+                angle = float(input("Ángulo para todos los servos (0-180): "))
+                await controller.move_all(angle)
+                print(f"✅ Todos los servos movidos a {angle}°")
+            
+            elif choice == "5":
+                print("Ejecutando secuencia de prueba con 3 servos...")
                 for angle in [0, 45, 90, 135, 180, 90]:
                     print(f"   → {angle}°")
                     await controller.move_all(angle)
                     await asyncio.sleep(1)
                 print("✅ Secuencia completada")
             
-            elif choice == "5":
+            elif choice == "6":
+                print("Moviendo todos a posición de REPOSO...")
+                for sid, cfg in servo_configs.items():
+                    servo = controller.get_servo(sid)
+                    if servo:
+                        await servo.set_angle_async(cfg["rest"])
+                        print(f"   {cfg['name']}: {cfg['rest']}°")
+                print("✅ Todos en posición de reposo")
+            
+            elif choice == "7":
+                print("⚠️  CUIDADO: Moviendo todos a posición de ACTUACIÓN...")
+                for sid, cfg in servo_configs.items():
+                    servo = controller.get_servo(sid)
+                    if servo:
+                        await servo.set_angle_async(cfg["act"])
+                        print(f"   {cfg['name']}: {cfg['act']}°")
+                print("✅ Todos en posición de actuación")
+            
+            elif choice == "8":
                 status = controller.get_status()
                 for sid, info in status.items():
+                    cfg = servo_configs.get(sid, {})
                     print(f"\n{info['name']}:")
                     print(f"   Ángulo: {info['current_angle']}°")
+                    if cfg:
+                        print(f"   Reposo: {cfg['rest']}° | Actuación: {cfg['act']}°")
                     print(f"   Hardware PWM: {info['hardware_pwm']}")
             
     except KeyboardInterrupt:

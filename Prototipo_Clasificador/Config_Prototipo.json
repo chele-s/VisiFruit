@@ -117,14 +117,14 @@
       "category": "apple",
       "min_pulse_us": 1000,
       "max_pulse_us": 2000,
-      "default_angle": 90,
-      "activation_mode": "relative",
-      "activation_offset_deg": -45,
+      "default_angle": 180,
+      "activation_mode": "absolute",
+      "activation_angle": 90,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "GPIO 12 (PWM0 - Hardware PWM) - Relativo a 90° → -45° (45° absolutos). Hold 1.5s."
+      "_comment": "GPIO 12 (PWM0 - Hardware PWM) - Clasificador manzanas: 180° reposo (sin detector) / 90° actuación (cuando detecta)"
     },
     "pear": {
       "pin_bcm": 13,
@@ -132,14 +132,14 @@
       "category": "pear",
       "min_pulse_us": 1000,
       "max_pulse_us": 2000,
-      "default_angle": 90,
-      "activation_mode": "relative",
-      "activation_offset_deg": 90,
+      "default_angle": 150,
+      "activation_mode": "absolute",
+      "activation_angle": 100,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
-      "invert": true,
-      "_comment": "GPIO 13 (PWM1 - Hardware PWM) - Relativo a 90° → +90° pero invertido (sentido contrario)"
+      "invert": false,
+      "_comment": "GPIO 13 (PWM1 - Hardware PWM) - Clasificador peras: 150° reposo (cuando no detecta) / 100° actuación (cuando detecta)"
     },
     "lemon": {
       "pin_bcm": 20,
@@ -148,13 +148,13 @@
       "min_pulse_us": 1000,
       "max_pulse_us": 2000,
       "default_angle": 90,
-      "activation_mode": "relative",
-      "activation_offset_deg": -80,
+      "activation_mode": "absolute",
+      "activation_angle": 10,
       "activation_duration_s": 2.0,
       "hold_duration_s": 1.5,
       "return_smoothly": true,
       "invert": false,
-      "_comment": "GPIO 20 (Software PWM via gpiozero) - Relativo a 90° → -80° (10° absolutos). Hold 1.5s. GPIO 19 ocupado por stepper."
+      "_comment": "GPIO 20 (Software PWM via gpiozero) - Clasificador limones: 90° reposo / 10° actuación (cuando detecta). GPIO 19 ocupado por stepper."
     }
   },
   
