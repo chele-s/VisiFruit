@@ -56,18 +56,18 @@
 
   "remote_inference": {
     "enabled": true,
-    "server_url": "http://192.168.137.50:9000",
+    "server_url": "http://192.168.137.1:9000",
     "auth_token": "visifruittoken2025",
     "health_endpoint": "/health",
     "infer_endpoint": "/infer",
     "connect_timeout_s": 0.5,
-    "read_timeout_s": 1.0,
+    "read_timeout_s": 2.0,
     "write_timeout_s": 1.0,
     "pool_timeout_s": 0.5,
     "max_retries": 1,
     "fallback_to_local": true,
     "jpeg_quality": 85,
-    "max_dimension": 640,
+    "max_dimension": 480,
     "auto_quality": true,
     "cb_failure_threshold": 3,
     "cb_timeout_seconds": 20.0,
@@ -219,7 +219,7 @@
     "sensor_to_camera_distance_m": 0.1,
     "camera_to_labeler_distance_m": 0.12,
     "camera_to_classifier_distance_m": 0.5,
-    "min_detection_interval_s": 1.5,
+    "min_detection_interval_s": 0.15,
     "min_servo_activation_interval_s": 2.0
   },
   

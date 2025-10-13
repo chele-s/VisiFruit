@@ -399,7 +399,7 @@
         
         function showAlert(message) {
             const alert = document.getElementById('alert');
-            alert.querySelector('strong + text()').textContent = message;
+            alert.innerHTML = `<strong>⚠️ Error:</strong> ${message}`;
             alert.classList.add('show');
         }
         

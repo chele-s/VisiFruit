@@ -101,7 +101,7 @@ class ServerConfig:
     
     # Optimización
     MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", "1920"))
-    JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "85"))
+    JPEG_QUALITY = int(os.getenv("JPEG_QUALITY", "70"))
     
     # Cache
     ENABLE_CACHE = os.getenv("ENABLE_CACHE", "true").lower() == "true"
@@ -112,6 +112,8 @@ class ServerConfig:
     SAVE_ANNOTATED_FRAMES = os.getenv("SAVE_ANNOTATED_FRAMES", "false").lower() == "true"
     ANNOTATED_FRAMES_DIR = os.getenv("ANNOTATED_FRAMES_DIR", "logs/annotated_frames")
     ENABLE_MJPEG_STREAM = os.getenv("ENABLE_MJPEG_STREAM", "true").lower() == "true"
+    STREAM_MAX_FPS = int(os.getenv("STREAM_MAX_FPS", "10"))
+    STREAM_KEEPALIVE_MS = int(os.getenv("STREAM_KEEPALIVE_MS", "250"))
 
 
 # ==================== MODELOS DE DATOS ====================
@@ -206,6 +208,14 @@ class InferenceServer:
         try:
             # Inicializar condition para streaming
             self.frame_condition = asyncio.Condition()
+            try:
+                placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(placeholder, "Esperando frames...", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                _, buf = cv2.imencode('.jpg', placeholder, [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
+                self.latest_annotated_frame = buf.tobytes()
+                self.last_frame_id = 0
+            except Exception:
+                pass
             
             if not YOLO_AVAILABLE:
                 raise ImportError("YOLOv8 no está instalado")
@@ -724,26 +734,31 @@ async def mjpeg_stream():
         )
     
     async def generate_frames():
-        """Generador de frames MJPEG con mínima latencia y soporte multi-cliente."""
+        """Generador de frames MJPEG con keepalive y límite de FPS por cliente."""
         last_sent_frame_id = -1
-        
+        last_send_time = 0.0
+        min_interval = 1.0 / ServerConfig.STREAM_MAX_FPS if ServerConfig.STREAM_MAX_FPS > 0 else 0.0
+        keepalive_s = ServerConfig.STREAM_KEEPALIVE_MS / 1000.0
+
         while True:
-            # Esperar notificación de frame nuevo
             async with inference_server.frame_condition:
                 try:
-                    await asyncio.wait_for(inference_server.frame_condition.wait(), timeout=2.0)
+                    await asyncio.wait_for(inference_server.frame_condition.wait(), timeout=keepalive_s)
                 except asyncio.TimeoutError:
-                    # Timeout - verificar si hay frame disponible de todas formas
                     pass
-                
-                # Verificar que realmente hay un frame nuevo
+
+                now = time.time()
                 if (inference_server.latest_annotated_frame is not None and 
-                    inference_server.last_frame_id != last_sent_frame_id):
-                    
+                    (inference_server.last_frame_id != last_sent_frame_id or (now - last_send_time) >= keepalive_s)):
+
+                    if min_interval > 0 and (now - last_send_time) < min_interval:
+                        await asyncio.sleep(min_interval - (now - last_send_time))
+                        now = time.time()
+
                     last_sent_frame_id = inference_server.last_frame_id
                     frame_data = inference_server.latest_annotated_frame
-                    
-                    # Enviar frame inmediatamente sin delay
+                    last_send_time = now
+
                     yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n'
                            b'Cache-Control: no-cache, no-store, must-revalidate\r\n'
