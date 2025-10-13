@@ -27,6 +27,8 @@ Autor(es): Gabriel Calderón, Elias Bautista
 Fecha: Octubre 2025
 Versión: 2.0 - Enterprise Edition
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 import asyncio
 import logging
