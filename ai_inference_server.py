@@ -277,12 +277,48 @@ class InferenceServer:
         small = cv2.resize(image, (64, 64))
         return hashlib.md5(small.tobytes()).hexdigest()
     
+    def _verify_color_space(self, image: np.ndarray) -> np.ndarray:
+        """
+        Verifica y corrige el espacio de color de la imagen.
+        Detecta si los canales RGB/BGR están invertidos.
+        
+        Args:
+            image: Imagen a verificar
+            
+        Returns:
+            Imagen con espacio de color corregido
+        """
+        try:
+            # Calcular dominancia de canales en una pequeña muestra
+            sample = image[::10, ::10]  # Submuestreo para velocidad
+            
+            # Calcular promedios de cada canal
+            b_mean = np.mean(sample[:, :, 0])
+            g_mean = np.mean(sample[:, :, 1])
+            r_mean = np.mean(sample[:, :, 2])
+            
+            # Detectar si hay una inversión obvia (azul dominante cuando debería ser rojo)
+            # Si el canal azul es anormalmente alto y rojo bajo, probablemente están invertidos
+            if b_mean > r_mean * 1.3 and b_mean > 150:
+                logger.warning("⚠️ Posible inversión RGB/BGR detectada - Corrigiendo...")
+                # Invertir canales BGR -> RGB
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                logger.info("✅ Espacio de color corregido")
+            
+            return image
+        except Exception as e:
+            logger.debug(f"Error verificando espacio de color: {e}")
+            return image
+    
     async def infer(self, image: np.ndarray, params: InferenceRequest) -> InferenceResponse:
         """Realiza inferencia en una imagen."""
         start_time = time.time()
         self.stats["requests_total"] += 1
         
         try:
+            # Verificar y corregir espacio de color si es necesario
+            image = self._verify_color_space(image)
+            
             # Verificar cache si está habilitado
             if self.cache_enabled:
                 img_hash = self._calculate_image_hash(image)

@@ -257,36 +257,44 @@ class AsyncInferenceClient:
     
     def _compress_image(self, frame: np.ndarray) -> Tuple[bytes, Dict[str, Any]]:
         """
-        Comprime la imagen de manera inteligente.
+        Comprime la imagen de manera ultra-eficiente para streaming de alto FPS.
         
         Args:
-            frame: Imagen a comprimir
+            frame: Imagen a comprimir (debe estar en BGR)
             
         Returns:
             Tupla de (imagen_comprimida, metadatos)
         """
         original_shape = frame.shape
         
-        # Redimensionar si es necesario
+        # Redimensionar agresivamente si es necesario para maximizar FPS
         h, w = frame.shape[:2]
         if max(h, w) > self.max_dimension:
             scale = self.max_dimension / max(h, w)
             new_w = int(w * scale)
             new_h = int(h * scale)
-            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+            # INTER_AREA es mejor para redimensionar a menor resolución
+            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
         
-        # Determinar calidad JPEG adaptativa
+        # Determinar calidad JPEG ultra-adaptativa para streaming
         quality = self.jpeg_quality
         if self.auto_quality:
-            # Reducir calidad basado en el tamaño
+            # Calidades más agresivas para maximizar FPS en streaming remoto
             pixels = frame.shape[0] * frame.shape[1]
-            if pixels > 480*480:
+            if pixels > 640*480:  # > VGA
+                quality = min(quality, 60)  # Calidad baja para imágenes grandes
+            elif pixels > 480*480:
+                quality = min(quality, 70)
+            elif pixels > 320*320:
                 quality = min(quality, 75)
-            elif pixels > 640*640:
-                quality = min(quality, 65)
+            # Imágenes pequeñas mantienen calidad original
         
-        # Comprimir
-        encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+        # Optimizaciones JPEG para velocidad
+        encode_params = [
+            int(cv2.IMWRITE_JPEG_QUALITY), quality,
+            int(cv2.IMWRITE_JPEG_OPTIMIZE), 1,  # Huffman óptimo (un poco más lento, mejor compresión)
+            int(cv2.IMWRITE_JPEG_PROGRESSIVE), 0  # No progresivo (más rápido)
+        ]
         success, buffer = cv2.imencode('.jpg', frame, encode_params)
         
         if not success:
@@ -296,7 +304,8 @@ class AsyncInferenceClient:
             "original_shape": original_shape,
             "compressed_shape": frame.shape,
             "quality": quality,
-            "size_bytes": len(buffer)
+            "size_bytes": len(buffer),
+            "compression_ratio": (original_shape[0] * original_shape[1] * 3) / len(buffer)
         }
         
         return buffer.tobytes(), metadata

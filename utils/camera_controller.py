@@ -327,6 +327,11 @@ class Picamera2CameraDriver(BaseCameraDriver):
         self.is_streaming = False
         self._convert_to_bgr = True
         
+        # Formato de captura optimizado
+        # YUV420: Más eficiente, nativo de la cámara, menor latencia
+        # RGB888: Mejor calidad de color pero más lento
+        self.capture_format = config.get("capture_format", "YUV420")  # "YUV420" o "RGB888"
+        
         # Parámetros de optimización para IA
         self.auto_exposure = config.get("auto_exposure", True)
         self.auto_white_balance = config.get("auto_white_balance", True)
@@ -353,11 +358,12 @@ class Picamera2CameraDriver(BaseCameraDriver):
                 pass
             
             # Configuración optimizada para OV5647 y detección de IA
-            # Usar RGB888 para mejor calidad de color (importante para IA)
+            # YUV420: Formato nativo, ~3x más eficiente que RGB888, menos latencia
+            # RGB888: Alternativa si se necesita máxima calidad (más lento)
             video_config = self.picam2.create_video_configuration(  # type: ignore
                 main={
                     "size": (self.width, self.height), 
-                    "format": "RGB888"
+                    "format": self.capture_format  # YUV420 (rápido) o RGB888 (calidad)
                 },
                 controls={
                     "FrameRate": self.fps,
@@ -422,7 +428,7 @@ class Picamera2CameraDriver(BaseCameraDriver):
             # Log de configuración aplicada
             logger.info(f"✅ Picamera2 ({camera_model}) inicializada:")
             logger.info(f"   📐 Resolución: {self.width}x{self.height} @ {self.fps}fps")
-            logger.info(f"   🎨 Formato: RGB888 (óptimo para IA)")
+            logger.info(f"   🎨 Formato: {self.capture_format} {'(rápido/nativo)' if self.capture_format == 'YUV420' else '(alta calidad)'}")
             logger.info(f"   ⚡ Auto-exposición: {'ON' if self.auto_exposure else 'OFF'}")
             logger.info(f"   🌈 Auto-WB: {'ON' if self.auto_white_balance else 'OFF'}")
             logger.info(f"   🔧 Reducción ruido: Alta calidad")
@@ -447,9 +453,17 @@ class Picamera2CameraDriver(BaseCameraDriver):
             frame = await asyncio.to_thread(self.picam2.capture_array)  # type: ignore
             if frame is None:
                 return None
-            # Convertir RGB -> BGR para OpenCV
+            
+            # Convertir al formato BGR que espera OpenCV
             if self._convert_to_bgr:
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                if self.capture_format == "YUV420":
+                    # YUV420 -> BGR (conversión directa, más eficiente)
+                    frame = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_I420)
+                elif self.capture_format == "RGB888":
+                    # RGB888 -> BGR (intercambio de canales)
+                    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                # Si ya está en BGR o formato desconocido, dejar como está
+            
             return frame
         except Exception as e:
             self.last_error = f"Error capturando frame (Picamera2): {e}"
