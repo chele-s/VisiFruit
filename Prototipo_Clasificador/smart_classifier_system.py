@@ -1993,8 +1993,9 @@ class SmartFruitClassifier:
                 logger.warning("⚠️ Cámara no entregó frame (None)")
                 return
             
-            # 1.5. Preprocesar frame (rotación y mejoras de imagen)
-            frame = self._preprocess_frame(frame)
+            # El pre-procesamiento (rotación, flip, mejoras) ahora se maneja
+            # directamente en el CameraController para optimizar el rendimiento.
+            # frame = self._preprocess_frame(frame)
             
             # 2. Detectar con IA
             if not self.ai_detector:
@@ -2394,7 +2395,9 @@ class SmartFruitClassifier:
         try:
             if not self.http_preview_enabled or frame is None or not _CV2_AVAILABLE:
                 return
-            ok, buf = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+                        # Convertir de BGR (OpenCV) a RGB (Web) para corregir colores
+                        jpeg_frame = cv2.cvtColor(frame_to_stream, cv2.COLOR_BGR2RGB)
+                        ok, jpeg = cv2.imencode('.jpg', jpeg_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
             if ok:
                 self._latest_jpeg = buf.tobytes()
         except Exception:

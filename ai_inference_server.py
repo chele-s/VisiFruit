@@ -484,7 +484,9 @@ class InferenceServer:
                 
                 # Encodear para streaming
                 if ServerConfig.ENABLE_MJPEG_STREAM:
-                    _, buffer = cv2.imencode('.jpg', annotated_img, 
+                    # Convertir de BGR a RGB para corregir colores en el stream web
+                    rgb_frame = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
+                    _, buffer = cv2.imencode('.jpg', rgb_frame, 
                                             [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
                     self.latest_annotated_frame = buffer.tobytes()
                     self.last_frame_id += 1
