@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Servidor de Inferencia FastAPI Optimizado - VisiFruit
+"""Servidor de Inferencia FastAPI Optimizado - VisiFruit
 ======================================================
 
-Servidor HTTP/2 de alto rendimiento para inferencia remota de YOLOv8.
+Servidor HTTP/2 de alto rendimiento para inferencia remota con múltiples modelos.
 Diseñado para ejecutarse en una laptop/PC con GPU y servir a Raspberry Pi 5.
+
+Modelos soportados:
+- YOLOv8: Ultrarrápido, ideal para tiempo real (recomendado)
+- RT-DETR: Mayor precisión, basado en transformers
 
 Características:
 - FastAPI con soporte HTTP/2
@@ -20,12 +23,12 @@ Características:
 Requisitos:
 - Python 3.8+
 - FastAPI, Uvicorn
-- YOLOv8 (ultralytics)
+- Ultralytics (YOLOv8/RT-DETR)
 - CUDA (opcional, para GPU)
 
 Autor(es): Gabriel Calderón, Elias Bautista
 Fecha: Octubre 2025
-Versión: 2.0 - Enterprise Edition
+Versión: 2.1 - Dual Model Edition
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -56,14 +59,14 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
-# YOLOv8
+# Ultralytics (YOLOv8 / RT-DETR)
 try:
-    from ultralytics import YOLO
+    from ultralytics import YOLO, RTDETR
     import torch
-    YOLO_AVAILABLE = True
+    ULTRALYTICS_AVAILABLE = True
 except ImportError:
-    YOLO_AVAILABLE = False
-    print("⚠️ YOLOv8 no disponible. Instala con: pip install ultralytics")
+    ULTRALYTICS_AVAILABLE = False
+    print("⚠️ Ultralytics no disponible. Instala con: pip install ultralytics")
 
 # Rate limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -82,8 +85,10 @@ logger = logging.getLogger(__name__)
 
 class ServerConfig:
     """Configuración del servidor de inferencia."""
-    # Modelo YOLOv8
-    MODEL_PATH = os.getenv("MODEL_PATH", "weights/best.pt")
+    # Modelo de IA - Selección de arquitectura
+    # Opciones: "yolov8" (recomendado para tiempo real) o "rtdetr" (mayor precisión)
+    MODEL_TYPE = os.getenv("MODEL_TYPE", "yolov8").lower()  # "yolov8" o "rtdetr"
+    MODEL_PATH = os.getenv("MODEL_PATH", "weights/best.pt")  # Ruta al modelo entrenado
     MODEL_DEVICE = os.getenv("MODEL_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
     MODEL_FP16 = os.getenv("MODEL_FP16", "true").lower() == "true" and MODEL_DEVICE == "cuda"
     
@@ -165,10 +170,11 @@ class HealthResponse(BaseModel):
 # ==================== SERVIDOR DE INFERENCIA ====================
 
 class InferenceServer:
-    """Servidor de inferencia YOLOv8 optimizado."""
+    """Servidor de inferencia multi-modelo (YOLOv8/RT-DETR)."""
     
     def __init__(self):
         self.model: Optional[YOLO] = None
+        self.model_type: str = "Unknown"  # Se establece al cargar el modelo
         self.model_loaded = False
         self.device = ServerConfig.MODEL_DEVICE
         self.fp16 = ServerConfig.MODEL_FP16
@@ -217,18 +223,30 @@ class InferenceServer:
             except Exception:
                 pass
             
-            if not YOLO_AVAILABLE:
-                raise ImportError("YOLOv8 no está instalado")
+            if not ULTRALYTICS_AVAILABLE:
+                raise ImportError("Ultralytics no está instalado")
             
-            logger.info(f"🔄 Cargando modelo YOLOv8 desde {ServerConfig.MODEL_PATH}")
+            # Validar tipo de modelo
+            model_type = ServerConfig.MODEL_TYPE
+            if model_type not in ["yolov8", "rtdetr"]:
+                logger.warning(f"⚠️ Tipo de modelo '{model_type}' no válido. Usando YOLOv8 por defecto.")
+                model_type = "yolov8"
+            
+            model_name = "YOLOv8" if model_type == "yolov8" else "RT-DETR"
+            logger.info(f"🔄 Cargando modelo {model_name} desde {ServerConfig.MODEL_PATH}")
             
             # Verificar que el archivo existe
             model_path = Path(ServerConfig.MODEL_PATH)
             if not model_path.exists():
                 raise FileNotFoundError(f"Modelo no encontrado: {ServerConfig.MODEL_PATH}")
             
-            # Cargar modelo
-            self.model = YOLO(str(model_path))
+            # Cargar modelo según el tipo seleccionado
+            if model_type == "rtdetr":
+                self.model = RTDETR(str(model_path))
+                self.model_type = "RT-DETR"
+            else:
+                self.model = YOLO(str(model_path))
+                self.model_type = "YOLOv8"
             
             # Configurar dispositivo
             if self.device == "cuda" and torch.cuda.is_available():
@@ -243,7 +261,7 @@ class InferenceServer:
             await self._warmup()
             
             self.model_loaded = True
-            logger.info("✅ Modelo YOLOv8 cargado y listo")
+            logger.info(f"✅ Modelo {self.model_type} cargado y listo")
             
         except Exception as e:
             logger.error(f"❌ Error cargando modelo: {e}")
@@ -316,8 +334,9 @@ class InferenceServer:
         self.stats["requests_total"] += 1
         
         try:
-            # Verificar y corregir espacio de color si es necesario
-            image = self._verify_color_space(image)
+            # DESACTIVADO: La verificación automática causa inversión incorrecta
+            # OpenCV/YOLO trabajan nativamente en BGR, no necesita corrección
+            # image = self._verify_color_space(image)
             
             # Verificar cache si está habilitado
             if self.cache_enabled:
@@ -484,9 +503,8 @@ class InferenceServer:
                 
                 # Encodear para streaming
                 if ServerConfig.ENABLE_MJPEG_STREAM:
-                    # Convertir de BGR a RGB para corregir colores en el stream web
-                    rgb_frame = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
-                    _, buffer = cv2.imencode('.jpg', rgb_frame, 
+                    # cv2.imencode() maneja BGR correctamente, no necesita conversión
+                    _, buffer = cv2.imencode('.jpg', annotated_img, 
                                             [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
                     self.latest_annotated_frame = buffer.tobytes()
                     self.last_frame_id += 1
@@ -848,6 +866,8 @@ if __name__ == "__main__":
     # Log de configuración
     logger.info("=" * 60)
     logger.info("🎯 CONFIGURACIÓN DEL SERVIDOR")
+    model_type_display = "YOLOv8" if ServerConfig.MODEL_TYPE == "yolov8" else "RT-DETR"
+    logger.info(f"   Arquitectura: {model_type_display}")
     logger.info(f"   Modelo: {ServerConfig.MODEL_PATH}")
     logger.info(f"   Device: {ServerConfig.MODEL_DEVICE}")
     logger.info(f"   FP16: {ServerConfig.MODEL_FP16}")
