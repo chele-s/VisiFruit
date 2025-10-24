@@ -68,6 +68,18 @@ except ImportError:
     ULTRALYTICS_AVAILABLE = False
     print("⚠️ Ultralytics no disponible. Instala con: pip install ultralytics")
 
+# RF-DETR (Roboflow - Local)
+try:
+    from rfdetr import RFDETRNano, RFDETRSmall, RFDETRMedium, RFDETRBase
+    RFDETR_AVAILABLE = True
+except ImportError:
+    RFDETR_AVAILABLE = False
+    print("⚠️ RF-DETR no disponible. Instala con: pip install rfdetr")
+
+# Roboflow Inference (API REST - no requiere SDK especial)
+# Usamos requests que ya está disponible
+ROBOFLOW_INFERENCE_AVAILABLE = True  # Siempre disponible con requests
+
 # Rate limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -86,9 +98,17 @@ logger = logging.getLogger(__name__)
 class ServerConfig:
     """Configuración del servidor de inferencia."""
     # Modelo de IA - Selección de arquitectura
-    # Opciones: "yolov8" (recomendado para tiempo real) o "rtdetr" (mayor precisión)
-    MODEL_TYPE = os.getenv("MODEL_TYPE", "yolov8").lower()  # "yolov8" o "rtdetr"
+    # Opciones: "yolov8", "rtdetr", "rfdetr" (local), "roboflow" (Inference API)
+    MODEL_TYPE = os.getenv("MODEL_TYPE", "yolov8").lower()
     MODEL_PATH = os.getenv("MODEL_PATH", "weights/best.pt")  # Ruta al modelo entrenado
+    RFDETR_VARIANT = os.getenv("RFDETR_VARIANT", "base").lower()  # "nano", "small", "medium", "base"
+    
+    # Roboflow Inference API (para modelos entrenados en Roboflow)
+    ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY", "")
+    ROBOFLOW_PROJECT_ID = os.getenv("ROBOFLOW_PROJECT_ID", "")  # ej: "visifruit-gpdwu"
+    ROBOFLOW_VERSION = os.getenv("ROBOFLOW_VERSION", "3")  # versión del modelo
+    ROBOFLOW_API_URL = os.getenv("ROBOFLOW_API_URL", "https://detect.roboflow.com")
+    
     MODEL_DEVICE = os.getenv("MODEL_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
     MODEL_FP16 = os.getenv("MODEL_FP16", "true").lower() == "true" and MODEL_DEVICE == "cuda"
     
@@ -174,6 +194,8 @@ class InferenceServer:
     
     def __init__(self):
         self.model: Optional[YOLO] = None
+        self.roboflow_api_key: Optional[str] = None  # API Key de Roboflow
+        self.roboflow_model_id: Optional[str] = None  # Model ID (project/version)
         self.model_type: str = "Unknown"  # Se establece al cargar el modelo
         self.model_loaded = False
         self.device = ServerConfig.MODEL_DEVICE
@@ -217,31 +239,165 @@ class InferenceServer:
             try:
                 placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
                 cv2.putText(placeholder, "Esperando frames...", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                _, buf = cv2.imencode('.jpg', placeholder, [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
+                # Convertir BGR a RGB para navegadores web
+                placeholder_rgb = cv2.cvtColor(placeholder, cv2.COLOR_BGR2RGB)
+                _, buf = cv2.imencode('.jpg', placeholder_rgb, [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
                 self.latest_annotated_frame = buf.tobytes()
                 self.last_frame_id = 0
             except Exception:
                 pass
             
-            if not ULTRALYTICS_AVAILABLE:
-                raise ImportError("Ultralytics no está instalado")
-            
             # Validar tipo de modelo
             model_type = ServerConfig.MODEL_TYPE
-            if model_type not in ["yolov8", "rtdetr"]:
+            if model_type not in ["yolov8", "rtdetr", "rfdetr", "rfdetr_local", "roboflow"]:
                 logger.warning(f"⚠️ Tipo de modelo '{model_type}' no válido. Usando YOLOv8 por defecto.")
                 model_type = "yolov8"
             
-            model_name = "YOLOv8" if model_type == "yolov8" else "RT-DETR"
-            logger.info(f"🔄 Cargando modelo {model_name} desde {ServerConfig.MODEL_PATH}")
+            if model_type == "yolov8":
+                model_name = "YOLOv8"
+            elif model_type == "rtdetr":
+                model_name = "RT-DETR"
+            elif model_type == "roboflow":
+                model_name = f"Roboflow RF-DETR API ({ServerConfig.ROBOFLOW_PROJECT_ID})"
+            elif model_type == "rfdetr_local":
+                model_name = "RF-DETR Local (Checkpoint de Roboflow)"
+            else:
+                model_name = f"RF-DETR-{ServerConfig.RFDETR_VARIANT.capitalize()}"
             
-            # Verificar que el archivo existe
+            logger.info(f"🔄 Cargando modelo {model_name}")
+            
+            # Verificar que el archivo existe (no requerido para RF-DETR pre-entrenado ni Roboflow)
             model_path = Path(ServerConfig.MODEL_PATH)
-            if not model_path.exists():
+            if model_type in ["yolov8", "rtdetr"] and not model_path.exists():
                 raise FileNotFoundError(f"Modelo no encontrado: {ServerConfig.MODEL_PATH}")
             
+            if model_path.exists() and model_type not in ["roboflow"]:
+                logger.info(f"📂 Usando pesos desde: {ServerConfig.MODEL_PATH}")
+            
             # Cargar modelo según el tipo seleccionado
-            if model_type == "rtdetr":
+            if model_type == "rfdetr_local":
+                # RF-DETR Local - Cargar checkpoint de Roboflow directamente
+                if not model_path.exists():
+                    raise FileNotFoundError(f"Modelo no encontrado: {ServerConfig.MODEL_PATH}")
+                
+                logger.info(f"📦 Cargando RF-DETR desde checkpoint de Roboflow")
+                logger.info(f"   Archivo: {model_path}")
+                
+                try:
+                    # Intentar cargar con Ultralytics YOLO (Roboflow a veces exporta así)
+                    logger.info("🔄 Intentando carga con Ultralytics YOLO...")
+                    self.model = YOLO(str(model_path))
+                    self.model_type = "RF-DETR-Local-YOLO"
+                    logger.info("✅ Modelo cargado con Ultralytics YOLO")
+                    
+                except Exception as e1:
+                    logger.warning(f"⚠️ Carga con YOLO falló: {e1}")
+                    
+                    try:
+                        # Intentar cargar con RTDETR
+                        logger.info("🔄 Intentando carga con RT-DETR...")
+                        self.model = RTDETR(str(model_path))
+                        self.model_type = "RF-DETR-Local-RTDETR"
+                        logger.info("✅ Modelo cargado con RT-DETR")
+                        
+                    except Exception as e2:
+                        logger.error(f"❌ Carga con RT-DETR también falló: {e2}")
+                        raise ValueError(
+                            f"No se pudo cargar el modelo RF-DETR local.\n"
+                            f"Error YOLO: {e1}\n"
+                            f"Error RT-DETR: {e2}\n\n"
+                            f"SOLUCIÓN: Usa MODEL_TYPE=roboflow para usar la API de Roboflow"
+                        )
+                
+                self.model_loaded = True
+                
+            elif model_type == "roboflow":
+                # Roboflow Inference API (REST)
+                if not ServerConfig.ROBOFLOW_API_KEY:
+                    raise ValueError("ROBOFLOW_API_KEY no configurado en .env")
+                if not ServerConfig.ROBOFLOW_PROJECT_ID:
+                    raise ValueError("ROBOFLOW_PROJECT_ID no configurado en .env")
+                
+                logger.info(f"🌐 Configurando Roboflow Inference API...")
+                logger.info(f"   Proyecto: {ServerConfig.ROBOFLOW_PROJECT_ID}")
+                logger.info(f"   Versión: {ServerConfig.ROBOFLOW_VERSION}")
+                
+                # Guardar configuración para usar en inferencia
+                self.roboflow_api_key = ServerConfig.ROBOFLOW_API_KEY
+                self.roboflow_model_id = f"{ServerConfig.ROBOFLOW_PROJECT_ID}/{ServerConfig.ROBOFLOW_VERSION}"
+                
+                self.model_type = f"Roboflow-{ServerConfig.ROBOFLOW_PROJECT_ID}"
+                self.model_loaded = True
+                logger.info("✅ Roboflow Inference configurado correctamente")
+                
+            elif model_type == "rfdetr":
+                if not RFDETR_AVAILABLE:
+                    raise ImportError("RF-DETR no está instalado. Instala con: pip install rfdetr")
+                
+                # Seleccionar variante de RF-DETR
+                variant = ServerConfig.RFDETR_VARIANT
+                
+                # Cargar modelo con pesos personalizados si existen
+                if model_path.exists():
+                    logger.info(f"📦 Cargando modelo RF-DETR-{variant.capitalize()} con pesos personalizados")
+                    logger.info(f"   Desde: {model_path}")
+                    try:
+                        # RF-DETR acepta checkpoint_path en el constructor
+                        # Esto es la forma correcta de cargar pesos personalizados
+                        checkpoint_path = str(model_path)
+                        
+                        # Inicializar modelo según variante con checkpoint personalizado
+                        if variant == "nano":
+                            self.model = RFDETRNano(checkpoint_path=checkpoint_path)
+                        elif variant == "small":
+                            self.model = RFDETRSmall(checkpoint_path=checkpoint_path)
+                        elif variant == "medium":
+                            self.model = RFDETRMedium(checkpoint_path=checkpoint_path)
+                        else:  # base por defecto
+                            self.model = RFDETRBase(checkpoint_path=checkpoint_path)
+                        
+                        logger.info("✅ Pesos personalizados cargados correctamente")
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Error cargando pesos personalizados: {e}")
+                        logger.info("📦 Usando checkpoint pre-entrenado de Roboflow como fallback...")
+                        
+                        # Fallback a checkpoint pre-entrenado (sin checkpoint_path)
+                        if variant == "nano":
+                            self.model = RFDETRNano()
+                        elif variant == "small":
+                            self.model = RFDETRSmall()
+                        elif variant == "medium":
+                            self.model = RFDETRMedium()
+                        else:
+                            self.model = RFDETRBase()
+                else:
+                    # No hay pesos custom, usar checkpoint pre-entrenado de Roboflow
+                    logger.info(f"📦 Usando checkpoint pre-entrenado de Roboflow COCO")
+                    logger.info(f"   Variante: RF-DETR-{variant.capitalize()}")
+                    
+                    # Inicializar sin checkpoint_path usa pesos pre-entrenados de Roboflow
+                    if variant == "nano":
+                        self.model = RFDETRNano()
+                    elif variant == "small":
+                        self.model = RFDETRSmall()
+                    elif variant == "medium":
+                        self.model = RFDETRMedium()
+                    else:  # base por defecto
+                        self.model = RFDETRBase()
+                
+                self.model_type = f"RF-DETR-{variant.capitalize()}"
+                
+                # Optimizar para inferencia
+                try:
+                    self.model.optimize_for_inference()
+                    logger.info("⚡ Modelo optimizado para inferencia (hasta 2x más rápido)")
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo optimizar para inferencia: {e}")
+                    
+            elif model_type == "rtdetr":
+                if not ULTRALYTICS_AVAILABLE:
+                    raise ImportError("Ultralytics no está instalado")
                 try:
                     # Intentar carga directa
                     self.model = RTDETR(str(model_path))
@@ -252,7 +408,9 @@ class InferenceServer:
                     logger.info("🔄 Intentando carga alternativa...")
                     self.model = YOLO(str(model_path))
                     self.model_type = "RT-DETR (cargado como YOLO)"
-            else:
+            else:  # yolov8
+                if not ULTRALYTICS_AVAILABLE:
+                    raise ImportError("Ultralytics no está instalado")
                 self.model = YOLO(str(model_path))
                 self.model_type = "YOLOv8"
             
@@ -265,8 +423,9 @@ class InferenceServer:
                 self.device = "cpu"
                 self.fp16 = False
             
-            # Warmup
-            await self._warmup()
+            # Warmup (solo para modelos locales, no para Roboflow API)
+            if "Roboflow" not in self.model_type:
+                await self._warmup()
             
             self.model_loaded = True
             logger.info(f"✅ Modelo {self.model_type} cargado y listo")
@@ -323,13 +482,22 @@ class InferenceServer:
             g_mean = np.mean(sample[:, :, 1])
             r_mean = np.mean(sample[:, :, 2])
             
-            # Detectar si hay una inversión obvia (azul dominante cuando debería ser rojo)
-            # Si el canal azul es anormalmente alto y rojo bajo, probablemente están invertidos
-            if b_mean > r_mean * 1.3 and b_mean > 150:
-                logger.warning("⚠️ Posible inversión RGB/BGR detectada - Corrigiendo...")
-                # Invertir canales BGR -> RGB
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                logger.info("✅ Espacio de color corregido")
+            # Detectar inversión RGB/BGR
+            # Múltiples heurísticas para detectar inversión:
+            
+            # 1. Canal rojo dominante cuando debería ser azul (común en cámaras RGB)
+            if r_mean > b_mean * 1.2 and r_mean > 100:
+                logger.debug("🔄 Inversión RGB→BGR detectada, corrigiendo...")
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                return image
+            
+            # 2. Detectar tonos rosados/magentas anormales (típico de inversión)
+            # Si hay mucho magenta/rosa (R+B alto, G bajo), probablemente está invertido
+            magenta_intensity = (r_mean + b_mean) / 2
+            if magenta_intensity > g_mean * 1.5 and magenta_intensity > 120:
+                logger.debug("🔄 Tonos magenta detectados, invirtiendo canales...")
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                return image
             
             return image
         except Exception as e:
@@ -342,9 +510,9 @@ class InferenceServer:
         self.stats["requests_total"] += 1
         
         try:
-            # DESACTIVADO: La verificación automática causa inversión incorrecta
-            # OpenCV/YOLO trabajan nativamente en BGR, no necesita corrección
-            # image = self._verify_color_space(image)
+            # Verificar y corregir espacio de color si está invertido
+            # Esto corrige el problema de colores rosados/magentas de la cámara
+            image = self._verify_color_space(image)
             
             # Verificar cache si está habilitado
             if self.cache_enabled:
@@ -373,40 +541,183 @@ class InferenceServer:
             
             pre_ms = (time.time() - pre_start) * 1000
             
-            # Inferencia
+            # Inferencia (diferente según el tipo de modelo)
             inference_start = time.time()
             
-            results = self.model.predict(
-                image,
-                imgsz=params.imgsz,
-                conf=params.conf,
-                iou=params.iou,
-                max_det=params.max_det,
-                device=self.device,
-                half=self.fp16,
-                verbose=False
-            )
+            # Determinar tipo de modelo
+            is_rfdetr = "RF-DETR" in self.model_type
+            is_roboflow = "Roboflow" in self.model_type
+            
+            if is_roboflow:
+                # Roboflow Inference API (REST)
+                import requests
+                from PIL import Image as PILImage
+                import base64
+                from io import BytesIO
+                
+                # Convertir BGR a RGB para Roboflow
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                pil_image = PILImage.fromarray(image_rgb)
+                
+                # Encodear imagen a base64 para la API
+                buffered = BytesIO()
+                pil_image.save(buffered, format="JPEG", quality=95)
+                img_base64 = base64.b64encode(buffered.getvalue()).decode()
+                
+                # Hacer inferencia via API REST de Roboflow
+                api_url = f"{ServerConfig.ROBOFLOW_API_URL}/{self.roboflow_model_id}"
+                
+                # Roboflow espera la imagen directamente en el body
+                response = requests.post(
+                    api_url,
+                    params={
+                        "api_key": self.roboflow_api_key,
+                        "confidence": int(params.conf * 100),  # Roboflow espera 0-100
+                        "overlap": int(params.iou * 100)
+                    },
+                    data=img_base64,  # Enviar base64 directamente
+                    headers={"Content-Type": "application/x-www-form-urlencoded"}
+                )
+                
+                response.raise_for_status()  # Lanzar error si falla
+                roboflow_results = response.json()
+                
+                results = None
+                detections_sv = None
+                
+            elif is_rfdetr:
+                # RF-DETR usa API diferente - devuelve supervision.Detections directamente
+                # Necesita imagen en formato PIL o RGB numpy array
+                from PIL import Image as PILImage
+                
+                # Convertir BGR (OpenCV) a RGB para RF-DETR
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                pil_image = PILImage.fromarray(image_rgb)
+                
+                # RF-DETR predict devuelve supervision.Detections
+                detections_sv = self.model.predict(pil_image, threshold=params.conf)
+                results = None  # RF-DETR no usa formato Results de Ultralytics
+                roboflow_results = None
+                
+            else:
+                # YOLO/RT-DETR usan API de Ultralytics
+                results = self.model.predict(
+                    image,
+                    imgsz=params.imgsz,
+                    conf=params.conf,
+                    iou=params.iou,
+                    max_det=params.max_det,
+                    device=self.device,
+                    half=self.fp16,
+                    verbose=False
+                )
+                detections_sv = None
+                roboflow_results = None
             
             inference_ms = (time.time() - inference_start) * 1000
             
             # Post-procesamiento
             post_start = time.time()
             
+            # Obtener nombres de clases
+            class_names = params.class_names_json
+            if class_names:
+                try:
+                    class_names = json.loads(class_names)
+                except:
+                    class_names = ["apple", "pear", "lemon"]
+            else:
+                class_names = ["apple", "pear", "lemon"]
+            
             detections = []
-            if results and len(results) > 0:
+            
+            # Procesar según tipo de modelo
+            if is_roboflow and roboflow_results:
+                # Roboflow Inference API devuelve formato específico
+                predictions = roboflow_results.get("predictions", [])
+                
+                for i, pred in enumerate(predictions):
+                    try:
+                        # Extraer datos de la predicción de Roboflow
+                        x_center = pred.get("x", 0)
+                        y_center = pred.get("y", 0)
+                        width = pred.get("width", 0)
+                        height = pred.get("height", 0)
+                        
+                        # Convertir de formato centro+tamaño a xyxy
+                        x1 = int(x_center - width / 2)
+                        y1 = int(y_center - height / 2)
+                        x2 = int(x_center + width / 2)
+                        y2 = int(y_center + height / 2)
+                        
+                        confidence = float(pred.get("confidence", 0))
+                        class_name = pred.get("class", "unknown")
+                        
+                        # Buscar class_id en class_names
+                        try:
+                            class_id = class_names.index(class_name) if class_name in class_names else 0
+                        except:
+                            class_id = 0
+                        
+                        # Centro y área
+                        cx = int(x_center)
+                        cy = int(y_center)
+                        area = width * height
+                        
+                        detection = Detection(
+                            class_id=class_id,
+                            class_name=class_name,
+                            confidence=confidence,
+                            bbox=[x1, y1, x2, y2],
+                            area=int(area),
+                            center=[cx, cy]
+                        )
+                        
+                        detections.append(detection)
+                        
+                    except Exception as e:
+                        logger.warning(f"Error procesando detección Roboflow {i}: {e}")
+                        
+            elif is_rfdetr and detections_sv is not None:
+                # RF-DETR devuelve supervision.Detections
+                if len(detections_sv) > 0:
+                    for i in range(len(detections_sv.xyxy)):
+                        try:
+                            # Extraer datos de supervision.Detections
+                            box_xyxy = detections_sv.xyxy[i]
+                            confidence = float(detections_sv.confidence[i])
+                            class_id = int(detections_sv.class_id[i])
+                            
+                            # Coordenadas
+                            x1, y1, x2, y2 = map(int, box_xyxy)
+                            
+                            # Centro y área
+                            cx = int((x1 + x2) / 2)
+                            cy = int((y1 + y2) / 2)
+                            area = (x2 - x1) * (y2 - y1)
+                            
+                            # Nombre de clase
+                            class_name = class_names[class_id] if class_id < len(class_names) else "unknown"
+                            
+                            detection = Detection(
+                                class_id=class_id,
+                                class_name=class_name,
+                                confidence=confidence,
+                                bbox=[x1, y1, x2, y2],
+                                area=area,
+                                center=[cx, cy]
+                            )
+                            
+                            detections.append(detection)
+                            
+                        except Exception as e:
+                            logger.warning(f"Error procesando detección RF-DETR {i}: {e}")
+                            
+            elif results and len(results) > 0:
+                # YOLO/RT-DETR devuelven formato Ultralytics
                 result = results[0]
                 if result.boxes is not None:
                     boxes = result.boxes
-                    
-                    # Obtener nombres de clases
-                    class_names = params.class_names_json
-                    if class_names:
-                        try:
-                            class_names = json.loads(class_names)
-                        except:
-                            class_names = ["apple", "pear", "lemon"]
-                    else:
-                        class_names = ["apple", "pear", "lemon"]
                     
                     for i in range(len(boxes)):
                         try:
@@ -438,7 +749,7 @@ class InferenceServer:
                             detections.append(detection)
                             
                         except Exception as e:
-                            logger.warning(f"Error procesando detección {i}: {e}")
+                            logger.warning(f"Error procesando detección YOLO/RT-DETR {i}: {e}")
             
             post_ms = (time.time() - post_start) * 1000
             total_ms = (time.time() - start_time) * 1000
@@ -511,8 +822,9 @@ class InferenceServer:
                 
                 # Encodear para streaming
                 if ServerConfig.ENABLE_MJPEG_STREAM:
-                    # cv2.imencode() maneja BGR correctamente, no necesita conversión
-                    _, buffer = cv2.imencode('.jpg', annotated_img, 
+                    # Convertir BGR a RGB para navegadores web
+                    annotated_img_rgb = cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB)
+                    _, buffer = cv2.imencode('.jpg', annotated_img_rgb, 
                                             [cv2.IMWRITE_JPEG_QUALITY, ServerConfig.JPEG_QUALITY])
                     self.latest_annotated_frame = buffer.tobytes()
                     self.last_frame_id += 1
@@ -530,12 +842,12 @@ class InferenceServer:
     
     def _create_annotated_image(self, image: np.ndarray, detections: List[Detection]) -> np.ndarray:
         """Crea una imagen anotada con bounding boxes."""
-        # Colores por clase
+        # Colores por clase (formato BGR para OpenCV)
         colors = {
-            "apple": (0, 255, 0),    # Verde
-            "pear": (255, 0, 0),     # Azul
-            "lemon": (0, 255, 255),  # Amarillo
-            "unknown": (128, 128, 128)  # Gris
+            "apple": (0, 255, 0),    # Verde (BGR)
+            "pear": (255, 0, 0),     # Azul (BGR)
+            "lemon": (0, 255, 255),  # Amarillo (BGR)
+            "unknown": (128, 128, 128)  # Gris (BGR)
         }
         
         for det in detections:
@@ -874,7 +1186,14 @@ if __name__ == "__main__":
     # Log de configuración
     logger.info("=" * 60)
     logger.info("🎯 CONFIGURACIÓN DEL SERVIDOR")
-    model_type_display = "YOLOv8" if ServerConfig.MODEL_TYPE == "yolov8" else "RT-DETR"
+    if ServerConfig.MODEL_TYPE == "yolov8":
+        model_type_display = "YOLOv8"
+    elif ServerConfig.MODEL_TYPE == "rtdetr":
+        model_type_display = "RT-DETR"
+    elif ServerConfig.MODEL_TYPE == "rfdetr":
+        model_type_display = f"RF-DETR-{ServerConfig.RFDETR_VARIANT.capitalize()}"
+    else:
+        model_type_display = ServerConfig.MODEL_TYPE.upper()
     logger.info(f"   Arquitectura: {model_type_display}")
     logger.info(f"   Modelo: {ServerConfig.MODEL_PATH}")
     logger.info(f"   Device: {ServerConfig.MODEL_DEVICE}")

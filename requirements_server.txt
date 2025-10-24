@@ -11,6 +11,16 @@ opencv-python>=4.8.1
 numpy>=1.24.3
 Pillow>=10.0.1
 
+# RF-DETR (Roboflow Local) - OPCIONAL
+# Solo necesario si usas MODEL_TYPE=rfdetr en .env con pesos locales
+# Descomenta la siguiente línea para instalar:
+# rfdetr>=0.1.0
+
+# Roboflow Inference API - OPCIONAL
+# Solo necesario si usas MODEL_TYPE=roboflow en .env (RECOMENDADO para RF-DETR)
+# Descomenta la siguiente línea para instalar:
+# inference-sdk>=0.9.0
+
 # Cliente HTTP asíncrono (para testing)
 httpx[http2]>=0.25.0
 
