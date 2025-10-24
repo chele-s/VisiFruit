@@ -231,14 +231,14 @@ class MG995ServoController:
                             default_angle=servo.default_angle,
                             activation_angle=servo.activation_angle,
                             direction=RPi5ServoDirection.REVERSE if servo.invert else RPi5ServoDirection.FORWARD,
-                            movement_speed=0.5,  # Velocidad moderada para evitar jitter
+                            movement_speed=0.8,  # Velocidad óptima como en el demo
                             smooth_movement=True,
-                            smooth_steps=15,  # Menos pasos con más delay entre ellos
+                            smooth_steps=30,  # Más pasos para movimiento suave sin jitter
                             min_safe_angle=0.0,
                             max_safe_angle=180.0,
                             hold_torque=True,
                             initial_delay_ms=200,
-                            profile=RPi5ServoProfile.MG995_STANDARD,
+                            profile=RPi5ServoProfile.MG995_EXTENDED,  # Usar perfil EXTENDED como en el demo
                         )
                         controller = RPi5ServoController(rpi5_cfg, auto_init=True)
                         if controller.initialized:
