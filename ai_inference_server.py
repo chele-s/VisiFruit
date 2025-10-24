@@ -242,8 +242,16 @@ class InferenceServer:
             
             # Cargar modelo según el tipo seleccionado
             if model_type == "rtdetr":
-                self.model = RTDETR(str(model_path))
-                self.model_type = "RT-DETR"
+                try:
+                    # Intentar carga directa
+                    self.model = RTDETR(str(model_path))
+                    self.model_type = "RT-DETR"
+                except Exception as e:
+                    # Si falla, intentar cargar como YOLO (algunos modelos RT-DETR se guardan así)
+                    logger.warning(f"⚠️ Carga directa RT-DETR falló: {e}")
+                    logger.info("🔄 Intentando carga alternativa...")
+                    self.model = YOLO(str(model_path))
+                    self.model_type = "RT-DETR (cargado como YOLO)"
             else:
                 self.model = YOLO(str(model_path))
                 self.model_type = "YOLOv8"
