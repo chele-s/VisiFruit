@@ -148,6 +148,7 @@ El núcleo revolucionario del sistema combina RT-DETR con análisis espacial int
 
 **VisiFruit v3.0** combina la potencia de RT-DETR con análisis espacial inteligente:
 
+
 - **Precisión Transformer Superior** - +7% mejor que sistemas YOLO tradicionales
 - **Detección Ultra-Precisa** - Especialmente efectivo en frutas pequeñas y geometrías complejas
 - **Tiempo de activación específico** para cada grupo detectado con mayor confiabilidad
@@ -270,6 +271,7 @@ Con optimización: 25-30 FPS (streaming fluido)
 
 ### 🤖 **Sistema de IA de Nueva Generación**
 
+
 - **RT-DETR Enterprise**: Transformers de última generación con precisión superior
 - **EnterpriseRTDetrDetector**: Pool de workers especializados con balanceamiento inteligente
 - **Multi-Backend Support**: PaddlePaddle + PyTorch con selección automática
@@ -282,6 +284,7 @@ Con optimización: 25-30 FPS (streaming fluido)
 
 ### 🎯 **RT-DETR: Ventajas Tecnológicas** ⭐ **NUEVO**
 
+
 - **Precisión Superior**: +7% mejor que YOLOv8, especialmente en objetos pequeños
 - **Arquitectura Transformer**: Tecnología de vanguardia para mejor comprensión espacial
 - **Tiempo Real Garantizado**: Optimizado específicamente para aplicaciones industriales
@@ -289,6 +292,7 @@ Con optimización: 25-30 FPS (streaming fluido)
 - **Robustez a Condiciones Variables**: Mejor rendimiento en iluminación cambiante
 
 ### 🎯 **Detección Posicional Inteligente** ⭐ **INNOVACIÓN CLAVE**
+
 
 - **Análisis Espacial Avanzado**: Conversión precisa de píxeles a coordenadas del mundo real
 - **Agrupación Inteligente (DBSCAN)**: Identifica automáticamente clústeres de frutas
@@ -298,6 +302,7 @@ Con optimización: 25-30 FPS (streaming fluido)
 
 ### 🏷️ **Sistema de Etiquetado Avanzado**
 
+
 - **Múltiples Actuadores**: Soporte para solenoides, servos, motores paso a paso
 - **Sincronización Perfecta**: Cálculo preciso de delays y duraciones
 - **Calibración Automática**: Auto-calibración con métricas de desgaste
@@ -306,12 +311,14 @@ Con optimización: 25-30 FPS (streaming fluido)
 
 ### 📹 **Control de Visión Industrial**
 
+
 - **Captura de Alta Velocidad**: Optimizada para Raspberry Pi Camera Module 3
 - **Control Automático**: Auto-exposición, balance de blancos, enfoque
 - **Buffer Circular**: Captura continua optimizada para memoria
 - **Análisis de Calidad de Imagen**: Evaluación automática de nitidez e iluminación
 
 ### 🌐 **API y Monitoreo Completo**
+
 
 - **FastAPI Moderno**: API REST con documentación automática (Swagger UI)
 - **WebSocket Real-time**: Datos en vivo para dashboard
@@ -321,12 +328,13 @@ Con optimización: 25-30 FPS (streaming fluido)
 
 ### ⚙️ **Arquitectura Modular y Escalable**
 
+
 - **Componentes Desacoplados**: Fácil mantenimiento y extensión
 - **Alta Disponibilidad**: Redundancia y recuperación automática de fallos
 - **Escalamiento Automático**: Auto-ajuste según demanda de procesamiento
 - **Configuración Validada**: Sistema robusto de validación de configuración
 
-## 🏗️ Arquitectura del Sistema
+## Arquitectura del Sistema
 
 <div align="center">
 
@@ -475,7 +483,13 @@ graph TB
 - **Banda Transportadora:** Estructura mecánica con motor DC controlado por un driver (ej. L298N).
 - **Sistema de Detección:** Sensor infrarrojo (IR) o ultrasónico para detectar la llegada de una nueva fila de productos y activar el sistema.
 - **Actuador de Etiquetado:** Mecanismo electromecánico (ej. solenoides, servomotores) que desciende o se activa para aplicar las etiquetas.
+- **Unidad de Cómputo:** Raspberry Pi 5 (4GB/8GB) - Procesa el modelo de IA y ejecuta la lógica de control principal.
+- **Sistema de Visión:** Cámara de alta velocidad (ej. Raspberry Pi Camera Module 3) - Captura el flujo de productos en la banda.
+- **Banda Transportadora:** Estructura mecánica con motor DC controlado por un driver (ej. L298N).
+- **Sistema de Detección:** Sensor infrarrojo (IR) o ultrasónico para detectar la llegada de una nueva fila de productos y activar el sistema.
+- **Actuador de Etiquetado:** Mecanismo electromecánico (ej. solenoides, servomotores) que desciende o se activa para aplicar las etiquetas.
 
+### Módulos de Software
 ### Módulos de Software
 
 - **main_etiquetadora_v4.py (Orquestador Principal):**
@@ -491,7 +505,21 @@ graph TB
 - **Interfaz_Usuario/ (Dashboard y API):**
   - Backend/: API de FastAPI que expone endpoints para controlar el sistema y un servidor WebSocket para enviar datos en tiempo real al frontend.
   - VisiFruit/: Aplicación en React que visualiza las métricas, logs y permite la interacción del operador.
+- **main_etiquetadora_v4.py (Orquestador Principal):**
+  - Inicializa todos los componentes de hardware y software.
+  - Ejecuta el bucle de control principal basado en eventos (event-driven).
+  - Coordina la comunicación entre el detector de IA, el controlador de la banda y el actuador.
+- **IA_Etiquetado/ (Módulo de Inteligencia Artificial):**
+  - Fruit_detector.py: Contiene la clase `FruitDetector` que carga el modelo RT-DETR, pre-procesa imágenes y ejecuta la inferencia para devolver una lista de detecciones (clase, confianza, coordenadas y conteo total).
+- **Control_Etiquetado/ (Módulo de Control de Bajo Nivel):**
+  - conveyor_belt_controller.py: Gestiona el motor de la banda (arranque, parada, control de velocidad).
+  - sensor_interface.py: Abstrae la lectura del sensor de presencia.
+  - labeler_actuator.py: (NUEVO) Controla el mecanismo de etiquetado. Recibe la orden de "activar por Y segundos".
+- **Interfaz_Usuario/ (Dashboard y API):**
+  - Backend/: API de FastAPI que expone endpoints para controlar el sistema y un servidor WebSocket para enviar datos en tiempo real al frontend.
+  - VisiFruit/: Aplicación en React que visualiza las métricas, logs y permite la interacción del operador.
 
+## Sistema Inteligente de Posiciones
 ## Sistema Inteligente de Posiciones
 
 ### 🧠 **La Innovación Central de VisiFruit**
@@ -511,6 +539,8 @@ El **Sistema de Detección Posicional Inteligente** es el corazón revolucionari
 #### Escenario 1: 3 Manzanas en Línea
 
 ```text
+
+```text
 Detección: 3 frutas en columna (dirección de movimiento)
 Cálculo: Tiempo base + 2×tiempo_adicional + margen
 Resultado: Activación de 550ms (en lugar de 200ms fijo)
@@ -519,12 +549,16 @@ Resultado: Activación de 550ms (en lugar de 200ms fijo)
 #### Escenario 2: Grupo Mixto 2×3
 
 ```text
+
+```text
 Detección: 6 frutas en formación 2 filas × 3 columnas
 Cálculo: Factor espacial 1.5× por distribución compleja
 Resultado: Activación extendida de 800ms con movimiento lateral
 ```
 
 #### Escenario 3: Frutas Dispersas
+
+```text
 
 ```text
 Detección: 2 clústeres separados
@@ -537,6 +571,7 @@ Resultado: 2 activaciones independientes con delays precisos
 
 #### **Calibrador Visual** (`visual_calibrator.py`)
 
+
 - **🖱️ Interfaz gráfica** con sliders en tiempo real
 - **📐 ROI visual** configurable arrastrando
 - **📏 Conversión automática** píxeles ↔ metros
@@ -544,6 +579,7 @@ Resultado: 2 activaciones independientes con delays precisos
 - **💾 Presets** para configuraciones comunes
 
 #### **Parámetros Configurables**
+
 
 ```json
 {
@@ -570,10 +606,14 @@ Resultado: 2 activaciones independientes con delays precisos
 
 #### Cálculo de Delay Base
 
+#### Cálculo de Delay Base
+
 ```python
 delay_base = distancia_camara_etiquetador / velocidad_banda
 # Ejemplo: 0.3m / 0.15m/s = 2.0s
 ```
+
+#### Tiempo de Activación Inteligente
 
 #### Tiempo de Activación Inteligente
 
@@ -586,18 +626,22 @@ tiempo_activacion = (
 # Factores espaciales:
 # - Múltiples filas: +30% por fila adicional
 # - Múltiples columnas: +20% por columna adicional
+# - Múltiples columnas: +20% por columna adicional
 # - Alta densidad (>20 frutas/m²): +40%
 ```
 
+## Flujo de Trabajo Operacional
 ## Flujo de Trabajo Operacional
 
 El proceso desde la detección hasta el etiquetado inteligente sigue una secuencia optimizada y sincronizada:
 
 ![Diagrama de Flujo Inteligente](https://placehold.co/900x300/F3F4F6/374151?text=Flujo+Inteligente+VisiFruit)
+![Diagrama de Flujo Inteligente](https://placehold.co/900x300/F3F4F6/374151?text=Flujo+Inteligente+VisiFruit)
 
 ### 🔄 **Proceso Detallado**
 
 1. **🚀 Inicialización y Espera**
+   - Sistema se inicializa con `main_etiquetadora_v4.py`
    - Sistema se inicializa con `main_etiquetadora_v4.py`
    - Banda transportadora arranca a velocidad configurada
    - EnterpriseFruitDetector en modo standby con workers listos
@@ -627,6 +671,7 @@ El proceso desde la detección hasta el etiquetado inteligente sigue una secuenc
    - Análisis de distribución espacial avanzado (filas, columnas, densidad, forma)
 
 6. **⏱️ Cálculo Temporal Adaptativo**
+
 
    ```python
    # Para cada clúster detectado:
@@ -791,6 +836,7 @@ cd VisiFruit
 
 # 2. Ejecutar instalador automático
 python3 Extras/install_fruprint.py
+python3 Extras/install_fruprint.py
 
 # 3. Instalar dependencias del cliente async
 pip install httpx[http2]
@@ -918,19 +964,23 @@ pip install transformers datasets accelerate
 
 # Opción C: Instalador automático
 python Extras/install_rtdetr.py
+python Extras/install_rtdetr.py
 ```
 
 ### 📋 **Instalación Manual Detallada**
 
 #### 1. **Prerrequisitos**
 
+
 - **Raspberry Pi 5** con Raspberry Pi OS (64-bit) instalado
+- **Python 3.8+**
 - **Python 3.8+**
 - **Memoria**: 4GB+ RAM recomendado
 - **Almacenamiento**: 32GB+ microSD (Clase 10)
 - **Hardware**: Cámara, motores, sensores conectados a GPIO
 
 #### 2. **Configurar Entorno**
+
 
 ```bash
 # Clonar repositorio
@@ -947,6 +997,7 @@ pip install --upgrade pip
 
 #### 3. **Instalar Dependencias**
 
+
 ```bash
 # Dependencias principales
 pip install -r requirements.txt
@@ -959,10 +1010,16 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 ##### **Opción A: Usar Modelo RT-DETR Preentrenado (Recomendado)**
 
+##### **Opción A: Usar Modelo RT-DETR Preentrenado (Recomendado)**
+
 ```bash
 # El sistema utiliza los modelos preentrenados en la carpeta 'weights'
 python main_etiquetadora_v4.py
+# El sistema utiliza los modelos preentrenados en la carpeta 'weights'
+python main_etiquetadora_v4.py
 ```
+
+##### **Opción B: Entrenar Modelo RT-DETR Personalizado**
 
 ##### **Opción B: Entrenar Modelo RT-DETR Personalizado**
 
@@ -971,7 +1028,10 @@ python main_etiquetadora_v4.py
 python IA_Etiquetado/Train_RTDetr.py
 
 # El modelo RT-DETR entrenado se guardará en la carpeta 'weights/'
+# El modelo RT-DETR entrenado se guardará en la carpeta 'weights/'
 ```
+
+##### **Opción C: Migración desde YOLO (Automática)**
 
 ##### **Opción C: Migración desde YOLO (Automática)**
 
@@ -982,11 +1042,13 @@ python IA_Etiquetado/Train_RTDetr.py
 
 #### 5. **Calibración Inicial**
 
+
 ```bash
 # Abrir calibrador visual para configurar dimensiones físicas
 python IA_Etiquetado/visual_calibrator.py
 ```
 
+## Configuración Avanzada
 ## Configuración Avanzada
 
 ### 🎛️ **Archivo de Configuración Principal**
@@ -996,6 +1058,7 @@ El sistema utiliza `Config_Etiquetadora.json` con validación automática y múl
 ```json
 {
   "system_settings": {
+    "installation_id": "VISIFRUIT-001",
     "installation_id": "VISIFRUIT-001",
     "system_name": "VisiFruit-Industrial-v2",
     "log_level": "INFO",
@@ -1009,6 +1072,7 @@ El sistema utiliza `Config_Etiquetadora.json` con validación automática y múl
     "auto_optimize": true
   },
   "ai_model_settings": {
+    "model_path": "weights/best_fruit_model.pt",
     "model_path": "weights/best_fruit_model.pt",
     "model_type": "rtdetr",
     "model_name": "RTDetr-FruitDetector-v3",
@@ -1029,6 +1093,7 @@ El sistema utiliza `Config_Etiquetadora.json` con validación automática y múl
   "conveyor_belt_settings": {
     "motor_pins": {
       "enable_pin": 12,
+      "input1_pin": 20,
       "input1_pin": 20,
       "input2_pin": 21
     },
@@ -1052,9 +1117,12 @@ El sistema utiliza `Config_Etiquetadora.json` con validación automática y múl
 
 #### **🚀 HIGH_PERFORMANCE**: Máximo rendimiento
 
+
 - 4+ workers de IA
 - FPS alto (30+)
 - Procesamiento paralelo optimizado
+
+#### **🔋 ENERGY_EFFICIENT**: Optimización energética
 
 #### **🔋 ENERGY_EFFICIENT**: Optimización energética
 
@@ -1064,21 +1132,25 @@ El sistema utiliza `Config_Etiquetadora.json` con validación automática y múl
 
 #### **🛡️ SAFETY_CRITICAL**: Máxima seguridad
 
+
 - Validaciones extra
 - Timeouts cortos
 - Múltiples sensores de emergencia
 
 #### **🧪 DEVELOPMENT**: Desarrollo y pruebas
 
+
 - Logs detallados
 - Modo simulación
 - Sin hardware real requerido
 
 ## Ejecución del Sistema
+## Ejecución del Sistema
 
 ### 🎮 **Métodos de Inicialización**
 
 #### **Método 1: Inicio Automático**
+
 
 ```bash
 # Activar entorno
@@ -1086,22 +1158,29 @@ source venv/bin/activate
 
 # Iniciar sistema completo
 python main_etiquetadora_v4.py
+python main_etiquetadora_v4.py
 ```
+
+#### **Método 2: Modo Específico**
 
 #### **Método 2: Modo Específico**
 
 ```bash
 # Modo simulación (sin hardware)
 python main_etiquetadora_v4.py --simulate
+python main_etiquetadora_v4.py --simulate
 
 # Configuración específica
+python main_etiquetadora_v4.py --config=mi_config.json
 python main_etiquetadora_v4.py --config=mi_config.json
 
 # Modo desarrollo con logs detallados
 python main_etiquetadora_v4.py --debug
+python main_etiquetadora_v4.py --debug
 ```
 
 #### **Método 3: Sistema Inteligente Standalone**
+
 
 ```bash
 # Solo sistema de detección inteligente
@@ -1115,15 +1194,18 @@ python IA_Etiquetado/visual_calibrator.py
 
 #### **Dashboard Principal**
 
+
 - **URL**: `http://localhost:8000`
 - **Características**: Control completo, métricas en tiempo real
 
 #### **API Documentation (Swagger)**
 
+
 - **URL**: `http://localhost:8000/docs`
 - **Características**: Pruebas de API, documentación interactiva
 
 #### **WebSocket Real-time**
+
 
 - **URL**: `ws://localhost:8000/ws`
 - **Uso**: Datos en vivo para aplicaciones personalizadas
@@ -1336,9 +1418,11 @@ VisiFruit/
 - **[⚡ WebSocket](ws://localhost:8000/ws)** - Datos en tiempo real
 
 ## Soporte y Troubleshooting
+## Soporte y Troubleshooting
 
 ### 🔍 **Herramientas de Diagnóstico**
 
+La sección de diagnóstico ha sido actualizada para reflejar que no hay un script de diagnóstico dedicado. Se recomienda revisar los logs para la solución de problemas.
 La sección de diagnóstico ha sido actualizada para reflejar que no hay un script de diagnóstico dedicado. Se recomienda revisar los logs para la solución de problemas.
 
 ### 📞 **Soporte Técnico**
@@ -1347,6 +1431,7 @@ La sección de diagnóstico ha sido actualizada para reflejar que no hay un scri
 - **📝 Logs**: Revisar `logs/fruprint_YYYYMMDD.log`
 - **🔧 Debug**: Ejecutar con `--debug`
 
+## Contribuciones
 ## Contribuciones
 
 ¡Las contribuciones son bienvenidas! Para colaborar:
@@ -1358,12 +1443,16 @@ La sección de diagnóstico ha sido actualizada para reflejar que no hay un scri
 5. **Documentar** cambios realizados
 
 ## Licencia
+## Licencia
 
+Este proyecto está bajo la **Licencia MIT**.
 Este proyecto está bajo la **Licencia MIT**.
 
 ## Equipo de Desarrollo
+## Equipo de Desarrollo
 
 ### 🛠️ **Desarrolladores Principales**
+
 
 - **Gabriel Calderón** - Arquitecto Principal del Sistema
 - **Elias Bautista** - Especialista en IA y Visión por Computadora
@@ -1371,9 +1460,11 @@ Este proyecto está bajo la **Licencia MIT**.
 
 ### 🏆 **Reconocimientos v3.0**
 
+
 - **RT-DETR Team** por la innovadora arquitectura Transformer
 - **PaddlePaddle** por el backend RT-DETR optimizado
 - **HuggingFace Transformers** por el ecosistema RT-DETR PyTorch
+- **Ultralytics** por YOLOv8 (mantenido como fallback)
 - **Ultralytics** por YOLOv8 (mantenido como fallback)
 - **OpenCV** por herramientas de visión avanzadas
 - **FastAPI** por framework web ultra-moderno
@@ -1465,6 +1556,7 @@ Este proyecto está bajo la **Licencia MIT**.
 - **🎯 Precisión Superior** - +7% mejor que YOLOv8 especialmente en frutas pequeñas
 - **🔄 Multi-Backend Support** - PaddlePaddle + PyTorch con selección automática
 - **🛡️ Fallback Inteligente** - YOLO como respaldo para máxima compatibilidad
+- **📦 Instalador Automático** - `Extras/install_rtdetr.py` para configuración sin esfuerzo
 - **📦 Instalador Automático** - `Extras/install_rtdetr.py` para configuración sin esfuerzo
 
 #### ✨ **Innovaciones v3.0**
