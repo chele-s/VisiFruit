@@ -1410,7 +1410,6 @@ VisiFruit/
 - **[⚡ WebSocket](ws://localhost:8000/ws)** - Datos en tiempo real
 
 ## Soporte y Troubleshooting
-## Soporte y Troubleshooting
 
 ### 🔍 **Herramientas de Diagnóstico**
 
