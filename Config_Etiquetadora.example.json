@@ -1,0 +1,109 @@
+{
+  "system_metadata": {
+    "config_version": "2.0.0",
+    "last_updated": "",
+    "created_by": "VisiFruit Industrial Setup",
+    "description": "Ejemplo de configuración industrial para el sistema de etiquetado de frutas",
+    "hardware_profile": "raspberry_pi_5_industrial",
+    "deployment_environment": "development"
+  },
+  "system_settings": {
+    "log_level": "INFO",
+    "debug_mode": false,
+    "performance_mode": "high_performance",
+    "enable_telemetry": false,
+    "telemetry_interval_seconds": 60,
+    "enable_metrics_export": true,
+    "metrics_export_interval_seconds": 30,
+    "enable_health_monitoring": true,
+    "health_check_interval_seconds": 10,
+    "enable_auto_recovery": true,
+    "max_recovery_attempts": 3,
+    "system_name": "VisiFruit-System-001",
+    "installation_id": "INSTALL-ID-001",
+    "timezone": "UTC"
+  },
+  "security_settings": {
+    "enable_authentication": true,
+    "session_timeout_minutes": 30,
+    "max_failed_attempts": 5,
+    "lockout_duration_minutes": 15,
+    "enable_audit_log": true,
+    "enable_encryption": true,
+    "api_key_rotation_days": 30
+  },
+  "camera_settings": {
+    "type": "csi_camera",
+    "name": "RaspberryPi-CSI-Camera",
+    "device_id": 0,
+    "frame_width": 1280,
+    "frame_height": 720,
+    "fps": 30
+  },
+  "ai_model_settings": {
+    "model_path": "weights/best.pt",
+    "model_name": "YOLOv8-FruitDetector",
+    "confidence_threshold": 0.5,
+    "iou_threshold": 0.45,
+    "device": "cpu"
+  },
+  "conveyor_belt_settings": {
+    "control_type": "l298n_motor",
+    "motor_pin_bcm": 13,
+    "enable_pin_bcm": 12,
+    "direction_pin_bcm": 20,
+    "direction_pin2_bcm": 21,
+    "default_pwm_duty_cycle": 75,
+    "pwm_frequency": 1000
+  },
+  "sensor_settings": {
+    "trigger_sensor": {
+      "type": "mh_flying_fish",
+      "pin_bcm": 4,
+      "debounce_time_ms": 50
+    }
+  },
+  "labeler_settings": {
+    "type": "solenoid",
+    "pin": 26,
+    "distance_camera_to_labeler_m": 0.52
+  },
+  "api_settings": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8002,
+    "enable_cors": true,
+    "cors_origins": ["http://localhost:3000", "http://localhost:5173"],
+    "jwt_secret_key": "CHANGE_THIS_SECRET_KEY_IN_PRODUCTION",
+    "jwt_expiration_hours": 24
+  },
+  "database_settings": {
+    "enabled": true,
+    "type": "sqlite",
+    "database_path": "data/visifruit.db"
+  },
+  "monitoring_settings": {
+    "enable_email_alerts": false,
+    "email_settings": {
+      "smtp_server": "",
+      "smtp_port": 587,
+      "username": "",
+      "password": "",
+      "from_address": "",
+      "to_addresses": []
+    }
+  },
+  "integration_settings": {
+    "enable_erp_integration": false,
+    "erp_settings": {
+      "type": "sap",
+      "endpoint": "",
+      "api_key": ""
+    },
+    "enable_mes_integration": false,
+    "mes_settings": {
+      "endpoint": "",
+      "api_key": ""
+    }
+  }
+}

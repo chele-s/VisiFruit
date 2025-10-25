@@ -1,4 +1,5 @@
 .env
+Config_Etiquetadora.json
 
 # Ignore data and binaries
 /data/**
