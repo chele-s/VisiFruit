@@ -1553,6 +1553,6 @@ Este proyecto está bajo la **Licencia MIT**.
 
 ---
 
-**Made with 💚 in México** | **Powered by Raspberry Pi 5 & NVIDIA GPU**
+**Made with 💚 in El Salvador** | **Powered by Raspberry Pi 5 & NVIDIA GPU**
 
 </div>
