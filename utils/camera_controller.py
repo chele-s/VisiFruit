@@ -387,22 +387,17 @@ class Picamera2CameraDriver(BaseCameraDriver):
             else:
                 controls["AeEnable"] = False
                 
-            # Balance de blancos automático
-            if self.auto_white_balance:
-                controls["AwbEnable"] = True
-                controls["AwbMode"] = 0  # Auto
-            else:
-                controls["AwbEnable"] = False
+            # Balance de blancos - FORZAR MODO DAYLIGHT para colores correctos (nativo)
+            # Esto reproduce el comportamiento de: rpicam-hello --awb daylight
+            # NO aplicar ajustes artificiales - dejar que la cámara use sus valores nativos
+            controls["AwbEnable"] = True
+            controls["AwbMode"] = 1  # 1 = Daylight (luz día) - Modo nativo sin procesamiento artificial
+            # Otros modos disponibles:
+            # 0 = Auto, 1 = Daylight, 2 = Cloudy, 3 = Tungsten, 4 = Fluorescent, 5 = Indoor, 6 = Custom
             
-            # Ajustes de imagen para mejor detección
-            if self.brightness != 0.0:
-                controls["Brightness"] = self.brightness
-            if self.contrast != 1.0:
-                controls["Contrast"] = self.contrast
-            if self.saturation != 1.0:
-                controls["Saturation"] = self.saturation
-            if self.sharpness != 1.0:
-                controls["Sharpness"] = self.sharpness
+            # NO aplicar ajustes artificiales de brightness/contrast/saturation/sharpness
+            # para que los colores sean exactamente como con rpicam-hello --awb daylight
+            # Si se necesitan ajustes, deben venir del hardware/firmware, no del software
             
             # Aplicar controles
             if controls:
@@ -430,7 +425,7 @@ class Picamera2CameraDriver(BaseCameraDriver):
             logger.info(f"   📐 Resolución: {self.width}x{self.height} @ {self.fps}fps")
             logger.info(f"   🎨 Formato: {self.capture_format} {'(rápido/nativo)' if self.capture_format == 'YUV420' else '(alta calidad)'}")
             logger.info(f"   ⚡ Auto-exposición: {'ON' if self.auto_exposure else 'OFF'}")
-            logger.info(f"   🌈 Auto-WB: {'ON' if self.auto_white_balance else 'OFF'}")
+            logger.info(f"   🌈 AWB: DAYLIGHT NATIVO (igual que rpicam-hello --awb daylight, sin ajustes artificiales)")
             logger.info(f"   🔧 Reducción ruido: Alta calidad")
             
             return True

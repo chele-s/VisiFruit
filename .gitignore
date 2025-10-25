@@ -31,3 +31,7 @@ Interfaz_Usuario/Backend/logs/backend_ultra.log
 weights/best.pt
 C:\Users\elias\OneDrive\Desktop\VisiFruit\weights
 weights/best.pt
+weights/rtdetr_best.pt
+weights/rfdetr.pt
+.gitignore
+ai_inference_server.py

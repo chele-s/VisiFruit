@@ -2395,11 +2395,12 @@ class SmartFruitClassifier:
         try:
             if not self.http_preview_enabled or frame is None or not _CV2_AVAILABLE:
                 return
-                        # Convertir de BGR (OpenCV) a RGB (Web) para corregir colores
-                        jpeg_frame = cv2.cvtColor(frame_to_stream, cv2.COLOR_BGR2RGB)
-                        ok, jpeg = cv2.imencode('.jpg', jpeg_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            
+            # cv2.imencode() maneja BGR correctamente, no necesita conversión
+            ok, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            
             if ok:
-                self._latest_jpeg = buf.tobytes()
+                self._latest_jpeg = jpeg.tobytes()
         except Exception:
             pass
     

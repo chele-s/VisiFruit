@@ -1,0 +1,536 @@
+{
+  "system_metadata": {
+    "config_version": "2.0.0",
+    "last_updated": "2024-12-20T00:00:00Z",
+    "created_by": "VisiFruit Industrial Setup",
+    "description": "Configuración industrial avanzada para sistema de etiquetado de frutas",
+    "hardware_profile": "raspberry_pi_5_industrial",
+    "deployment_environment": "production"
+  },
+  "system_settings": {
+    "log_level": "INFO",
+    "debug_mode": false,
+    "performance_mode": "high_performance",
+    "enable_telemetry": true,
+    "telemetry_interval_seconds": 5,
+    "enable_metrics_export": true,
+    "metrics_export_interval_seconds": 30,
+    "enable_health_monitoring": true,
+    "health_check_interval_seconds": 10,
+    "enable_auto_recovery": true,
+    "max_recovery_attempts": 3,
+    "system_name": "VisiFruit-Industrial-v2",
+    "installation_id": "FRUPRINT-001",
+    "timezone": "America/Mexico_City"
+  },
+  "security_settings": {
+    "enable_authentication": true,
+    "session_timeout_minutes": 30,
+    "max_failed_attempts": 5,
+    "lockout_duration_minutes": 15,
+    "enable_audit_log": true,
+    "enable_encryption": true,
+    "api_key_rotation_days": 30
+  },
+  "camera_settings": {
+    "type": "csi_camera",
+    "name": "RaspberryPi-CSI-OV5647",
+    "device_id": 0,
+    "frame_width": 1280,
+    "frame_height": 720,
+    "fps": 30,
+    "buffer_size": 15,
+    "auto_optimize": true,
+    "optimization_interval_seconds": 30,
+    "auto_start_capture": true,
+    "enable_frame_analysis": true,
+    "quality_threshold": 0.75,
+    "min_fps": 20,
+    "brightness": 0.5,
+    "contrast": 1.0,
+    "saturation": 1.0,
+    "exposure": "auto",
+    "auto_white_balance": true,
+    "focus": "auto",
+    "enable_image_stabilization": true,
+    "compression_quality": 85,
+    "enable_calibration": true,
+    "calibration_interval_hours": 24,
+    "roi_detection": {
+      "enabled": true,
+      "x": 200,
+      "y": 100,
+      "width": 1520,
+      "height": 880
+    }
+  },
+  "ai_model_settings": {
+    "model_path": "weights/best.pt",
+    "model_name": "YOLOv8-FruitDetector-Roboflow",
+    "model_type": "yolov8",
+    "model_source": "Roboflow 3.0 Object Detection (Fast)",
+    "confidence_threshold": 0.5,
+    "iou_threshold": 0.45,
+    "max_detections": 100,
+    "input_size": 640,
+    "device": "cpu",
+    "num_threads": 4,
+    "half_precision": false,
+    "enable_auto_optimization": true,
+    "optimization_interval_seconds": 300,
+    "enable_quality_analysis": true,
+    "enable_analytics": true,
+    "num_workers": 2,
+    "worker_queue_size": 500,
+    "request_timeout_seconds": 30.0,
+    "enable_caching": true,
+    "cache_size": 50,
+    "warmup_iterations": 3,
+    "target_fps": 15.0,
+    "class_names": ["apple", "pear", "lemon"],
+    "raspberry_pi_optimizations": {
+      "enabled": true,
+      "description": "Optimizaciones específicas para Raspberry Pi 5 (8GB RAM, CPU only)",
+      "memory_efficient_mode": true,
+      "aggressive_gc": true,
+      "reduce_batch_size": true,
+      "prioritize_speed_over_accuracy": false
+    },
+    "performance_profiles": {
+      "current_profile": "balanced",
+      "profiles": {
+        "speed": {
+          "input_size": 480,
+          "num_workers": 1,
+          "confidence_threshold": 0.4,
+          "target_fps": 20.0
+        },
+        "balanced": {
+          "input_size": 640,
+          "num_workers": 2,
+          "confidence_threshold": 0.5,
+          "target_fps": 15.0
+        },
+        "accuracy": {
+          "input_size": 800,
+          "num_workers": 2,
+          "confidence_threshold": 0.6,
+          "target_fps": 10.0
+        }
+      }
+    }
+  },
+  "conveyor_belt_settings": {
+    "control_type": "l298n_motor",
+    "type": "dc_motor_pwm",
+    "name": "MainConveyorBelt",
+    "relay1_pin": 22,
+    "relay2_pin": 23,
+    "enable_pin": null,
+    "motor_pin_bcm": 13,
+    "enable_pin_bcm": 12,
+    "direction_pin_bcm": 20,
+    "direction_pin2_bcm": 21,
+    "speed_control_pin": 13,
+    "encoder_pin_a": -1,
+    "encoder_pin_b": -1,
+    "emergency_stop_pin": -1,
+    "belt_speed_mps": 0.15,
+    "max_speed_mps": 0.5,
+    "acceleration_mps2": 0.1,
+    "deceleration_mps2": 0.2,
+    "default_pwm_duty_cycle": 75,
+    "pwm_frequency": 1000,
+    "enable_speed_control": true,
+    "enable_position_tracking": false,
+    "encoder_resolution": 1024,
+    "wheel_diameter_m": 0.1,
+    "belt_length_m": 2.0,
+    "enable_auto_calibration": true,
+    "calibration_distance_m": 1.0,
+    "enable_safety_monitoring": true,
+    "max_slip_percentage": 5.0,
+    "stall_detection_time_seconds": 3.0,
+    "maintenance_mode": false,
+    "enable_soft_start": true,
+    "soft_start_duration_seconds": 2.0
+  },
+  "sensor_settings": {
+    "trigger_sensor": {
+      "type": "mh_flying_fish",
+      "name": "MH_FlyingFish",
+      "pin_bcm": 4,
+      "trigger_level": "falling",
+      "trigger_on_state": "LOW",
+      "debounce_time_ms": 50,
+      "debounce_s": 0.050,
+      "pull_up_down": "PUD_UP",
+      "response_time_ms": 10,
+      "enable_diagnostics": true,
+      "voltage_threshold_low": 1.0,
+      "voltage_threshold_high": 2.5
+    },
+    "secondary_sensors": [],
+    "environmental_sensors": {
+      "temperature_humidity": {
+        "enabled": false
+      },
+      "vibration": {
+        "enabled": false
+      }
+    }
+  },
+  "labeler_settings": {
+    "type": "solenoid",
+    "name": "PrimaryLabeler",
+    "pin": 26,
+    "backup_pin": -1,
+    "pwm_frequency": 1000,
+    "voltage_rating": 12.0,
+    "current_rating": 1.5,
+    "response_time_ms": 10,
+    "max_activation_time_seconds": 60.0,
+    "min_rest_time_seconds": 0.1,
+    "max_activations_per_minute": 120,
+    "duty_cycle_percent": 100,
+    "enable_feedback": false,
+    "feedback_pin": -1,
+    "distance_camera_to_labeler_m": 0.52,
+    "labeler_width_m": 0.15,
+    "label_application_offset_m": 0.02,
+    "fruit_detection_settings": {
+      "fruit_avg_width_m": 0.08,
+      "fruit_spacing_m": 0.05,
+      "min_fruit_size_m": 0.04,
+      "max_fruit_size_m": 0.15,
+      "detection_confidence_threshold": 0.7
+    },
+    "timing_calculations": {
+      "enable_adaptive_timing": true,
+      "speed_compensation_factor": 1.05,
+      "latency_compensation_ms": 25,
+      "fruit_size_factor": true,
+      "belt_acceleration_factor": true
+    },
+    "calibration": {
+      "enable_auto_calibration": true,
+      "calibration_interval_hours": 8,
+      "test_activation_duration_ms": 100,
+      "calibration_intensity_levels": [25, 50, 75, 100]
+    },
+    "safety": {
+      "enable_emergency_stop": true,
+      "enable_jam_detection": true,
+      "jam_detection_threshold_seconds": 5.0,
+      "enable_overuse_protection": true,
+      "max_continuous_operations": 1000,
+      "mandatory_rest_after_operations": 100
+    }
+  },
+  "laser_stepper_settings": {
+    "enabled": true,
+    "name": "LabelApplicatorStepper",
+    "type": "stepper",
+    "step_pin_bcm": 19,
+    "dir_pin_bcm": 26,
+    "enable_pin_bcm": 21,
+    "enable_active_low": true,
+    "default_direction": "CW",
+    "invert_direction": false,
+    "base_speed_sps": 1500,
+    "max_speed_sps": 3000,
+    "min_speed_sps": 100,
+    "step_pulse_us": 4,
+    "microstep_pins": {
+      "ms1_pin_bcm": -1,
+      "ms2_pin_bcm": -1,
+      "ms3_pin_bcm": -1
+    },
+    "sensor_to_labeler_distance_m": 0.0,
+    "activation_on_laser": {
+      "enabled": true,
+      "activation_duration_seconds": 0.6,
+      "intensity_percent": 80.0,
+      "min_interval_seconds": 0.15
+    }
+  },
+  "processing_mode": {
+    "mode": "continuous",
+    "target_fps": 15,
+    "description": "Modo continuo: procesa frames constantemente. Opciones: 10-30 FPS"
+  },
+  "timing_configuration": {
+    "system_cycle_time_ms": 100,
+    "detection_to_labeling_delay_base_ms": 0,
+    "labeling_duration_calculation": {
+      "method": "dynamic",
+      "base_duration_ms": 500,
+      "per_fruit_duration_ms": 200,
+      "speed_adjustment_factor": 1.0,
+      "size_adjustment_enabled": true,
+      "confidence_adjustment_enabled": true
+    },
+    "synchronization": {
+      "enable_precise_timing": true,
+      "timing_resolution_ms": 1,
+      "enable_predictive_timing": true,
+      "prediction_lookahead_ms": 100
+    }
+  },
+  "api_settings": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8002,
+    "enable_cors": true,
+    "cors_origins": ["http://localhost:3000", "http://localhost:5173"],
+    "enable_swagger_ui": true,
+    "enable_rate_limiting": true,
+    "rate_limit_requests_per_minute": 120,
+    "enable_authentication": true,
+    "jwt_secret_key": "your-secret-key-change-this-in-production",
+    "jwt_expiration_hours": 24,
+    "enable_websockets": true,
+    "websocket_ping_interval": 30,
+    "websocket_ping_timeout": 60,
+    "enable_api_logging": true,
+    "log_requests": true,
+    "log_responses": false
+  },
+  "database_settings": {
+    "enabled": true,
+    "type": "sqlite",
+    "database_path": "data/fruprint_industrial.db",
+    "enable_backup": true,
+    "backup_interval_hours": 6,
+    "backup_retention_days": 30,
+    "max_connections": 20,
+    "connection_timeout_seconds": 30,
+    "enable_metrics_storage": true,
+    "metrics_retention_days": 90,
+    "enable_alert_history": true,
+    "alert_retention_days": 30
+  },
+  "monitoring_settings": {
+    "enable_prometheus_metrics": true,
+    "prometheus_port": 9090,
+    "enable_grafana_integration": true,
+    "enable_email_alerts": false,
+    "email_settings": {
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "",
+      "password": "",
+      "from_address": "fruprint@company.com",
+      "to_addresses": ["alvanezg1@gmail.com"]
+    },
+    "enable_webhook_alerts": true,
+    "webhook_settings": {
+      "url": "http://localhost:8080/webhook/alerts",
+      "timeout_seconds": 10,
+      "retry_attempts": 3
+    },
+    "alert_thresholds": {
+      "system_cpu_percent": 85,
+      "system_memory_percent": 90,
+      "disk_usage_percent": 80,
+      "temperature_c": 75,
+      "fps_below": 15,
+      "detection_accuracy_below": 0.6,
+      "error_rate_above": 0.05,
+      "queue_utilization_above": 0.9
+    }
+  },
+  "performance_settings": {
+    "enable_performance_monitoring": true,
+    "performance_sampling_interval_seconds": 1,
+    "enable_auto_tuning": true,
+    "auto_tuning_interval_minutes": 15,
+    "target_metrics": {
+      "fps": 30,
+      "cpu_usage_percent": 70,
+      "memory_usage_percent": 80,
+      "detection_latency_ms": 100,
+      "labeling_accuracy_percent": 95
+    },
+    "resource_limits": {
+      "max_cpu_usage_percent": 95,
+      "max_memory_usage_mb": 3072,
+      "max_gpu_memory_mb": 2048,
+      "max_disk_io_mbps": 100,
+      "max_network_io_mbps": 50
+    }
+  },
+  "backup_recovery_settings": {
+    "enable_auto_backup": true,
+    "backup_interval_hours": 4,
+    "backup_location": "backups/",
+    "backup_retention_days": 14,
+    "backup_compression": true,
+    "enable_configuration_versioning": true,
+    "max_config_versions": 10,
+    "enable_system_state_backup": true,
+    "enable_model_backup": true,
+    "enable_recovery_mode": true,
+    "recovery_timeout_seconds": 300
+  },
+  "maintenance_settings": {
+    "enable_scheduled_maintenance": true,
+    "maintenance_window": {
+      "start_time": "02:00",
+      "duration_hours": 2,
+      "days": ["Sunday"]
+    },
+    "maintenance_tasks": {
+      "system_diagnostics": true,
+      "performance_optimization": true,
+      "cache_cleanup": true,
+      "log_rotation": true,
+      "backup_verification": true,
+      "hardware_health_check": true,
+      "calibration_check": true
+    },
+    "component_maintenance": {
+      "camera_cleaning_reminder_days": 7,
+      "belt_inspection_reminder_days": 30,
+      "sensor_calibration_reminder_days": 14,
+      "labeler_maintenance_reminder_operations": 10000
+    }
+  },
+  "simulation_settings": {
+    "enable_simulation_mode": false,
+    "simulation_fps": 10,
+    "simulate_belt_movement": true,
+    "simulate_fruit_detection": true,
+    "simulate_sensor_triggers": true,
+    "fruit_generation_rate": 0.3,
+    "fruit_types_distribution": {
+      "apple": 0.3,
+      "orange": 0.25,
+      "banana": 0.2,
+      "grape": 0.15,
+      "strawberry": 0.1
+    },
+    "simulate_errors": false,
+    "error_injection_rate": 0.01,
+    "simulate_network_latency": false,
+    "network_latency_ms": 50
+  },
+  "advanced_features": {
+    "enable_machine_learning_optimization": true,
+    "enable_predictive_maintenance": true,
+    "enable_quality_analytics": true,
+    "enable_production_analytics": true,
+    "enable_energy_monitoring": true,
+    "enable_oee_calculation": true,
+    "enable_statistical_process_control": true,
+    "enable_anomaly_detection": true,
+    "enable_digital_twin": false,
+    "enable_ar_visualization": false
+  },
+  "integration_settings": {
+    "enable_erp_integration": false,
+    "erp_settings": {
+      "type": "sap",
+      "endpoint": "",
+      "api_key": "",
+      "sync_interval_minutes": 15
+    },
+    "enable_mes_integration": false,
+    "mes_settings": {
+      "endpoint": "",
+      "api_key": "",
+      "real_time_updates": true
+    },
+    "enable_cloud_sync": false,
+    "cloud_settings": {
+      "provider": "aws",
+      "region": "us-east-1",
+      "bucket": "fruprint-data",
+      "sync_interval_hours": 1
+    }
+  },
+  "diverter_settings": {
+    "enabled": true,
+    "description": "Sistema de clasificación automática con servomotores SG995",
+    "activation_duration_seconds": 2.0,
+    "return_delay_seconds": 0.5,
+    "distance_labeler_to_diverter_m": 1.2,
+    "servo_response_time_s": 0.3,
+    "calibration_on_startup": true,
+    "emergency_return_to_straight": true,
+    "diverters": {
+      "0": {
+        "pin": 5,
+        "name": "Diverter-Apple",
+        "category": "apple",
+        "straight_angle": 0,
+        "diverted_angle": 90,
+        "description": "Desviador para manzanas hacia caja específica",
+        "destination_box": "Caja Manzanas",
+        "servo_model": "SG995",
+        "torque_kg_cm": 8.5,
+        "speed_sec_60deg": 0.2,
+        "frequency_hz": 50,
+        "pulse_width_range_ms": {
+          "min": 1.0,
+          "center": 1.5,
+          "max": 2.0
+        }
+      },
+      "1": {
+        "pin": 6,
+        "name": "Diverter-Pear",
+        "category": "pear",
+        "straight_angle": 90,
+        "diverted_angle": 0,
+        "description": "Desviador para peras hacia caja específica (INVERTIDO: 90→0 en vez de 0→90)",
+        "destination_box": "Caja Peras",
+        "servo_model": "SG995",
+        "torque_kg_cm": 8.5,
+        "speed_sec_60deg": 0.2,
+        "frequency_hz": 50,
+        "pulse_width_range_ms": {
+          "min": 1.0,
+          "center": 1.5,
+          "max": 2.0
+        }
+      }
+    },
+    "fruit_routing": {
+      "apple": {
+        "diverter_id": 0,
+        "destination": "Caja Manzanas",
+        "action": "activate_diverter"
+      },
+      "pear": {
+        "diverter_id": 1,
+        "destination": "Caja Peras",
+        "action": "activate_diverter"
+      },
+      "lemon": {
+        "diverter_id": -1,
+        "destination": "Caja Final (Limones)",
+        "action": "pass_through"
+      }
+    },
+    "timing_settings": {
+      "detection_to_labeling_delay_s": 2.0,
+      "labeling_to_classification_delay_s": 1.5,
+      "classification_window_s": 3.0,
+      "safety_margin_s": 0.2
+    },
+    "maintenance_settings": {
+      "max_activations_before_check": 10000,
+      "lubrication_reminder_hours": 168,
+      "position_calibration_interval_hours": 24,
+      "wear_monitoring_enabled": true
+    },
+    "safety_settings": {
+      "max_activation_time_s": 10.0,
+      "emergency_position": "straight",
+      "force_stop_on_error": true,
+      "position_feedback_enabled": false,
+      "current_monitoring_enabled": false
+    }
+  }
+}
