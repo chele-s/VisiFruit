@@ -1424,7 +1424,6 @@ La sección de diagnóstico ha sido actualizada para reflejar que no hay un scri
 - **🔧 Debug**: Ejecutar con `--debug`
 
 ## Contribuciones
-## Contribuciones
 
 ¡Las contribuciones son bienvenidas! Para colaborar:
 
@@ -1435,12 +1434,10 @@ La sección de diagnóstico ha sido actualizada para reflejar que no hay un scri
 5. **Documentar** cambios realizados
 
 ## Licencia
-## Licencia
 
 Este proyecto está bajo la **Licencia MIT**.
 Este proyecto está bajo la **Licencia MIT**.
 
-## Equipo de Desarrollo
 ## Equipo de Desarrollo
 
 ### 🛠️ **Desarrolladores Principales**
