@@ -1,0 +1,29 @@
+# Dependencias del Cliente (Raspberry Pi 5) - VisiFruit
+# Para instalar: pip install -r requirements_pi5.txt
+
+# Cliente HTTP asíncrono (CRÍTICO - reemplaza requests)
+httpx[http2]==0.25.0
+
+# Visión y procesamiento
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
+Pillow==10.0.1
+
+# GPIO y hardware
+gpiozero==2.0
+lgpio==0.2.2
+
+# Cámara
+picamera2==0.3.12
+
+# IA local (opcional - solo si usas fallback)
+# ultralytics==8.0.200  # Descomenta si necesitas fallback local
+# torch==2.0.1  # CPU only version
+
+# FastAPI para API local
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Utilidades
+psutil==5.9.5
+python-dotenv==1.0.0

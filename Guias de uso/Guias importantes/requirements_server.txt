@@ -1,0 +1,25 @@
+# Framework web
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# IA y visión
+ultralytics>=8.0.200
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.1
+numpy>=1.24.3
+Pillow>=10.0.1
+
+# Cliente HTTP asíncrono (para testing)
+httpx[http2]>=0.25.0
+
+# Monitoreo y optimización
+psutil>=5.9.5
+GPUtil>=1.4.0
+
+# Rate limiting
+slowapi>=0.1.9
+
+# Utilidades
+python-dotenv>=1.0.0

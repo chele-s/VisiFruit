@@ -1,4 +1,5 @@
 .env
+Config_Etiquetadora.json
 
 # Ignore data and binaries
 /data/**
@@ -28,4 +29,9 @@ Control_Etiquetado/__pycache__/sensor_interface.cpython-311.pyc
 Control_Etiquetado/__pycache__/relay_motor_controller_pi5.cpython-311.pyc
 Interfaz_Usuario/Backend/logs/backend_ultra.log
 weights/best.pt
+C:\Users\elias\OneDrive\Desktop\VisiFruit\weights
 weights/best.pt
+weights/rtdetr_best.pt
+weights/rfdetr.pt
+.gitignore
+ai_inference_server.py

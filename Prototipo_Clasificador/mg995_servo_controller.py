@@ -34,57 +34,25 @@ from typing import Dict, Optional, Tuple, List
 from enum import Enum
 from dataclasses import dataclass
 
-# Intentar usar gpiozero (Raspberry Pi 5 compatible)
-try:
-    from Prototipo_Clasificador.gpiozero_servo_driver import (
-        GPIOZeroServoDriver, ServoConfig as GPIOZeroServoConfig,
-        check_gpiozero_available
-    )
-    GPIOZERO_AVAILABLE = check_gpiozero_available()
-    if GPIOZERO_AVAILABLE:
-        print("✅ Controlador de servos usando GPIOZeroServoDriver (Raspberry Pi 5 hardware PWM)")
-        GPIOZERO_MODE = True
-    else:
-        print("⚠️ gpiozero no está completamente disponible")
-        GPIOZERO_MODE = False
-except ImportError as e:
-    print(f"⚠️ GPIOZeroServoDriver no disponible: {e}")
-    print("   Instala: sudo apt install python3-gpiozero python3-lgpio")
-    GPIOZERO_AVAILABLE = False
-    GPIOZERO_MODE = False
-
-# Intentar usar controlador optimizado para Raspberry Pi 5 (RPi5ServoController)
+# Usar controlador optimizado para Raspberry Pi 5 (RPi5ServoController) EXCLUSIVAMENTE
 try:
     from Prototipo_Clasificador.rpi5_servo_controller import (
         RPi5ServoController,
+        RPi5MultiServoController,
         ServoConfig as RPi5ServoConfig,
         ServoDirection as RPi5ServoDirection,
         ServoProfile as RPi5ServoProfile,
         ServoCalibration as RPi5ServoCalibration,
     )
     RPI5_AVAILABLE = True
+    print("✅ Controlador de servos usando RPi5ServoController (Hardware PWM nativo)")
 except ImportError as e:
     print(f"⚠️ RPi5ServoController no disponible: {e}")
+    print("   El sistema requiere este controlador para funcionar.")
     RPI5_AVAILABLE = False
 
-# Fallback: intentar pigpio para retrocompatibilidad
-try:
-    from Prototipo_Clasificador.pigpio_servo_driver import (
-        PigpioServoDriver, ServoConfig as PigpioServoConfig, 
-        check_pigpio_daemon, PIGPIO_AVAILABLE
-    )
-    if not GPIOZERO_MODE:
-        print("   Intentando usar pigpio como fallback...")
-        PIGPIO_MODE = True
-    else:
-        PIGPIO_MODE = False
-        PIGPIO_AVAILABLE = False
-except ImportError:
-    PIGPIO_AVAILABLE = False
-    PIGPIO_MODE = False
-    
-# Último fallback: wrapper GPIO para modo simulación
-if not GPIOZERO_MODE and not PIGPIO_MODE:
+# Wrapper GPIO para modo simulación si falla RPi5
+if not RPI5_AVAILABLE:
     try:
         from utils.gpio_wrapper import GPIO, is_simulation_mode
         print("   Usando GPIO wrapper en modo simulación")
@@ -149,15 +117,11 @@ class MG995ServoController:
         self.servos: Dict[FruitCategory, ServoConfig] = {}
         self.current_angles: Dict[FruitCategory, float] = {}
         
-        # Control de hardware - gpiozero (Raspberry Pi 5) o pigpio (retrocompatibilidad)
-        self.gpiozero_drivers: Dict[FruitCategory, GPIOZeroServoDriver] = {}
-        self.pigpio_drivers: Dict[FruitCategory, PigpioServoDriver] = {}
-        # Controladores dedicados para Raspberry Pi 5
+        # Control de hardware - RPi5ServoController EXCLUSIVAMENTE
         self.rpi5_controllers: Dict[FruitCategory, RPi5ServoController] = {}
         
-        # Determinar modo de operación
-        self.use_gpiozero = GPIOZERO_MODE and config.get("advanced", {}).get("use_gpiozero", True)
-        self.use_pigpio = (not self.use_gpiozero) and PIGPIO_MODE and config.get("advanced", {}).get("use_pigpio", False)
+        # Modo de operación
+        self.use_rpi5 = RPI5_AVAILABLE
         self.initialized = False
         
         # Estado y estadísticas
@@ -237,111 +201,59 @@ class MG995ServoController:
                 logger.error("❌ No se configuraron servos válidos")
                 return False
             
-            # Inicializar hardware con GPIOZERO (Raspberry Pi 5) o PIGPIO (retrocompatibilidad)
-            if self.use_gpiozero and GPIOZERO_AVAILABLE:
-                logger.info("🚀 Inicializando servos con gpiozero/RPi5 (Raspberry Pi 5 hardware PWM)...")
+            # Inicializar hardware con RPi5ServoController EXCLUSIVAMENTE
+            if self.use_rpi5 and RPI5_AVAILABLE:
+                logger.info("🚀 Inicializando servos con RPi5ServoController (Hardware PWM nativo)...")
                 
                 # Verificar pines con hardware PWM
                 hardware_pins = [s.pin_bcm for s in self.servos.values() if s.pin_bcm in self.HARDWARE_PWM_PINS]
                 if hardware_pins:
                     logger.info(f"   🎯 Pines con hardware PWM detectados: {hardware_pins}")
+                else:
+                    logger.warning(f"   ⚠️ Los pines configurados no tienen hardware PWM. Recomendado: GPIO 12, 13")
                 
-                # Crear controladores preferentemente con RPi5ServoController si está disponible y el pin es 12/13
+                # Crear controladores RPi5 para cada servo
                 for category, servo in self.servos.items():
-                    used_rpi5 = False
-                    if RPI5_AVAILABLE and (servo.pin_bcm in self.HARDWARE_PWM_PINS):
-                        try:
-                            # Construir calibración y config para RPi5
-                            cal = RPi5ServoCalibration(
-                                min_pulse_ms=max(0.5, min(2.5, servo.min_pulse_us / 1000.0)),
-                                max_pulse_ms=max(0.5, min(2.5, servo.max_pulse_us / 1000.0)),
-                                min_angle=0.0,
-                                max_angle=180.0,
-                                center_pulse_ms=1.5,
-                                center_angle=90.0,
-                            )
-                            rpi5_cfg = RPi5ServoConfig(
-                                pin_bcm=servo.pin_bcm,
-                                name=servo.name,
-                                calibration=cal,
-                                default_angle=servo.default_angle,
-                                activation_angle=servo.activation_angle,
-                                direction=RPi5ServoDirection.REVERSE if servo.invert else RPi5ServoDirection.FORWARD,
-                                movement_speed=1.0,
-                                smooth_movement=True,
-                                smooth_steps=20,
-                                min_safe_angle=0.0,
-                                max_safe_angle=180.0,
-                                hold_torque=True,
-                                initial_delay_ms=200,
-                                profile=RPi5ServoProfile.MG995_STANDARD,
-                            )
-                            controller = RPi5ServoController(rpi5_cfg, auto_init=True)
-                            if controller.initialized:
-                                self.rpi5_controllers[category] = controller
-                                logger.info(f"   ✅ {category.value}: RPi5ServoController inicializado (Pin {servo.pin_bcm}, Hardware PWM)")
-                                used_rpi5 = True
-                            else:
-                                logger.warning(f"   ⚠️ {category.value}: no se pudo inicializar RPi5ServoController, usando gpiozero")
-                        except Exception as e:
-                            logger.warning(f"   ⚠️ {category.value}: error creando RPi5ServoController: {e}")
-                            used_rpi5 = False
-                    
-                    if not used_rpi5:
-                        # Fallback a gpiozero driver genérico
-                        gpiozero_cfg = GPIOZeroServoConfig(
+                    try:
+                        # Construir calibración y config para RPi5
+                        cal = RPi5ServoCalibration(
+                            min_pulse_ms=max(0.5, min(2.5, servo.min_pulse_us / 1000.0)),
+                            max_pulse_ms=max(0.5, min(2.5, servo.max_pulse_us / 1000.0)),
+                            min_angle=0.0,
+                            max_angle=180.0,
+                            center_pulse_ms=1.5,
+                            center_angle=90.0,
+                        )
+                        rpi5_cfg = RPi5ServoConfig(
                             pin_bcm=servo.pin_bcm,
                             name=servo.name,
-                            min_pulse_us=servo.min_pulse_us,
-                            max_pulse_us=servo.max_pulse_us,
+                            calibration=cal,
                             default_angle=servo.default_angle,
                             activation_angle=servo.activation_angle,
-                            invert=servo.invert
+                            direction=RPi5ServoDirection.REVERSE if servo.invert else RPi5ServoDirection.FORWARD,
+                            movement_speed=0.8,  # Velocidad óptima como en el demo
+                            smooth_movement=True,
+                            smooth_steps=30,  # Más pasos para movimiento suave sin jitter
+                            min_safe_angle=0.0,
+                            max_safe_angle=180.0,
+                            hold_torque=True,
+                            initial_delay_ms=200,
+                            profile=RPi5ServoProfile.MG995_EXTENDED,  # Usar perfil EXTENDED como en el demo
                         )
-                        driver = GPIOZeroServoDriver(gpiozero_cfg)
-                        if driver.initialize():
-                            self.gpiozero_drivers[category] = driver
+                        controller = RPi5ServoController(rpi5_cfg, auto_init=True)
+                        if controller.initialized:
+                            self.rpi5_controllers[category] = controller
                             pwm_type = "Hardware" if servo.pin_bcm in self.HARDWARE_PWM_PINS else "Software"
-                            logger.info(f"   ✅ {category.value}: gpiozero driver inicializado (Pin {servo.pin_bcm}, {pwm_type} PWM)")
+                            logger.info(f"   ✅ {category.value}: RPi5ServoController inicializado (Pin {servo.pin_bcm}, {pwm_type} PWM)")
                         else:
-                            logger.error(f"   ❌ {category.value}: fallo en gpiozero driver")
+                            logger.error(f"   ❌ {category.value}: no se pudo inicializar RPi5ServoController")
                             return False
-            
-            elif self.use_pigpio and PIGPIO_AVAILABLE:
-                # Verificar daemon pigpio
-                if not check_pigpio_daemon():
-                    logger.error("❌ Daemon pigpio no está corriendo")
-                    logger.error("   Ejecuta: sudo pigpiod")
-                    logger.error("   El sistema continuará en modo simulación")
-                    self.use_pigpio = False
-                    self.initialized = True
-                    return True
-                
-                logger.info("🚀 Inicializando servos con pigpio (PWM ultra-preciso)...")
-                
-                # Crear drivers pigpio para cada servo
-                for category, servo in self.servos.items():
-                    pigpio_cfg = PigpioServoConfig(
-                        pin_bcm=servo.pin_bcm,
-                        name=servo.name,
-                        min_pulse_us=servo.min_pulse_us,
-                        max_pulse_us=servo.max_pulse_us,
-                        default_angle=servo.default_angle,
-                        activation_angle=servo.activation_angle,
-                        invert=servo.invert
-                    )
-                    
-                    driver = PigpioServoDriver(pigpio_cfg)
-                    if driver.initialize():
-                        self.pigpio_drivers[category] = driver
-                        logger.info(f"   ✅ {category.value}: pigpio driver inicializado (Pin {servo.pin_bcm})")
-                    else:
-                        logger.error(f"   ❌ {category.value}: fallo en pigpio driver")
+                    except Exception as e:
+                        logger.error(f"   ❌ {category.value}: error creando RPi5ServoController: {e}")
                         return False
             else:
-                logger.warning("🎭 Modo simulación - ni gpiozero ni pigpio disponibles")
-                logger.warning("   Instala gpiozero: sudo apt install python3-gpiozero python3-lgpio")
-                logger.warning("   O pigpio: sudo apt install python3-pigpio")
+                logger.warning("🎭 Modo simulación - RPi5ServoController no disponible")
+                logger.warning("   Instala: sudo apt install python3-gpiozero python3-lgpio")
                 self.initialized = True
                 return True
             
@@ -352,12 +264,9 @@ class MG995ServoController:
             logger.info("📍 Moviendo servos a posición inicial...")
             await self.home_all_servos(silent=True)
             
-            if self.use_gpiozero:
-                logger.info(f"✅ Controlador de servos inicializado con GPIOZERO ({len(self.servos)} servos)")
-                logger.info("   🎯 PWM por hardware Raspberry Pi 5 activo (sin jitter)")
-            elif self.use_pigpio:
-                logger.info(f"✅ Controlador de servos inicializado con PIGPIO ({len(self.servos)} servos)")
-                logger.info("   🎯 PWM ultra-preciso activo (sin jitter)")
+            if self.use_rpi5:
+                logger.info(f"✅ Controlador de servos inicializado con RPi5ServoController ({len(self.servos)} servos)")
+                logger.info("   🎯 PWM nativo Raspberry Pi 5 activo (lgpio tx_pwm, sin jitter)")
             else:
                 logger.info(f"✅ Controlador de servos en modo simulación ({len(self.servos)} servos)")
             
@@ -371,42 +280,21 @@ class MG995ServoController:
             logger.error(f"❌ Error inicializando servos: {e}", exc_info=True)
             return False
     
-    async def _set_servo_angle_gpiozero(self, category: FruitCategory, angle: float, hold: bool = False):
+    async def _set_servo_angle_rpi5(self, category: FruitCategory, angle: float, hold: bool = False):
         """
-        Establece el ángulo del servo usando GPIOZeroServoDriver.
+        Establece el ángulo del servo usando RPi5ServoController.
         
         Args:
             category: Categoría del servo
             angle: Ángulo objetivo (0-180°)
-            hold: Si True, mantiene el PWM activo (gpiozero siempre mantiene activo)
+            hold: Si True, mantiene el PWM activo (RPi5 siempre mantiene activo)
         """
-        # Si existe controlador RPi5 para este servo, usarlo preferentemente
-        rpi5 = self.rpi5_controllers.get(category)
-        if rpi5:
-            # RPi5 controller maneja suavizado internamente; el parámetro 'hold' no aplica
-            await rpi5.set_angle_async(angle, smooth=True)
-            return
-        
-        # Fallback: usar driver gpiozero genérico
-        driver = self.gpiozero_drivers.get(category)
-        if driver:
-            await driver.set_angle_async(angle, hold=hold)
-    
-    async def _set_servo_angle_pigpio(self, category: FruitCategory, angle: float, hold: bool = False):
-        """
-        Establece el ángulo del servo usando PigpioServoDriver.
-        
-        Args:
-            category: Categoría del servo
-            angle: Ángulo objetivo (0-180°)
-            hold: Si True, mantiene el PWM activo para posición rígida
-        """
-        driver = self.pigpio_drivers.get(category)
-        if not driver:
-            return
-        
-        # Usar el driver de pigpio (asyncio thread-safe)
-        await driver.set_angle_async(angle, hold=hold)
+        controller = self.rpi5_controllers.get(category)
+        if controller:
+            # RPi5 controller maneja suavizado internamente
+            await controller.set_angle_async(angle, smooth=True)
+        else:
+            logger.warning(f"⚠️ No se encontró controlador RPi5 para {category.value}")
     
     async def set_servo_angle(self, category: FruitCategory, angle: float, hold: bool = False) -> bool:
         """
@@ -431,16 +319,13 @@ class MG995ServoController:
                 return False
             
             # Modo simulación
-            if not self.use_gpiozero and not self.use_pigpio:
+            if not self.use_rpi5:
                 logger.info(f"🎭 SIMULACIÓN: Servo {category.value} → {angle}° {'(HOLD)' if hold else ''}")
                 self.current_angles[category] = angle
                 return True
             
-            # Mover servo usando gpiozero o pigpio
-            if self.use_gpiozero:
-                await self._set_servo_angle_gpiozero(category, angle, hold)
-            elif self.use_pigpio:
-                await self._set_servo_angle_pigpio(category, angle, hold)
+            # Mover servo usando RPi5ServoController
+            await self._set_servo_angle_rpi5(category, angle, hold)
             
             self.current_angles[category] = angle
             logger.debug(f"✅ Servo {category.value} movido a {angle}° {'(HOLD)' if hold else ''}")
@@ -499,56 +384,29 @@ class MG995ServoController:
                     logger.info(f"   📐 {servo.default_angle}° → {servo.activation_angle}° (Δ {servo.activation_angle - servo.default_angle:+.0f}°)")
                     logger.info(f"   ⏱️ Hold: {hold_time:.1f}s | Total: {total_time:.1f}s")
                     
-                    # FASE 1: Mover a posición de activación CON HOLD
-                    if not self.use_gpiozero and not self.use_pigpio:
+                    # FASE 1: Mover a posición de activación con suavizado integrado
+                    if not self.use_rpi5:
                         logger.info(f"🎭 SIMULACIÓN: Moviendo a {servo.activation_angle}°")
                         await asyncio.sleep(0.3)  # Simular tiempo de movimiento
                     else:
-                        # Mover con PWM activo (hold=True) usando gpiozero o pigpio
-                        await self.set_servo_angle(category, servo.activation_angle, hold=True)
+                        # Usar el suavizado integrado del RPi5ServoController
+                        controller = self.rpi5_controllers.get(category)
+                        if controller:
+                            await controller.set_angle_async(servo.activation_angle, smooth=True)
                     
                     # FASE 2: Mantener posición RÍGIDA durante hold_duration
                     logger.info(f"   🔒 Manteniendo posición rígida por {hold_time:.1f}s...")
                     await asyncio.sleep(hold_time)
                     
-                    # FASE 3: Retorno suave o directo a posición default
-                    if servo.return_smoothly:
-                        logger.info(f"   🔄 Retornando suavemente a {servo.default_angle}°...")
-                        if not self.use_gpiozero and not self.use_pigpio:
-                            await asyncio.sleep(0.3)
-                        else:
-                            # Retorno con movimiento suave
-                            steps = 10
-                            current = servo.activation_angle
-                            target = servo.default_angle
-                            step_size = (target - current) / steps
-                            
-                            for i in range(steps):
-                                intermediate_angle = current + (step_size * (i + 1))
-                                await self.set_servo_angle(category, intermediate_angle, hold=True)
-                                await asyncio.sleep(0.05)  # 50ms entre pasos
+                    # FASE 3: Retorno suave usando el suavizado integrado del RPi5ServoController
+                    logger.info(f"   🔄 Retornando suavemente a {servo.default_angle}°...")
+                    if not self.use_rpi5:
+                        await asyncio.sleep(0.3)
                     else:
-                        # Retorno directo
-                        logger.info(f"   ⚡ Retornando a {servo.default_angle}°...")
-                        await self.set_servo_angle(category, servo.default_angle, hold=False)
-                    
-                    # FASE 4: Desactivar PWM para evitar oscilaciones
-                    if self.use_gpiozero:
-                        # Detener PWM/torque según el controlador disponible
-                        rpi5 = self.rpi5_controllers.get(category)
-                        if rpi5:
-                            try:
-                                rpi5.stop_hold()
-                            except Exception:
-                                pass
-                        else:
-                            driver = self.gpiozero_drivers.get(category)
-                            if driver:
-                                driver.stop_pwm()
-                    elif self.use_pigpio:
-                        driver = self.pigpio_drivers.get(category)
-                        if driver:
-                            driver.stop_pwm()
+                        # Retorno con suavizado integrado (sin pasos manuales que causan jitter)
+                        controller = self.rpi5_controllers.get(category)
+                        if controller:
+                            await controller.set_angle_async(servo.default_angle, smooth=True)
                     
                     # Actualizar estadísticas
                     self.activation_count[category] += 1
@@ -629,15 +487,14 @@ class MG995ServoController:
                 # Pequeña pausa entre servos
                 await asyncio.sleep(0.2)
                 
-                # Asegurar que PWM está apagado
-                if self.use_gpiozero:
-                    driver = self.gpiozero_drivers.get(category)
-                    if driver:
-                        driver.stop_pwm()
-                elif self.use_pigpio:
-                    driver = self.pigpio_drivers.get(category)
-                    if driver:
-                        driver.stop_pwm()
+                # Asegurar que PWM está apagado (opcional con RPi5)
+                if self.use_rpi5:
+                    controller = self.rpi5_controllers.get(category)
+                    if controller:
+                        try:
+                            controller.stop_hold()
+                        except Exception:
+                            pass
             
             if not silent:
                 logger.info("✅ Todos los servos en posición inicial")
@@ -653,19 +510,13 @@ class MG995ServoController:
         try:
             logger.warning("🚨 Parada de emergencia de servos")
             
-            if self.use_gpiozero:
-                # Detener todos los controladores
-                for category, rpi5 in self.rpi5_controllers.items():
+            if self.use_rpi5:
+                # Detener todos los controladores RPi5
+                for category, controller in self.rpi5_controllers.items():
                     try:
-                        rpi5.stop_hold()
+                        controller.stop_hold()
                     except Exception:
                         pass
-                for category, driver in self.gpiozero_drivers.items():
-                    driver.stop_pwm()
-            elif self.use_pigpio:
-                # Detener todos los drivers pigpio
-                for category, driver in self.pigpio_drivers.items():
-                    driver.stop_pwm()
             
             return True
         except Exception as e:
@@ -676,9 +527,8 @@ class MG995ServoController:
         """Obtiene el estado actual del controlador."""
         return {
             "initialized": self.initialized,
-            "use_gpiozero": self.use_gpiozero,
-            "use_pigpio": self.use_pigpio,
-            "simulation_mode": not (self.use_gpiozero or self.use_pigpio),
+            "use_rpi5": self.use_rpi5,
+            "simulation_mode": not self.use_rpi5,
             "servo_count": len(self.servos),
             "servos": {
                 category.value: {
@@ -699,26 +549,18 @@ class MG995ServoController:
             logger.info("🧹 Limpiando controlador de servos...")
             
             # Regresar servos a posición inicial
+            logger.info("🏠 Regresando todos los servos a posición inicial...")
             await self.home_all_servos()
             await asyncio.sleep(0.5)
             
-            # Limpiar drivers gpiozero
-            if self.use_gpiozero and self.gpiozero_drivers:
-                for category, driver in self.gpiozero_drivers.items():
+            # Limpiar controladores RPi5
+            if self.use_rpi5 and self.rpi5_controllers:
+                for category, controller in self.rpi5_controllers.items():
                     try:
-                        driver.cleanup()
+                        controller.cleanup()
                     except Exception as e:
-                        logger.warning(f"Error limpiando driver {category.value}: {e}")
-                logger.info("✅ Drivers gpiozero limpiados")
-            
-            # Limpiar drivers pigpio
-            if self.use_pigpio and self.pigpio_drivers:
-                for category, driver in self.pigpio_drivers.items():
-                    try:
-                        driver.cleanup()
-                    except Exception as e:
-                        logger.warning(f"Error limpiando driver {category.value}: {e}")
-                logger.info("✅ Drivers pigpio limpiados")
+                        logger.warning(f"Error limpiando controlador {category.value}: {e}")
+                logger.info("✅ Controladores RPi5 limpiados")
             
             self.initialized = False
             logger.info("✅ Controlador de servos limpiado")

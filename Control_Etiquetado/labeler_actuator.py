@@ -624,7 +624,7 @@ class StepperDriver(BaseActuatorDriver):
             self._enable_driver(True)
             self._is_active = True
             
-            logger.debug(f"Stepper activado: {duration:.3f}s @ {target_sps:.0f} sps")
+            logger.info(f"Stepper activado: {duration:.2f}s @ {intensity:.0f}%")
             
             # Ejecutar pasos por duración solicitada
             await self._run_steps_for_time(duration, target_sps)

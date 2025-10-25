@@ -32,6 +32,7 @@ from threading import Thread, Event, RLock
 from queue import Queue, Empty, Full, PriorityQueue
 from pathlib import Path
 from datetime import datetime
+import json
 import numpy as np
 import cv2
 import psutil
@@ -44,6 +45,17 @@ try:
 except ImportError:
     YOLO_AVAILABLE = False
     print("⚠️  YOLOv8 no disponible. Instala con: pip install ultralytics")
+
+try:
+    from .async_inference_client import AsyncInferenceClient
+    ASYNC_CLIENT_AVAILABLE = True
+except ImportError:
+    try:
+        from async_inference_client import AsyncInferenceClient
+        ASYNC_CLIENT_AVAILABLE = True
+    except ImportError:
+        ASYNC_CLIENT_AVAILABLE = False
+        print("⚠️ AsyncInferenceClient no disponible")
 
 # Importar estructuras de datos existentes
 from .Fruit_detector import (
@@ -70,6 +82,21 @@ class YOLOv8Config:
     num_threads: int = 4  # Cores de CPU
     augment: bool = False  # No aumentar en inferencia para mayor velocidad
     agnostic_nms: bool = False
+
+
+# RemoteInferenceClient DEPRECADO - Reemplazado por AsyncInferenceClient
+# Se mantiene esta clase vacía para compatibilidad temporal
+class RemoteInferenceClient:
+    """DEPRECADO: Usar AsyncInferenceClient en su lugar."""
+    def __init__(self, cfg: Dict):
+        logger.warning("⚠️ RemoteInferenceClient está deprecado. Usar AsyncInferenceClient")
+        self.enabled = False
+    
+    def health(self) -> bool:
+        return False
+    
+    def infer(self, frame: np.ndarray, ai_params: Dict) -> Optional[Dict[str, Any]]:
+        return None
 
 
 class YOLOv8InferenceWorker(Thread):
@@ -100,6 +127,7 @@ class YOLOv8InferenceWorker(Thread):
             confidence_threshold=config.get("confidence_threshold", 0.5),
             iou_threshold=config.get("iou_threshold", 0.45),
             input_size=config.get("input_size", 640),
+            max_detections=config.get("max_detections", 100),
             class_names=config.get("class_names", ["apple", "pear", "lemon"]),
             num_threads=config.get("num_threads", 4)
         )
@@ -597,7 +625,7 @@ class YOLOv8InferenceWorker(Thread):
 class EnterpriseFruitDetector:
     """
     Detector empresarial de frutas usando YOLOv8.
-    Optimizado para Raspberry Pi 5 con inferencia CPU.
+    Optimizado para Raspberry Pi 5 con inferencia CPU y cliente asíncrono.
     
     Interfaz compatible con el sistema existente.
     """
@@ -613,9 +641,48 @@ class EnterpriseFruitDetector:
             confidence_threshold=ai_config.get("confidence_threshold", 0.5),
             iou_threshold=ai_config.get("iou_threshold", 0.45),
             input_size=ai_config.get("input_size", 640),
+            max_detections=ai_config.get("max_detections", 100),
             class_names=ai_config.get("class_names", ["apple", "pear", "lemon"]),
             num_threads=ai_config.get("num_threads", 4)
         )
+        
+        # Configuración de inferencia remota con cliente asíncrono
+        self.remote_cfg: Dict[str, Any] = config.get("remote_inference", {})
+        self.async_client: Optional[AsyncInferenceClient] = None
+        self.fallback_to_local: bool = bool(self.remote_cfg.get("fallback_to_local", True))
+        self._use_remote: bool = False
+        
+        # Configurar cliente asíncrono si está disponible
+        if ASYNC_CLIENT_AVAILABLE and self.remote_cfg.get("enabled", False):
+            try:
+                # Configuración mejorada para el cliente asíncrono
+                async_config = {
+                    "server_url": self.remote_cfg.get("server_url", "http://localhost:9000"),
+                    "auth_token": self.remote_cfg.get("auth_token", None),
+                    "timeouts": {
+                        "connect": self.remote_cfg.get("connect_timeout_s", 0.5),
+                        "read": self.remote_cfg.get("read_timeout_s", 1.0),
+                        "write": self.remote_cfg.get("write_timeout_s", 1.0),
+                        "pool": self.remote_cfg.get("pool_timeout_s", 0.5)
+                    },
+                    "compression": {
+                        "jpeg_quality": self.remote_cfg.get("jpeg_quality", 85),
+                        "max_dimension": self.remote_cfg.get("max_dimension", 640),
+                        "auto_quality": self.remote_cfg.get("auto_quality", True)
+                    },
+                    "circuit_breaker": {
+                        "failure_threshold": self.remote_cfg.get("cb_failure_threshold", 3),
+                        "timeout_seconds": self.remote_cfg.get("cb_timeout_seconds", 20.0),
+                        "half_open_requests": self.remote_cfg.get("cb_half_open_requests", 1)
+                    }
+                }
+                self.async_client = AsyncInferenceClient(async_config)
+                self._use_remote = True
+                logger.info("✅ Cliente asíncrono HTTP/2 configurado para inferencia remota")
+            except Exception as e:
+                logger.error(f"❌ Error configurando cliente asíncrono: {e}")
+                self.async_client = None
+                self._use_remote = False
         
         # Workers y colas
         self.workers = []
@@ -625,17 +692,52 @@ class EnterpriseFruitDetector:
         # Control del sistema
         self._is_initialized = False
         self._alert_callbacks = []
+        self._local_started = False
         
-        logger.info("EnterpriseFruitDetector (YOLOv8) inicializado para Raspberry Pi 5")
+        mode = "REMOTO" if self._use_remote else "LOCAL"
+        logger.info(f"EnterpriseFruitDetector (YOLOv8) inicializado para Raspberry Pi 5 - Modo {mode}")
 
     async def initialize(self) -> bool:
-        """Inicializa el detector YOLOv8."""
+        """Inicializa el detector YOLOv8. Usa remoto si está saludable; si no, arranca local."""
         try:
             logger.info("🤖 Inicializando detector YOLOv8...")
-            
-            # Número de workers (óptimo para Raspberry Pi 5)
-            num_workers = self.config.get("ai_model_settings", {}).get("num_workers", 2)
-            
+
+            # Intentar modo remoto si está habilitado y tenemos cliente asíncrono
+            if self._use_remote and self.async_client:
+                # Verificar salud del servidor de manera asíncrona
+                healthy = await self.async_client.health()
+                if healthy:
+                    self._is_initialized = True
+                    logger.info("✅ Modo REMOTO habilitado y saludable (HTTP/2 async); no se cargará modelo local")
+                    logger.info("   🚀 Inferencia ultra-rápida con cliente asíncrono")
+                    return True
+                else:
+                    logger.warning("⚠️ Servidor remoto no disponible; activando fallback a modelo local")
+                    
+                    # Intentar fallback a local si está permitido
+                    if not self.fallback_to_local:
+                        logger.error("❌ Fallback a local deshabilitado. Sistema no puede inicializarse")
+                        return False
+
+            # Fallback a workers locales
+            num_workers = int(self.config.get("ai_model_settings", {}).get("num_workers", 2))
+            ok = await self._start_local_workers(num_workers)
+            if ok:
+                self._is_initialized = True
+                logger.info(f"✅ YOLOv8 Detector LOCAL inicializado con {len(self.workers)} workers")
+                return True
+            return False
+
+        except Exception as e:
+            logger.exception(f"❌ Error inicializando YOLOv8 Detector: {e}")
+            return False
+
+    async def _start_local_workers(self, num_workers: int) -> bool:
+        """Arranca los workers locales (CPU en Pi5)."""
+        try:
+            if self._local_started:
+                return True
+            self.workers = []
             for i in range(num_workers):
                 worker = YOLOv8InferenceWorker(
                     worker_id=i,
@@ -644,6 +746,7 @@ class EnterpriseFruitDetector:
                         "confidence_threshold": self.yolo_config.confidence_threshold,
                         "iou_threshold": self.yolo_config.iou_threshold,
                         "input_size": self.yolo_config.input_size,
+                        "max_detections": self.yolo_config.max_detections,
                         "class_names": self.yolo_config.class_names,
                         "num_threads": self.yolo_config.num_threads
                     },
@@ -651,45 +754,125 @@ class EnterpriseFruitDetector:
                     output_queue=self.output_queue,
                     alert_callback=self._handle_worker_alert
                 )
-                
                 self.workers.append(worker)
                 worker.start()
-            
-            # Esperar a que los workers estén listos
+
+            # Esperar readiness
             for worker in self.workers:
-                if not worker.wait_for_model(timeout=120.0):  # Más tiempo para Raspberry Pi
+                if not worker.wait_for_model(timeout=120.0):
                     raise RuntimeError(f"Worker {worker.worker_id} no se inicializó")
-            
-            self._is_initialized = True
-            logger.info(f"✅ YOLOv8 Detector inicializado con {len(self.workers)} workers")
+            self._local_started = True
             return True
-            
         except Exception as e:
-            logger.exception(f"❌ Error inicializando YOLOv8 Detector: {e}")
+            logger.exception(f"Error iniciando workers locales: {e}")
+            self.workers = []
+            self._local_started = False
             return False
 
-    async def detect_fruits(self, frame: np.ndarray, 
-                          priority: ProcessingPriority = ProcessingPriority.NORMAL) -> Optional[FrameAnalysisResult]:
-        """Detecta frutas en un frame (interfaz compatible)."""
+    async def detect_fruits(self, frame: np.ndarray,
+                            priority: ProcessingPriority = ProcessingPriority.NORMAL) -> Optional[FrameAnalysisResult]:
+        """Detecta frutas en un frame. Intenta remoto asíncrono primero si está habilitado; cae a local si falla."""
         if not self._is_initialized:
             logger.error("Detector YOLOv8 no inicializado")
             return None
-        
+
         frame_id = str(uuid.uuid4())[:8]
-        timestamp = time.time()
-        
+        start_time = time.time()
+
+        # 1) Intentar inferencia remota asíncrona (ultra-rápida)
+        if self._use_remote and self.async_client:
+            try:
+                # NO verificar health en cada frame (muy costoso)
+                # El circuit breaker del cliente se encargará de esto
+                
+                ai_params = {
+                    "input_size": self.yolo_config.input_size,
+                    "confidence_threshold": self.yolo_config.confidence_threshold,
+                    "iou_threshold": self.yolo_config.iou_threshold,
+                    "max_detections": self.yolo_config.max_detections,
+                    "class_names": self.yolo_config.class_names,
+                }
+                
+                # Inferencia asíncrona ultra-rápida
+                remote = await self.async_client.infer(frame, ai_params)
+                
+                if remote:
+                    # Mapear a FrameAnalysisResult
+                    detections = []
+                    frame_h, frame_w = frame.shape[:2]
+                    
+                    for d in remote.get("detections", []):
+                        try:
+                            cls_name = str(d.get("class_name", "unknown"))
+                            conf = float(d.get("confidence", 0.0))
+                            bbox = d.get("bbox", [0, 0, 0, 0])
+                            x1, y1, x2, y2 = map(int, bbox)
+                            cx = int((x1 + x2) / 2)
+                            cy = int((y1 + y2) / 2)
+                            
+                            try:
+                                cls_id = self.yolo_config.class_names.index(cls_name)
+                            except ValueError:
+                                cls_id = 0
+                                
+                            detections.append(FruitDetection(
+                                class_id=cls_id,
+                                class_name=cls_name,
+                                confidence=conf,
+                                bbox=(x1, y1, x2, y2),
+                                center_px=(cx, cy)
+                            ))
+                        except Exception:
+                            continue
+
+                    # Usar metadatos del cliente si están disponibles
+                    client_metadata = remote.get("client_metadata", {})
+                    latency_ms = client_metadata.get("latency_ms", 0.0)
+                    
+                    inference_ms = float(remote.get("inference_ms", 0.0))
+                    preprocessing_ms = float(remote.get("pre_ms", 0.0))
+                    postprocessing_ms = float(remote.get("post_ms", 0.0))
+                    total_ms = float(remote.get("total_ms", latency_ms if latency_ms > 0 else (time.time() - start_time) * 1000))
+
+                    result = FrameAnalysisResult(
+                        detections=detections,
+                        fruit_count=len(detections),
+                        inference_time_ms=inference_ms,
+                        preprocessing_time_ms=preprocessing_ms,
+                        postprocessing_time_ms=postprocessing_ms,
+                        total_processing_time_ms=total_ms,
+                        timestamp=start_time,
+                        frame_shape=(frame_h, frame_w),
+                        frame_id=frame_id
+                    )
+                    
+                    # Log de rendimiento
+                    if len(detections) > 0:
+                        logger.debug(f"✅ Inferencia remota async: {len(detections)} frutas en {total_ms:.1f}ms")
+                    
+                    return result
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Inferencia remota asíncrona falló: {e}")
+                # El circuit breaker manejará el fallback automáticamente
+
+        # 2) Fallback a local si está permitido
         try:
-            # Enviar a cola
-            self.input_queue.put((priority.value, (frame_id, frame, timestamp)), timeout=5.0)
-            
-            # Esperar resultado
+            if not self._local_started:
+                if not self.fallback_to_local:
+                    return None
+                num_workers = int(self.config.get("ai_model_settings", {}).get("num_workers", 2))
+                ok = await self._start_local_workers(num_workers)
+                if not ok:
+                    return None
+
+            # Enviar a cola local
+            self.input_queue.put((priority.value, (frame_id, frame, start_time)), timeout=5.0)
             result_frame_id, result = self.output_queue.get(timeout=30.0)
             self.output_queue.task_done()
-            
             return result
-            
         except Exception as e:
-            logger.error(f"Error en detect_fruits: {e}")
+            logger.error(f"Error en detect_fruits (local): {e}")
             return None
 
     def _handle_worker_alert(self, alert: AlertMessage):
@@ -707,12 +890,38 @@ class EnterpriseFruitDetector:
     def get_system_status(self) -> Dict[str, Any]:
         """Obtiene el estado del sistema."""
         if not self.workers:
-            return {"status": "not_initialized"}
+            # Obtener estadísticas del cliente asíncrono si está disponible
+            async_stats = {}
+            if self.async_client:
+                async_stats = self.async_client.get_stats()
+            
+            status = {
+                "status": "running" if self._is_initialized else "initializing",
+                "mode": "remote_async" if self._use_remote else "local",
+                "remote_enabled": self._use_remote,
+                "remote_healthy": async_stats.get("circuit_breaker_state") != "open" if self._use_remote else False,
+                "async_client_stats": async_stats,
+                "num_workers": 0,
+                "model": "YOLOv8",
+                "device": "REMOTE" if self._use_remote else "CPU (Raspberry Pi 5)",
+                "workers": [],
+                "queue_sizes": {"input": self.input_queue.qsize(), "output": self.output_queue.qsize()}
+            }
+            return status
         
         worker_statuses = [worker.get_status() for worker in self.workers]
         
+        # Obtener estadísticas del cliente asíncrono
+        async_stats = {}
+        if self.async_client:
+            async_stats = self.async_client.get_stats()
+            
         return {
             "status": "running" if self._is_initialized else "initializing",
+            "mode": "remote_async" if self._use_remote and not self._local_started else "local",
+            "remote_enabled": self._use_remote,
+            "remote_healthy": async_stats.get("circuit_breaker_state") != "open" if self._use_remote else False,
+            "async_client_stats": async_stats,
             "num_workers": len(self.workers),
             "model": "YOLOv8",
             "device": "CPU (Raspberry Pi 5)",
@@ -726,6 +935,14 @@ class EnterpriseFruitDetector:
     async def shutdown(self):
         """Apaga el detector."""
         logger.info("🛑 Apagando YOLOv8 Detector...")
+        
+        # Cerrar cliente asíncrono si existe
+        if self.async_client:
+            try:
+                await self.async_client.close()
+                logger.info("✅ Cliente asíncrono cerrado")
+            except Exception as e:
+                logger.error(f"Error cerrando cliente asíncrono: {e}")
         
         # Detener workers
         for worker in self.workers:

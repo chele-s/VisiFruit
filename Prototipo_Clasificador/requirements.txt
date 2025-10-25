@@ -16,6 +16,7 @@ pigpio>=1.78
 asyncio
 psutil>=5.8.0
 dataclasses; python_version < '3.7'
+requests>=2.28.0
 
 # Logging y Monitoreo
 logging

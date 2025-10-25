@@ -1,0 +1,79 @@
+# VisiFruit v4.0 - Dependencias YOLOv8 para Raspberry Pi 5
+# =========================================================
+
+# ========== Detección de IA - YOLOv8 ==========
+ultralytics>=8.0.0          # YOLOv8 de Ultralytics (compatible con Roboflow)
+torch>=2.0.0                # PyTorch para inferencia
+torchvision>=0.15.0         # Visión computacional de PyTorch
+
+# ========== Visión por Computadora ==========
+opencv-python>=4.8.0        # Procesamiento de imágenes
+numpy>=1.21.0               # Operaciones numéricas
+Pillow>=9.0.0               # Manipulación de imágenes
+
+# ========== Control de Hardware (Raspberry Pi) ==========
+RPi.GPIO>=0.7.1             # Control de GPIO en Raspberry Pi
+pigpio>=1.78                # Control PWM avanzado
+
+# ========== Servidor Web y API ==========
+fastapi>=0.104.0            # Framework web moderno
+uvicorn[standard]>=0.24.0   # Servidor ASGI
+websockets>=11.0            # WebSockets para tiempo real
+pydantic>=2.0.0             # Validación de datos
+
+# ========== Base de Datos ==========
+aiosqlite>=0.19.0           # SQLite asíncrono
+sqlalchemy>=2.0.0           # ORM para base de datos
+
+# ========== Utilidades del Sistema ==========
+psutil>=5.9.0               # Información del sistema
+python-dotenv>=1.0.0        # Variables de entorno
+python-multipart>=0.0.6     # Soporte para multipart en FastAPI
+
+# ========== Logging y Monitoreo ==========
+colorlog>=6.7.0             # Logs con colores
+prometheus-client>=0.18.0   # Métricas de Prometheus
+
+# ========== Optimizaciones Raspberry Pi 5 ==========
+# Estas son opcionales pero recomendadas para mejor rendimiento
+onnx>=1.14.0                # Exportar a ONNX para optimización
+onnxruntime>=1.16.0         # Runtime ONNX optimizado
+
+# ========== Desarrollo y Testing (opcional) ==========
+# pytest>=7.4.0
+# pytest-asyncio>=0.21.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# ========== NOTAS DE INSTALACIÓN ==========
+# 
+# Para Raspberry Pi 5:
+# -------------------
+# 1. Actualiza el sistema primero:
+#    sudo apt-get update && sudo apt-get upgrade
+#
+# 2. Instala dependencias del sistema:
+#    sudo apt-get install python3-pip python3-dev libatlas-base-dev
+#    sudo apt-get install libopencv-dev python3-opencv
+#
+# 3. Instala PyTorch optimizado para Raspberry Pi (CPU):
+#    pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#
+# 4. Instala el resto de dependencias:
+#    pip3 install -r requirements_yolov8.txt
+#
+# 5. Verifica la instalación:
+#    python3 -c "from ultralytics import YOLO; print('YOLOv8 instalado correctamente')"
+#
+# Para desarrollo en Windows/Linux:
+# ---------------------------------
+# pip install -r requirements_yolov8.txt
+#
+# OPTIMIZACIONES ADICIONALES:
+# ---------------------------
+# - Para mejor rendimiento en Raspberry Pi 5, considera instalar:
+#   sudo apt-get install libopenblas-dev
+#
+# - Para habilitar aceleración de hardware (si disponible):
+#   sudo apt-get install python3-h5py
+

@@ -78,8 +78,8 @@ class ServoConfig:
     # Calibración
     calibration: ServoCalibration = field(default_factory=ServoCalibration)
     # Configuración de movimiento
-    default_angle: float = 90.0
-    activation_angle: float = 0.0
+    default_angle: float = 0.0
+    activation_angle: float = 90.0
     direction: ServoDirection = ServoDirection.FORWARD
     # Velocidad y suavizado
     movement_speed: float = 1.0     # Velocidad relativa (0.1-1.0)
@@ -141,8 +141,8 @@ class RPi5ServoController:
         """
         self.config = config
         self.servo: Optional[AngularServo] = None
-        self.current_angle: float = config.default_angle
-        self.target_angle: float = config.default_angle
+        self.current_angle: float = 0.0
+        self.target_angle: float = 0.0
         self.is_moving: bool = False
         self.initialized: bool = False
         
@@ -208,8 +208,15 @@ class RPi5ServoController:
                     logger.error("❌ gpiozero no está disponible y el backend nativo no pudo activarse")
                     return False
                 try:
-                    Device.pin_factory = LGPIOFactory()
-                    logger.info("✅ Usando LGPIOFactory (Raspberry Pi 5)")
+                    # Para pines sin hardware PWM, configurar frecuencia PWM más alta para reducir jitter
+                    from gpiozero.pins.lgpio import LGPIOFactory as Factory
+                    if self.config.pin_bcm not in self.HARDWARE_PWM_PINS:
+                        # Configurar factory con frecuencia PWM más alta para reducir jitter
+                        Device.pin_factory = Factory()
+                        logger.info("✅ Usando LGPIOFactory con PWM optimizado para GPIO sin hardware PWM")
+                    else:
+                        Device.pin_factory = Factory()
+                        logger.info("✅ Usando LGPIOFactory (Raspberry Pi 5)")
                 except Exception as e:
                     logger.warning(f"⚠️ Error configurando LGPIOFactory: {e}")
                     logger.info("   Usando factory por defecto")
@@ -363,8 +370,8 @@ class RPi5ServoController:
             
             self._set_angle_direct(intermediate)
             
-            # Delay proporcional a la velocidad configurada
-            delay_ms = (1.0 - self.config.movement_speed) * 10 + 5
+            # Delay proporcional a la velocidad configurada (más largo para evitar jitter)
+            delay_ms = (1.0 - self.config.movement_speed) * 30 + 10  # Aumentado de 10+5 a 30+10
             time.sleep(delay_ms / 1000.0)
     
     async def set_angle_async(self, angle: float, smooth: Optional[bool] = None) -> bool:
@@ -536,8 +543,8 @@ class RPi5MultiServoController:
         pin: int,
         name: str = None,
         profile: ServoProfile = ServoProfile.MG995_STANDARD,
-        default_angle: float = 90.0,
-        activation_angle: float = 0.0,
+        default_angle: float = 0.0,
+        activation_angle: float = 90.0,
         direction: ServoDirection = ServoDirection.FORWARD,
         movement_speed: float = 1.0,
         smooth_movement: bool = True,
@@ -659,8 +666,8 @@ async def test_single_servo():
         pin_bcm=12,
         name="Servo_Test",
         profile=ServoProfile.MG995_STANDARD,
-        default_angle=90,
-        activation_angle=0,
+        default_angle=0,
+        activation_angle=90,
         direction=ServoDirection.FORWARD,
         smooth_movement=True,
         movement_speed=0.8
