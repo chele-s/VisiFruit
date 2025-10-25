@@ -630,14 +630,6 @@ tiempo_activacion = (
 # - Alta densidad (>20 frutas/m²): +40%
 ```
 
-## Flujo de Trabajo Operacional
-## Flujo de Trabajo Operacional
-
-El proceso desde la detección hasta el etiquetado inteligente sigue una secuencia optimizada y sincronizada:
-
-![Diagrama de Flujo Inteligente](https://placehold.co/900x300/F3F4F6/374151?text=Flujo+Inteligente+VisiFruit)
-![Diagrama de Flujo Inteligente](https://placehold.co/900x300/F3F4F6/374151?text=Flujo+Inteligente+VisiFruit)
-
 ### 🔄 **Proceso Detallado**
 
 1. **🚀 Inicialización y Espera**
