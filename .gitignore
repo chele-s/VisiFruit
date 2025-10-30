@@ -34,4 +34,3 @@ weights/best.pt
 weights/rtdetr_best.pt
 weights/rfdetr.pt
 .gitignore
-ai_inference_server.py

@@ -1,34 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Servidor de Inferencia FastAPI Optimizado - VisiFruit
-======================================================
+"""Servidor de Inferencia para Detección de Frutas - VisiFruit
 
-Servidor HTTP/2 de alto rendimiento para inferencia remota con múltiples modelos.
-Diseñado para ejecutarse en una laptop/PC con GPU y servir a Raspberry Pi 5.
-
-Modelos soportados:
-- YOLOv8: Ultrarrápido, ideal para tiempo real (recomendado)
-- RT-DETR: Mayor precisión, basado en transformers
-
-Características:
-- FastAPI con soporte HTTP/2
-- Autenticación por tokens Bearer
-- Compresión de respuestas
-- Cache de modelos
-- Métricas de rendimiento
-- Health checks
-- Rate limiting inteligente
-- Logging detallado
-
-Requisitos:
-- Python 3.8+
-- FastAPI, Uvicorn
-- Ultralytics (YOLOv8/RT-DETR)
-- CUDA (opcional, para GPU)
-
+Servidor FastAPI con YOLOv8/RT-DETR para inferencia remota.
 Autor(es): Gabriel Calderón, Elias Bautista
-Fecha: Octubre 2025
-Versión: 2.1 - Dual Model Edition
+Versión: 2.1
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -114,7 +90,13 @@ class ServerConfig:
     
     # Autenticación
     AUTH_ENABLED = os.getenv("AUTH_ENABLED", "true").lower() == "true"
-    AUTH_TOKENS = os.getenv("AUTH_TOKENS", "visifruittoken2025,debugtoken").split(",")
+    _tokens_env = os.getenv("AUTH_TOKENS", "")
+    if not _tokens_env and AUTH_ENABLED:
+        logger.warning("⚠️ AUTH_TOKENS no configurado. Autenticación deshabilitada temporalmente.")
+        AUTH_ENABLED = False
+        AUTH_TOKENS = []
+    else:
+        AUTH_TOKENS = [token.strip() for token in _tokens_env.split(",") if token.strip()]
     
     # Servidor
     SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
@@ -964,13 +946,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Middleware
+# Middleware CORS
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in allowed_origins],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 

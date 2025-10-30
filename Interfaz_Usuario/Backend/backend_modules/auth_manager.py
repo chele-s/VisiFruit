@@ -1,17 +1,5 @@
 """
-Sistema Ultra-Avanzado de Autenticación y Autorización
-======================================================
-
-Sistema completo de autenticación con:
-- JWT tokens con refresh tokens
-- Roles y permisos granulares
-- Autenticación multifactor (MFA)
-- Sesión única (SSO) opcional
-- Auditoría de accesos
-- Rate limiting por usuario
-- Bloqueo automático por intentos fallidos
-- Integración con proveedores externos
-- API keys para sistemas
+Sistema de Autenticación y Autorización con JWT y control de accesos.
 
 Autor: Gabriel Calderón, Elias Bautista, Cristian Hernandez
 """
@@ -24,6 +12,7 @@ import json
 import logging
 import secrets
 import time
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
@@ -134,7 +123,9 @@ class UltraAuthManager:
     
     def __init__(self):
         self.db_path = "data/auth.db"
-        self.jwt_secret = "fruprint_ultra_jwt_secret_2025"  # En producción usar variable de entorno
+        self.jwt_secret = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(64))
+        if self.jwt_secret == secrets.token_urlsafe(64) and os.getenv("JWT_SECRET_KEY") is None:
+            logger.warning("⚠️ JWT_SECRET_KEY no configurado. Generando clave temporal (NO usar en producción)")
         self.jwt_algorithm = "HS256"
         self.access_token_expire_minutes = 60
         self.refresh_token_expire_days = 30
@@ -293,8 +284,13 @@ class UltraAuthManager:
             admin_count = cursor.fetchone()[0]
             
             if admin_count == 0:
-                # Crear admin por defecto
-                password_hash = bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                default_password = os.getenv("ADMIN_DEFAULT_PASSWORD")
+                if not default_password:
+                    default_password = secrets.token_urlsafe(16)
+                    logger.warning(f"⚠️ ADMIN_DEFAULT_PASSWORD no configurado. Password generado: {default_password}")
+                    logger.warning("⚠️ CAMBIA LA CONTRASEÑA INMEDIATAMENTE después del primer login")
+                
+                password_hash = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 
                 cursor.execute("""
                     INSERT INTO users (username, email, password_hash, role, created_at, metadata)
@@ -309,7 +305,7 @@ class UltraAuthManager:
                 ))
                 
                 conn.commit()
-                logger.info("🔑 Usuario admin por defecto creado (admin/admin123)")
+                logger.info("🔑 Usuario admin por defecto creado (username: admin)")
             
             conn.close()
             

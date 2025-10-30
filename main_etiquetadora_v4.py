@@ -1,32 +1,12 @@
 # main_etiquetadora_v4.py
 from __future__ import annotations
-"""
-Sistema Industrial de Etiquetado Múltiple de Frutas FruPrint v4.0
-==================================================================
+"""Sistema de Etiquetado Múltiple de Frutas - VisiFruit v4.0
 
-Sistema de control principal ultra-avanzado con arquitectura modular,
-6 etiquetadoras automáticas (2 por categoría), IA de categorización avanzada,
-motor DC de posicionamiento automático y optimización predictiva en tiempo real.
-
-NUEVAS CARACTERÍSTICAS v4.0 - MODULAR ARCHITECTURE:
- ✨ Arquitectura modular completamente refactorizada
- 📦 Módulos especializados y mantenibles
- 🏭 6 Etiquetadoras Automáticas con Motor DC (MODO PROFESIONAL)
- 🤖 IA de Categorización Avanzada
- 📊 Sistema de Métricas y Telemetría
- 🔮 Motor de Predicción y Optimización
- 🌐 API Ultra-Avanzada
- 💾 Sistema de Base de Datos
- 🚀 Auto-inicio de Servicios Auxiliares
- 🎯 MODO PROTOTIPO: 1 Etiquetadora DRV8825 + Servos MG995
-
-MODOS DE OPERACIÓN:
- - PROFESIONAL: 6 etiquetadoras + motor DC + clasificadores industriales
- - PROTOTIPO: 1 etiquetadora DRV8825 + 3 servos MG995 para clasificación
+Sistema modular con 6 etiquetadoras automáticas, IA de clasificación,
+motor DC de posicionamiento y sistema de optimización.
 
 Autor(es): Gabriel Calderón, Elias Bautista, Cristian Hernandez
 Fecha: Septiembre 2025
-Versión: 4.0 - MODULAR ARCHITECTURE EDITION
 """
 
 import asyncio
