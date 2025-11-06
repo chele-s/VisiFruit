@@ -1624,7 +1624,7 @@ Este proyecto está bajo la **Licencia MIT**.
 
 ### 📬 **Contacto y Soporte**
 
-- 📧 **Email**: soporte@visifruit.com
+- 📧 **Email**: alvanezg1@gmail.com
 - 🐛 **Issues**: [GitHub Issues](https://github.com/chele-s/VisiFruit/issues)
 - 📖 **Docs**: [Documentación Completa](https://visifruit.readthedocs.io)
 - 💬 **Discord**: [Comunidad VisiFruit](https://discord.gg/visifruit)
